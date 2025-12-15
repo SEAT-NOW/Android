@@ -1,4 +1,4 @@
-package com.example.seatnow
+package com.gmg.seatnow
 
 import org.junit.Test
 
