@@ -1,4 +1,4 @@
-package com.example.seatnow.presentation.theme
+package com.gmg.seatnow.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -1,4 +1,4 @@
-package com.example.seatnow.presentation.view
+package com.gmg.seatnow.presentation.view
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.seatnow.presentation.theme.SeatNowTheme
+import com.gmg.seatnow.presentation.theme.SeatNowTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -1,16 +1,14 @@
-package com.example.seatnow.presentation.login
+package com.gmg.seatnow.presentation.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,20 +17,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.seatnow.R
-import com.example.seatnow.presentation.theme.KakaoYellow
-import com.example.seatnow.presentation.theme.KakaoYellowPressed
-import com.example.seatnow.presentation.theme.PointRed
-import com.example.seatnow.presentation.theme.SeatNowTheme
-import com.example.seatnow.presentation.theme.SubBlack
+import com.gmg.seatnow.R
+import com.gmg.seatnow.presentation.theme.KakaoYellow
+import com.gmg.seatnow.presentation.theme.KakaoYellowPressed
+import com.gmg.seatnow.presentation.theme.PointRed
+import com.gmg.seatnow.presentation.theme.SeatNowTheme
+import com.gmg.seatnow.presentation.theme.SubBlack
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue // (나중에 var 쓸 때 필요하니 같이 넣어두세요)
 
 @Composable
 fun LoginScreen(

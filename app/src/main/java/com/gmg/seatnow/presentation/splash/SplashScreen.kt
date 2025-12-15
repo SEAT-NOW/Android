@@ -1,4 +1,4 @@
-package com.example.seatnow.presentation.splash // 👈 패키지명 확인
+package com.gmg.seatnow.presentation.splash // 👈 패키지명 확인
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.seatnow.R
-import com.example.seatnow.presentation.theme.PointRed
-import com.example.seatnow.presentation.theme.SeatNowTheme
+import com.gmg.seatnow.R
+import com.gmg.seatnow.presentation.theme.PointRed
+import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import kotlinx.coroutines.delay
 
 @Composable

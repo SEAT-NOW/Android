@@ -1,4 +1,4 @@
-package com.example.seatnow // 👈 패키지명 확인
+package com.gmg.seatnow // 👈 패키지명 확인
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp

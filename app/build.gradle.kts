@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.seatnow" // 👈 수정됨
+    namespace = "com.gmg.seatnow" // 👈 수정됨
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.seatnow" // 👈 수정됨
+        applicationId = "com.gmg.seatnow" // 👈 수정됨
         minSdk = 29
         targetSdk = 34
         versionCode = 1
