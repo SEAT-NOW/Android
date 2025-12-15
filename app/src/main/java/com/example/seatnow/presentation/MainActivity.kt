@@ -13,14 +13,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.seatnow.ui.theme._4thMainProjectSeatNowAndroidTheme
+import com.example.seatnow.presentation.theme.SeatNowTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            _4thMainProjectSeatNowAndroidTheme {
+            SeatNowTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 여기를 Box로 감쌉니다!
                     Box(
@@ -48,7 +48,7 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun GreetingPreview() {
-    _4thMainProjectSeatNowAndroidTheme {
+    SeatNowTheme {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

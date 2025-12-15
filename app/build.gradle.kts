@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.example.seatnow" // 👈 수정됨
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.seatnow" // 👈 수정됨
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -83,7 +83,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     // 7. Third Party SDKs
-    implementation("io.github.fornewid:naver-map-compose:1.5.0")
-    implementation("com.naver.maps:map-sdk:3.17.0")
+    implementation("io.github.fornewid:naver-map-compose:1.7.2")
+    implementation("com.naver.maps:map-sdk:3.19.0")
     implementation("com.kakao.sdk:v2-user:2.19.0")
 }

@@ -15,7 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.seatnow.presentation.theme.SeatNowRed // 👈 Import 확인
+import com.example.seatnow.presentation.theme.PointRed
+import com.example.seatnow.presentation.theme.SeatNowTheme
 import kotlinx.coroutines.delay
 
 @Composable
@@ -30,7 +31,7 @@ fun SplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SeatNowRed),
+            .background(PointRed),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -51,5 +52,13 @@ fun SplashScreen(
                 Text("W", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+@Preview(showBackground = true) // 배경색 흰색으로 보여줌
+@Composable
+fun SplashScreenPreview() {
+    SeatNowTheme { // 테마를 감싸야 폰트/색상이 제대로 보입니다
+        SplashScreen(onSplashFinished = {})
     }
 }
