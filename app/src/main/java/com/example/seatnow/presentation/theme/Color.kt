@@ -23,4 +23,5 @@ val SubPaleGray = Color(0xFFF6F3F3)    // 아주 연한 회색 (Surface Backgrou
 // =================================================================
 val White = Color(0xFFFFFFFF)          // 기본 흰색 (Main Background)
 val KakaoYellow = Color(0xFFFEE500)    // 카카오 로그인용 (이미지 참고)
+val KakaoYellowPressed = Color(0xFFE6CE000) // 카카오 버튼 눌림
 
