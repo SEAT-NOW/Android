@@ -12,6 +12,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,9 +28,34 @@ import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import com.gmg.seatnow.presentation.theme.SubBlack
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun LoginScreen(
+    viewModel: LoginViewModel = hiltViewModel(), // Hilt 주입
+    onNavigateToUserMain: () -> Unit,
+    onNavigateToOwnerLogin: () -> Unit
+) {
+    // ViewModel 이벤트 감지
+    LaunchedEffect(true) {
+        viewModel.event.collect { event ->
+            when (event) {
+                is LoginViewModel.LoginEvent.NavigateToUserMain -> onNavigateToUserMain()
+                is LoginViewModel.LoginEvent.NavigateToOwnerLogin -> onNavigateToOwnerLogin()
+            }
+        }
+    }
+
+    // UI 그리기 (기존 코드와 동일)
+    // 버튼 클릭 시 ViewModel 함수 호출
+    LoginScreenContent(
+        onKakaoLoginClick = viewModel::onKakaoLoginClick,
+        onOwnerLoginClick = viewModel::onOwnerLoginClick
+    )
+}
+
+@Composable
+fun LoginScreenContent(
     onKakaoLoginClick: () -> Unit, // 카카오 로그인 버튼 눌렀을 때 동작
     onOwnerLoginClick: () -> Unit  // 사장님 링크 눌렀을 때 동작
 ) {
@@ -111,7 +137,7 @@ fun LoginScreen(
 @Composable
 fun LoginScreenPreview() {
     SeatNowTheme {
-        LoginScreen(
+        LoginScreenContent(
             onKakaoLoginClick = {},
             onOwnerLoginClick = {}
         )

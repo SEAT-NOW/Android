@@ -9,6 +9,6 @@ class SeatNowApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         // Kakao SDK 초기화 (네이티브 앱 키 필요)
-        KakaoSdk.init(this, "여기에_카카오_네이티브_앱키_입력") 
+        KakaoSdk.init(this, "54be1fae0136e1d12dc327aae184d6ce")
     }
 }

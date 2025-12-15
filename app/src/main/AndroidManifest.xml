@@ -15,7 +15,7 @@
         android:theme="@style/Theme._4thMainProjectSeatNowAndroid"
         tools:targetApi="31">
         <activity
-            android:name=".presentation.view.MainActivity"
+            android:name=".presentation.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme._4thMainProjectSeatNowAndroid">
@@ -23,6 +23,17 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:host="oauth" android:scheme="kakao54be1fae0136e1d12dc327aae184d6ce" />
             </intent-filter>
         </activity>
     </application>
