@@ -1,0 +1,55 @@
+[33mcommit d2f2dcf0f7e6c4b946fb4f6110ea9e5939030390[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32m6-refactor-사용자-카카오-자동로그인-구현-및-버튼-추가[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/6-refactor-사용자-카카오-자동로그인-구현-및-버튼-추가[m[33m)[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Mon Dec 15 15:37:16 2025 +0900
+
+    [FEAT] 스플래시 화면 및 카카오 로그인 api 연동 (#4)
+    
+    * [REF] Compose preview 화면을 위한 컴파일러 안정화 및 네이버 지도 의존성 버전 안정화 (#3)
+    
+    * [FEAT] 스플래쉬 화면 및 이후 로그인 화면 레이아웃 구성 완료(화면) (#3)
+    
+    * [REF] (*중요) 전반적인 패키지명 재설정 (#3)
+    
+    * [FEAT] 카카오 로그인 기능 구현 완료(API사용), 및 버튼 로직 이후 화면 이동 구현 완 (#3)
+
+[33mcommit 18b31929c4d5900304c3e0e946b7f1c0b82a442f[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Mon Dec 15 10:17:00 2025 +0900
+
+    [FEAT] 프로젝트 초기 세팅 (#2)
+    
+    * [FEAT] 프로젝트 컬러 설정 및 테마 설정 완료 (#1)
+    
+    * [FEAT] 프로젝트 로고 설정 완료 (#1)
+
+[33mcommit 73c4f8eed3004ffa5536eb1012c5fa3394cb3c65[m[33m ([m[1;32mmain[m[33m)[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Mon Dec 15 09:25:59 2025 +0900
+
+    ISSUE TEMPLATE 추가 및 프로젝트 초기설정(폰트) 진행중
+
+[33mcommit ac7469dea547b0ae3653685cfabd4d41cae82fcd[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Sat Dec 13 16:33:23 2025 +0900
+
+    refactor: 클린 아키텍처 구조 정립 및 초기 설정
+    
+    프로젝트 폴더 구조를 클린 아키텍처 원칙에 맞게 재구성하여 data, domain, presentation 레이어를 명확히 분리.
+    
+    버전 카탈로그(libs.versions.toml)를 사용하여 의존성을 설정하고, Jetpack Compose, Hilt, Kakao SDK 의존성을 추가 및 수정.
+    
+    카카오 SDK와 같은 전역 초기화를 처리하기 위해 SeatNowApplication 클래스를 생성하고 AndroidManifest에 등록.
+    
+    IDE 설정 파일(.idea)을 추적하지 않도록 .gitignore 업데이트.
+
+[33mcommit dc5e132675641a2bc14e6271c3ae31389a2e916d[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Mon Dec 1 18:45:30 2025 +0900
+
+    #0 README 추가
+
+[33mcommit 5971f6d1669c8b846d2c0db9d131ddc20d27e910[m
+Author: PGHoon <116252897+taehoon-An@users.noreply.github.com>
+Date:   Mon Dec 1 17:14:32 2025 +0900
+
+    #0 초기 환경 세팅

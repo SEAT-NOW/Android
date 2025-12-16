@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.splash // 👈 패키지명 확인
+package com.gmg.seatnow.presentation.splash
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,20 +10,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.R
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
-import kotlinx.coroutines.delay
 
+// 1. 실제 앱에서 쓰이는 화면 (로직 + UI 연결)
 @Composable
 fun SplashScreen(
-    onSplashFinished: () -> Unit
+    viewModel: SplashViewModel = hiltViewModel(), // Hilt 주입은 여기서만!
+    onNavigateToLogin: () -> Unit,
+    onNavigateToUserMain: () -> Unit
 ) {
-    LaunchedEffect(key1 = true) {
-        delay(2000)
-        onSplashFinished()
+    LaunchedEffect(true) {
+        viewModel.event.collect { event ->
+            when (event) {
+                is SplashViewModel.SplashEvent.NavigateToLogin -> onNavigateToLogin()
+                is SplashViewModel.SplashEvent.NavigateToUserMain -> onNavigateToUserMain()
+            }
+        }
     }
 
+    // UI 그리는 부분은 아래 함수에게 위임
+    SplashScreenContent()
+}
+
+// 2. 순수 UI 화면 (ViewModel 없음 -> 프리뷰 가능!)
+@Composable
+fun SplashScreenContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -38,10 +52,13 @@ fun SplashScreen(
     }
 }
 
-@Preview(showBackground = true) // 배경색 흰색으로 보여줌
+// 3. 프리뷰 (UI 함수만 호출)
+@Preview(showBackground = true)
 @Composable
 fun SplashScreenPreview() {
-    SeatNowTheme { // 테마를 감싸야 폰트/색상이 제대로 보입니다
-        SplashScreen(onSplashFinished = {})
+    SeatNowTheme {
+        // ViewModel이 필요한 SplashScreen() 대신
+        // UI만 있는 SplashScreenContent()를 호출해야 합니다.
+        SplashScreenContent()
     }
 }
