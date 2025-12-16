@@ -86,4 +86,7 @@ dependencies {
     implementation("io.github.fornewid:naver-map-compose:1.7.2")
     implementation("com.naver.maps:map-sdk:3.19.0")
     implementation("com.kakao.sdk:v2-user:2.19.0")
+
+    // 8. DataStore (Preferences) - TokenManager 구현용
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }

@@ -16,8 +16,13 @@ fun SeatNowNavGraph() {
         // 1. 스플래시 화면
         composable("splash") {
             SplashScreen(
-                onSplashFinished = {
+                onNavigateToLogin = {
                     navController.navigate("login") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNavigateToUserMain = { // 👈 자동 로그인 성공 시 여기로 이동
+                    navController.navigate("user_main") {
                         popUpTo("splash") { inclusive = true }
                     }
                 }

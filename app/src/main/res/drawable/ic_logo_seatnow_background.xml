@@ -5,17 +5,7 @@
     android:viewportWidth="650"
     android:viewportHeight="650">
   <path
-      android:pathData="M150,0L500,0A150,150 0,0 1,650 150L650,500A150,150 0,0 1,500 650L150,650A150,150 0,0 1,0 500L0,150A150,150 0,0 1,150 0z">
-    <aapt:attr name="android:fillColor">
-      <gradient 
-          android:startX="325"
-          android:startY="0"
-          android:endX="325"
-          android:endY="1010"
-          android:type="linear">
-        <item android:offset="0" android:color="#FFAB012C"/>
-        <item android:offset="1" android:color="#FF891C37"/>
-      </gradient>
-    </aapt:attr>
+      android:pathData="M150,0L500,0A150,150 0,0 1,650 150L650,500A150,150 0,0 1,500 650L150,650A150,150 0,0 1,0 500L0,150A150,150 0,0 1,150 0z"
+      android:fillColor="#A0022F">
   </path>
 </vector>

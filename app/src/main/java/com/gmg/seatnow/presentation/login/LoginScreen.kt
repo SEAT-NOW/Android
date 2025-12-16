@@ -50,14 +50,16 @@ fun LoginScreen(
     // 버튼 클릭 시 ViewModel 함수 호출
     LoginScreenContent(
         onKakaoLoginClick = viewModel::onKakaoLoginClick,
-        onOwnerLoginClick = viewModel::onOwnerLoginClick
+        onOwnerLoginClick = viewModel::onOwnerLoginClick,
+        onGuestLoginClick = viewModel::onGuestLoginClick
     )
 }
 
 @Composable
 fun LoginScreenContent(
     onKakaoLoginClick: () -> Unit, // 카카오 로그인 버튼 눌렀을 때 동작
-    onOwnerLoginClick: () -> Unit  // 사장님 링크 눌렀을 때 동작
+    onOwnerLoginClick: () -> Unit,  // 사장님 링크 눌렀을 때 동작
+    onGuestLoginClick: () -> Unit // 게스트 로그인 동작
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -66,7 +68,19 @@ fun LoginScreenContent(
         modifier = Modifier
             .fillMaxSize()
             .background(PointRed) // 배경색 설정
+            .systemBarsPadding() // 시스템바 여백 설정
     ) {
+
+        Text(
+            text = "둘러보기",
+            color = Color.LightGray,
+            style = MaterialTheme.typography.bodyLarge, // 적당한 크기
+            modifier = Modifier
+                .align(Alignment.TopStart) // 왼쪽 위 배치
+                .padding(20.dp) // 여백
+                .clickable { onGuestLoginClick() }
+        )
+
         // 1. 중앙 내용 (로고 + 텍스트)
         Column(
             modifier = Modifier.align(Alignment.Center),
@@ -139,7 +153,8 @@ fun LoginScreenPreview() {
     SeatNowTheme {
         LoginScreenContent(
             onKakaoLoginClick = {},
-            onOwnerLoginClick = {}
+            onOwnerLoginClick = {},
+            onGuestLoginClick = {}
         )
     }
 }
