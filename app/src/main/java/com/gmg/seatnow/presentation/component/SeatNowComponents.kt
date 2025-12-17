@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
@@ -225,11 +226,18 @@ fun SignUpTextFieldWithButton(
 }
 
 @Composable
-fun TermItem(title: String, showArrow: Boolean) {
+fun TermItem(
+    title: String,
+    isChecked: Boolean, // 체크 상태 받음
+    showArrow: Boolean,
+    onToggle: () -> Unit, // 체크박스(행) 클릭 시
+    onDetailClick: () -> Unit = {} // 화살표 클릭 시
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp, horizontal = 12.dp),
+            .clickable(onClick = onToggle) // 행 전체 클릭 시 체크 토글
+            .padding(vertical = 8.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -237,23 +245,33 @@ fun TermItem(title: String, showArrow: Boolean) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = SubGray,
-                modifier = Modifier.size(16.dp)
+                // ★ 체크되면 PointRed, 아니면 SubLightGray
+                tint = if (isChecked) PointRed else SubLightGray,
+                modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = title, style = MaterialTheme.typography.bodyMedium, color = SubDarkGray)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                // ★ 체크 여부와 상관없이 글자는 잘 보여야 하므로 SubDarkGray 유지 (요청 시 변경 가능)
+                color = SubDarkGray
+            )
         }
 
         if (showArrow) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "상세보기",
-                tint = SubDarkGray
-            )
+            IconButton(
+                onClick = onDetailClick,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "상세보기",
+                    tint = SubDarkGray
+                )
+            }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SeatNowTopAppBar(

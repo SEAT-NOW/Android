@@ -41,10 +41,44 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.RequestPhoneCode -> requestPhoneCode()
             is SignUpAction.VerifyPhoneCode -> verifyPhoneCode()
 
+            // ★ 약관 관련 액션 추가
+            is SignUpAction.ToggleAllTerms -> toggleAllTerms(action.isChecked)
+            is SignUpAction.ToggleTerm -> toggleSingleTerm(action.termType)
+            is SignUpAction.OpenTermDetail -> _uiState.update { it.copy(openedTermType = action.termType) }
+            is SignUpAction.CloseTermDetail -> _uiState.update { it.copy(openedTermType = null) }
+
             is SignUpAction.OnNextClick -> handleNextStep()
             is SignUpAction.OnBackClick -> handleBackStep()
         }
         checkNextButtonEnabled()
+    }
+
+    // --- 약관 동의 로직 ---
+    private fun toggleAllTerms(isChecked: Boolean) {
+        _uiState.update {
+            it.copy(
+                isAllTermsAgreed = isChecked,
+                isAgeVerified = isChecked,
+                isServiceVerified = isChecked,
+                isPrivacyCollectVerified = isChecked,
+                isPrivacyProvideVerified = isChecked
+            )
+        }
+    }
+
+    private fun toggleSingleTerm(termType: TermType) {
+        _uiState.update { state ->
+            val newState = when (termType) {
+                TermType.AGE -> state.copy(isAgeVerified = !state.isAgeVerified)
+                TermType.SERVICE -> state.copy(isServiceVerified = !state.isServiceVerified)
+                TermType.PRIVACY_COLLECT -> state.copy(isPrivacyCollectVerified = !state.isPrivacyCollectVerified)
+                TermType.PRIVACY_PROVIDE -> state.copy(isPrivacyProvideVerified = !state.isPrivacyProvideVerified)
+            }
+            // 개별 선택 후 "모두 선택" 상태 동기화
+            val allChecked = newState.isAgeVerified && newState.isServiceVerified &&
+                    newState.isPrivacyCollectVerified && newState.isPrivacyProvideVerified
+            newState.copy(isAllTermsAgreed = allChecked)
+        }
     }
 
     // --- 이메일 인증 로직 ---
@@ -56,12 +90,11 @@ class OwnerSignUpViewModel @Inject constructor(
             authUseCase.requestAuthCode(email)
                 .onSuccess {
                     startEmailTimer()
-                    // ★ 인증번호 재요청 시: '시도 여부(isEmailVerificationAttempted)'를 다시 false로 초기화하여 입력 가능하게 함
                     _uiState.update {
                         it.copy(
                             isEmailCodeSent = true,
                             authCode = "",
-                            isEmailVerificationAttempted = false // 초기화
+                            isEmailVerificationAttempted = false
                         )
                     }
                 }
@@ -72,11 +105,7 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun verifyEmailCode() {
         val email = _uiState.value.email
         val code = _uiState.value.authCode
-
-        // ★ 확인 버튼 누르는 순간: 즉시 텍스트 필드를 비활성화하기 위해 상태 업데이트
         _uiState.update { it.copy(isEmailVerificationAttempted = true) }
-
-        // ★ 확인 버튼 누르면 타이머 정지 (성공/실패 상관없이 멈추기를 원하실 경우)
         stopEmailTimer()
 
         viewModelScope.launch {
@@ -85,20 +114,14 @@ class OwnerSignUpViewModel @Inject constructor(
                     _uiState.update { it.copy(isEmailVerified = true, emailTimerText = null) }
                     checkNextButtonEnabled()
                 }
-                .onFailure {
-                    // 실패해도 isEmailVerificationAttempted가 true이므로 입력창은 비활성화 상태 유지됨
-                    // (재입력을 원하면 '재전송'을 눌러야 함)
-                }
         }
     }
 
     private fun startEmailTimer() {
         emailTimerJob?.cancel()
         emailTimerJob = viewModelScope.launch {
-            var time = 180 // 3분
+            var time = 180
             _uiState.update { it.copy(isEmailTimerExpired = false) }
-
-            // ★ Job이 취소되면(stopEmailTimer 호출 시) 루프도 자동으로 종료되므로 time > 0만 확인하면 됨
             while (time > 0) {
                 val minutes = time / 60
                 val seconds = time % 60
@@ -112,7 +135,6 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun stopEmailTimer() {
-        // ★ Job을 취소하면 코루틴 내부의 while 루프도 즉시 멈춥니다.
         emailTimerJob?.cancel()
         _uiState.update { it.copy(emailTimerText = null) }
     }
@@ -126,7 +148,6 @@ class OwnerSignUpViewModel @Inject constructor(
             authUseCase.requestAuthCode(phone)
                 .onSuccess {
                     startPhoneTimer()
-                    // ★ 재전송 시 '시도 여부' 초기화
                     _uiState.update {
                         it.copy(
                             isPhoneCodeSent = true,
@@ -141,8 +162,6 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun verifyPhoneCode() {
         val phone = _uiState.value.phone
         val code = _uiState.value.phoneAuthCode
-
-        // ★ 확인 버튼 누르는 순간 비활성화 처리
         _uiState.update { it.copy(isPhoneVerificationAttempted = true) }
         stopPhoneTimer()
 
@@ -177,17 +196,15 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { it.copy(phoneTimerText = null) }
     }
 
-    // --- 유효성 검사 및 상태 업데이트 ---
     private fun validateAndUpdateEmail(email: String) {
         val error = if (email.isNotBlank() && !email.matches(emailRegex)) "올바른 이메일 형식이 아닙니다." else null
-        // 이메일 수정 시 인증 관련 상태 모두 초기화
         _uiState.update {
             it.copy(
                 email = email,
                 emailError = error,
                 isEmailVerified = false,
                 isEmailCodeSent = false,
-                isEmailVerificationAttempted = false // 초기화
+                isEmailVerificationAttempted = false
             )
         }
         stopEmailTimer()
@@ -207,10 +224,13 @@ class OwnerSignUpViewModel @Inject constructor(
 
     private fun checkNextButtonEnabled() {
         val s = _uiState.value
+        // ★ [핵심] 다음 버튼 활성화 조건에 "약관 동의" 추가
         val isStep1Valid = s.isEmailVerified &&
                 s.isPhoneVerified &&
                 s.password.isNotBlank() && s.passwordError == null &&
-                s.passwordCheck.isNotBlank() && s.passwordCheckError == null
+                s.passwordCheck.isNotBlank() && s.passwordCheckError == null &&
+                // 모든 필수 약관이 동의되어야 함
+                s.isAgeVerified && s.isServiceVerified && s.isPrivacyCollectVerified && s.isPrivacyProvideVerified
 
         _uiState.update { it.copy(isNextButtonEnabled = isStep1Valid) }
     }
@@ -226,6 +246,12 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun handleBackStep() {
+        // ★ 약관 상세 화면이 열려있다면 닫기
+        if (_uiState.value.openedTermType != null) {
+            _uiState.update { it.copy(openedTermType = null) }
+            return
+        }
+
         val currentStep = _uiState.value.currentStep
         val prevOrdinal = currentStep.ordinal - 1
         if (prevOrdinal >= 0) {
@@ -236,17 +262,31 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 }
 
-// [UiState 업데이트] 검증 시도 여부 필드 추가
+// 약관 종류 구분용 Enum
+enum class TermType(val title: String) {
+    AGE("[필수] 만 14세 이상"),
+    SERVICE("[필수] 이용약관 동의"),
+    PRIVACY_COLLECT("[필수] 개인정보 수집이용 동의"),
+    PRIVACY_PROVIDE("[필수] 개인정보 처리방침 동의")
+}
+
 data class OwnerSignUpUiState(
     val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
     val isNextButtonEnabled: Boolean = false,
+
+    // 약관 관련 상태
+    val isAllTermsAgreed: Boolean = false,
+    val isAgeVerified: Boolean = false,
+    val isServiceVerified: Boolean = false,
+    val isPrivacyCollectVerified: Boolean = false,
+    val isPrivacyProvideVerified: Boolean = false,
+    val openedTermType: TermType? = null, // 현재 열린 약관 상세 (null이면 안 열림)
 
     // 이메일
     val email: String = "",
     val emailError: String? = null,
     val isEmailCodeSent: Boolean = false,
     val isEmailVerified: Boolean = false,
-    // ★ 추가됨: 확인 버튼을 눌렀는지 여부 (성공/실패 무관하게 비활성화용)
     val isEmailVerificationAttempted: Boolean = false,
     val emailTimerText: String? = null,
     val isEmailTimerExpired: Boolean = false,
@@ -262,7 +302,6 @@ data class OwnerSignUpUiState(
     val phone: String = "",
     val isPhoneCodeSent: Boolean = false,
     val isPhoneVerified: Boolean = false,
-    // ★ 추가됨: 확인 버튼을 눌렀는지 여부
     val isPhoneVerificationAttempted: Boolean = false,
     val phoneTimerText: String? = null,
     val isPhoneTimerExpired: Boolean = false,
@@ -276,6 +315,12 @@ sealed interface SignUpAction {
     data class UpdatePasswordCheck(val check: String) : SignUpAction
     data class UpdatePhone(val phone: String) : SignUpAction
     data class UpdatePhoneAuthCode(val code: String) : SignUpAction
+
+    // 약관 관련 액션
+    data class ToggleAllTerms(val isChecked: Boolean) : SignUpAction
+    data class ToggleTerm(val termType: TermType) : SignUpAction
+    data class OpenTermDetail(val termType: TermType) : SignUpAction
+    object CloseTermDetail : SignUpAction
 
     object RequestEmailCode : SignUpAction
     object VerifyEmailCode : SignUpAction
