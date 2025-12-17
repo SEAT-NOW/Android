@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,6 +121,7 @@ fun SignUpTextFieldWithButton(
     timerText: String? = null,
     errorText: String? = null,           // 에러 메시지 파라미터 추가
     keyboardType: KeyboardType = KeyboardType.Text, // 키보드 타입 추가
+    visualTransformation : VisualTransformation = VisualTransformation.None,
     onButtonClick: () -> Unit
 ) {
     // 1. 포커스 감지 상태 추가
@@ -160,6 +163,7 @@ fun SignUpTextFieldWithButton(
                     Text(text = placeholder, color = SubLightGray, style = MaterialTheme.typography.bodyMedium)
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                visualTransformation = visualTransformation,
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Transparent,
                     focusedContainerColor = Color.Transparent,
@@ -235,5 +239,43 @@ fun TermItem(title: String, showArrow: Boolean) {
                 tint = SubDarkGray
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SeatNowTopAppBar(
+    title: String,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    topMargin: Dp = 0.dp // ★ 상단 여백 조절 파라미터 추가
+) {
+    // TopAppBar는 내부적으로 높이가 정해져 있으므로,
+    // 여백을 주고 싶다면 Column이나 Box로 감싸거나 Modifier.padding을 써야 합니다.
+    Column(modifier = modifier.padding(top = topMargin)) { // ★ 상단 여백 적용
+        TopAppBar(
+            title = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.offset(x = (-6).dp) // 타이틀 미세 위치 조정 유지
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = "뒤로가기",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = White,
+                scrolledContainerColor = White,
+                navigationIconContentColor = SubBlack,
+                titleContentColor = SubBlack
+            )
+        )
     }
 }

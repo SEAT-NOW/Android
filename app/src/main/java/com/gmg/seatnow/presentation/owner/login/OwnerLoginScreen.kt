@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowTextField
+import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.PointRedPressed
@@ -99,20 +100,11 @@ fun OwnerLoginContent(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = "사장님 로그인",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.offset(x = (-6).dp))
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "뒤로가기",
-                            modifier = Modifier.size(32.dp)) // 꺽새 크기 살짝 키움)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+            SeatNowTopAppBar(
+                title = "사장님 로그인",
+                onBackClick = onBackClick,
+                modifier = Modifier.padding(top = 0.dp),
+                topMargin = 15.dp
             )
         },
         containerColor = White
@@ -124,7 +116,7 @@ fun OwnerLoginContent(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 이메일 입력
             SeatNowTextField(

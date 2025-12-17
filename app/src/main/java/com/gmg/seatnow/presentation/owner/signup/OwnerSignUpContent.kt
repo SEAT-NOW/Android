@@ -18,9 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.gmg.seatnow.presentation.component.PhoneNumberVisualTransformation
 import com.gmg.seatnow.presentation.component.SeatNowTextField
+import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.TermItem
 import com.gmg.seatnow.presentation.extension.bottomShadow
@@ -47,33 +50,21 @@ fun OwnerSignUpContent(
     Scaffold(
         topBar = {
             Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = uiState.currentStep.title,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.offset(x = (-6).dp)
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "뒤로가기",
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+                // ★ 1. 표준화된 AppBar 사용 (+ 상단 여백 20dp 예시)
+                SeatNowTopAppBar(
+                    title = uiState.currentStep.title,
+                    onBackClick = onBackClick,
+                    topMargin = 15.dp
                 )
 
+                // ★ 2. ProgressBar 굵기 줄이기 (height 조절)
                 LinearProgressIndicator(
                     progress = { animatedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(4.dp)
+                        .height(2.dp) // ★ 기존 4dp -> 2dp로 얇게 변경
                         .padding(horizontal = 15.dp),
-                    color = PointRed,
+                    color = SubDarkGray,
                     trackColor = SubLightGray,
                     strokeCap = StrokeCap.Round,
                 )
@@ -90,7 +81,7 @@ fun OwnerSignUpContent(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             when(uiState.currentStep) {
                 SignUpStep.STEP_1_BASIC -> Step1BasicContent(uiState, onAction)
@@ -101,7 +92,7 @@ fun OwnerSignUpContent(
                 SignUpStep.STEP_6_COMPLETE -> Text("회원가입 완료")
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             Button(
                 onClick = { onAction(SignUpAction.OnNextClick) },
@@ -134,10 +125,11 @@ fun Step1BasicContent(
             onValueChange = { onAction(SignUpAction.UpdateEmail(it)) },
             placeholder = "이메일",
             buttonText = "인증번호 전송",
+            errorText = uiState.emailError,
             onButtonClick = { /* 인증번호 전송 로직 */ }
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // 2. 인증번호
         SignUpTextFieldWithButton(
@@ -151,35 +143,56 @@ fun Step1BasicContent(
             onButtonClick = { /* 인증번호 확인 로직 */ }
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // 3. 비밀번호
         SeatNowTextField(
             value = uiState.password,
             onValueChange = { onAction(SignUpAction.UpdatePassword(it)) },
             placeholder = "비밀번호 (8~20자리, 영문/숫자/특수기호 포함)",
-            isPassword = true
+            isPassword = true,
+            errorText = uiState.passwordError
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // 4. 비밀번호 확인 (필요 시 추가)
         SeatNowTextField(
             value = uiState.passwordCheck,
             onValueChange = { onAction(SignUpAction.UpdatePasswordCheck(it)) },
             placeholder = "비밀번호 확인",
-            isPassword = true
+            isPassword = true,
+            errorText = uiState.passwordCheckError
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // 5. 휴대폰 번호 (필요 시 추가)
         SignUpTextFieldWithButton(
             value = uiState.phone,
-            onValueChange = { onAction(SignUpAction.UpdatePhone(it)) },
-            placeholder = "휴대폰 번호",
+            onValueChange = { input ->
+                if(input.length <= 11 && input.all { it.isDigit() })
+                    onAction(SignUpAction.UpdatePhone(input))
+            },
+            placeholder = "휴대폰 번호('-' 제외)",
             buttonText = "인증번호 전송",
+            keyboardType = KeyboardType.Number,
+            visualTransformation = PhoneNumberVisualTransformation(),
             onButtonClick = { }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 6. 휴대폰 인증 번호
+        SignUpTextFieldWithButton(
+            value = uiState.authCode,
+            onValueChange = { onAction(SignUpAction.UpdateAuthCode(it)) },
+            placeholder = "인증번호 입력",
+            buttonText = "확인",
+            buttonColor = PointRed,
+            buttonTextColor = White,
+            timerText = "3:00",
+            onButtonClick = { /* 인증번호 확인 로직 */ }
         )
 
         Spacer(modifier = Modifier.height(30.dp))
