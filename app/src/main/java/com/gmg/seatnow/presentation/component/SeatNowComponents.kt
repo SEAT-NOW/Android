@@ -107,7 +107,7 @@ fun SeatNowTextField(
     }
 }
 
-// ★ 수정됨: 버튼이 포함된 텍스트 필드 (에러 로직 적용)
+// 버튼이 포함된 텍스트 필드 (에러 로직 적용)
 @Composable
 fun SignUpTextFieldWithButton(
     value: String,
@@ -115,13 +115,16 @@ fun SignUpTextFieldWithButton(
     placeholder: String,
     buttonText: String,
     modifier: Modifier = Modifier,
-    height : Dp = 52.dp,
-    buttonColor: Color = SubLightGray,
-    buttonTextColor: Color = SubDarkGray,
+    height: Dp = 52.dp, // 기본 높이
+
+    // 상태 제어
+    isEnabled: Boolean = true,         // TextField 입력 가능 여부
+    isButtonEnabled: Boolean = true,   // 버튼 클릭 가능 여부
+
     timerText: String? = null,
-    errorText: String? = null,           // 에러 메시지 파라미터 추가
-    keyboardType: KeyboardType = KeyboardType.Text, // 키보드 타입 추가
-    visualTransformation : VisualTransformation = VisualTransformation.None,
+    errorText: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     onButtonClick: () -> Unit
 ) {
     // 1. 포커스 감지 상태 추가
@@ -157,6 +160,7 @@ fun SignUpTextFieldWithButton(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
+                enabled = isEnabled,
                 modifier = Modifier.weight(1f),
                 interactionSource = interactionSource, // 포커스 소스 연결
                 placeholder = {
@@ -167,10 +171,13 @@ fun SignUpTextFieldWithButton(
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Transparent,
                     focusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent, // 비활성화돼도 배경 투명(부모 Row가 배경색 담당)
                     unfocusedBorderColor = Color.Transparent,
                     focusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
                     errorContainerColor = Color.Transparent,
-                    errorBorderColor = Color.Transparent
+                    errorBorderColor = Color.Transparent,
+                    disabledTextColor = SubGray // 비활성화 시 텍스트 색상
                 ),
                 singleLine = true,
                 isError = errorText != null
@@ -187,15 +194,20 @@ fun SignUpTextFieldWithButton(
 
             Button(
                 onClick = onButtonClick,
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                enabled = isButtonEnabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PointRed, // 활성화 시 색상
+                    contentColor = White,
+                    disabledContainerColor = SubLightGray, // 비활성화 시 색상
+                    disabledContentColor = White
+                ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                modifier = Modifier.height(36.dp),
+                modifier = Modifier.height(28.dp),
                 shape = RoundedCornerShape(6.dp)
             ) {
                 Text(
                     text = buttonText,
-                    color = buttonTextColor,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                 )
             }
         }

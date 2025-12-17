@@ -6,4 +6,8 @@ interface AuthRepository {
 
     // OwnerLoginScreen
     suspend fun loginOwner(email: String, password: String) : Result<Unit>
+
+    // OwnerSignUpScreen
+    suspend fun requestAuthCode(target: String): Result<Unit>
+    suspend fun verifyAuthCode(target: String, code: String): Result<Unit>
 }

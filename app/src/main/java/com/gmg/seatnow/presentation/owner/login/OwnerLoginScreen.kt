@@ -1,16 +1,10 @@
 package com.gmg.seatnow.presentation.owner.login
 
-import android.R
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,11 +19,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
-import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.PointRedPressed
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
-import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubDarkGray
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.SubLightGray

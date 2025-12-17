@@ -66,21 +66,22 @@ fun SeatNowNavGraph() {
                 },
                 onNavigateToSignUp = {
                     // 회원가입 화면으로 이동 (아직 미구현이므로 임시 처리)
-                    navController.navigate("user_main")
+                    navController.navigate("owner_signup")
                 }
             )
         }
 
         // 5. 사장님 회원가입 첫번째 탭
-        composable(
-            route = "owner_signup",
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                    animationSpec = tween(400)
-                )
-            }
-        ) {
+//        composable(
+//            route = "owner_signup",
+//            enterTransition = {
+//                slideIntoContainer(
+//                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+//                    animationSpec = tween(400)
+//                )
+//            }
+//        ) {
+        composable("owner_signup") {
             OwnerSignUpScreen(
                 onBackClick = { navController.popBackStack() }
             ) { }

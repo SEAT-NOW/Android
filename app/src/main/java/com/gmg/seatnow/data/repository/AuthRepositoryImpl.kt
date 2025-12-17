@@ -54,4 +54,28 @@ class AuthRepositoryImpl @Inject constructor(
             Result.failure(Exception("아이디 또는 비밀번호를 확인해주세요."))
         }
     }
+
+    // ★ [추가] 인증번호 전송 구현 (Mock)
+    override suspend fun requestAuthCode(target: String): Result<Unit> {
+        delay(1000) // API 호출 흉내
+        Log.d("AuthRepo", "인증번호 요청: $target")
+
+        return if (target.isNotBlank()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception("잘못된 입력입니다."))
+        }
+    }
+
+    // ★ [추가] 인증번호 검증 구현 (Mock)
+    override suspend fun verifyAuthCode(target: String, code: String): Result<Unit> {
+        delay(500) // API 호출 흉내
+        Log.d("AuthRepo", "인증번호 검증 시도: $target / $code")
+
+        return if (code == "000000") {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception("인증번호가 일치하지 않습니다."))
+        }
+    }
 }
