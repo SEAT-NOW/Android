@@ -77,7 +77,7 @@ fun LoginScreenContent(
             style = MaterialTheme.typography.bodyLarge, // 적당한 크기
             modifier = Modifier
                 .align(Alignment.TopStart) // 왼쪽 위 배치
-                .padding(20.dp) // 여백
+                .padding(30.dp) // 여백
                 .clickable { onGuestLoginClick() }
         )
 

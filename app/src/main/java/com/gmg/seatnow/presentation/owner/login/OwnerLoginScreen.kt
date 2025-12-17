@@ -25,9 +25,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.PointRedPressed
+import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubDarkGray
 import com.gmg.seatnow.presentation.theme.SubGray
@@ -151,10 +153,10 @@ fun OwnerLoginContent(
                 Text(
                     text = loginError,
                     style = MaterialTheme.typography.labelSmall.copy(color = Color.Red, fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 2.dp)
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
             } else {
-                Spacer(modifier = Modifier.height(30.dp)) // 에러 없을 때 높이 맞춤용
+                Spacer(modifier = Modifier.height(36.dp)) // 에러 없을 때 높이 맞춤용
             }
 
             // 로그인 버튼
@@ -213,76 +215,13 @@ fun OwnerLoginContent(
     }
 }
 
-// 3. 재사용 TextField
-@Composable
-fun SeatNowTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    isPassword: Boolean = false,
-    imeAction: ImeAction = ImeAction.Next,
-    errorText: String? = null
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
-
-    val borderColor = if (errorText != null) Color.Red
-    else if (isFocused) SubBlack
-    else SubLightGray
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            interactionSource = interactionSource,
-            modifier = Modifier.fillMaxWidth().bottomShadow(
-                offsetY = 2.dp,
-                shadowBlurRadius = 4.dp,
-                alpha = 0.15f,       // 그림자 진하기 (0.1 ~ 0.3 조절)
-                cornersRadius = 12.dp // 텍스트필드 모양이랑 똑같이
-            ).border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
-            ),
-            placeholder = { Text(text = placeholder,
-                color = SubLightGray,
-                style = MaterialTheme.typography.bodyMedium) },
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true,
-            isError = errorText != null,
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = White,
-                focusedContainerColor = White,
-                unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = Color.Transparent,
-                errorBorderColor = Color.Transparent,
-                errorContainerColor = White
-            ),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Email,
-                imeAction = imeAction
-            )
-        )
-
-        if (errorText != null) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = errorText,
-                style = MaterialTheme.typography.labelSmall.copy(color = Color.Red),
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
-    }
-}
 
 // 4. [Preview] 미리보기 전용 (이게 빠져서 안 보였던 것입니다)
 @Preview(showBackground = true, name = "Default Login UI")
 @Composable
 fun PreviewOwnerLoginScreen() {
     // 뷰모델 없이 순수 UI만 테스트
-    MaterialTheme{
+    SeatNowTheme {
         OwnerLoginContent(
             email = "",
             onEmailChange = {},
@@ -302,7 +241,7 @@ fun PreviewOwnerLoginScreen() {
 @Preview(showBackground = true, name = "Error State UI")
 @Composable
 fun PreviewOwnerLoginScreenError() {
-    MaterialTheme{
+    SeatNowTheme{
         OwnerLoginContent(
             email = "test@",
             onEmailChange = {},

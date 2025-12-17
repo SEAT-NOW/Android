@@ -1,11 +1,15 @@
 package com.gmg.seatnow.presentation.nav
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen // Import 확인
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
 
 @Composable
@@ -62,9 +66,24 @@ fun SeatNowNavGraph() {
                 },
                 onNavigateToSignUp = {
                     // 회원가입 화면으로 이동 (아직 미구현이므로 임시 처리)
-                    // navController.navigate("owner_signup")
+                    navController.navigate("user_main")
                 }
             )
+        }
+
+        // 5. 사장님 회원가입 첫번째 탭
+        composable(
+            route = "owner_signup",
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400)
+                )
+            }
+        ) {
+            OwnerSignUpScreen(
+                onBackClick = { navController.popBackStack() }
+            ) { }
         }
     }
 }
