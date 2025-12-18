@@ -83,7 +83,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun verifyBusinessNumber(number: String): Result<Unit> {
         delay(500)
         // 예시: 10자리이고 1로 끝나면 성공이라고 가정
-        return if (number.length == 10) Result.success(Unit)
+        return if (number == "0000000000") Result.success(Unit)
         else Result.failure(Exception("유효하지 않은 사업자 번호입니다."))
     }
 

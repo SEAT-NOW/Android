@@ -21,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
@@ -49,6 +50,21 @@ fun Step1BasicScreen(
     onAction: (SignUpAction) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+
+    // 1. 이메일 인증이 '성공'으로 바뀌는 순간 포커스 해제
+    LaunchedEffect(uiState.isEmailVerified) {
+        if (uiState.isEmailVerified) {
+            focusManager.clearFocus()
+        }
+    }
+
+    // 2. 휴대폰 인증이 '성공'으로 바뀌는 순간 포커스 해제
+    LaunchedEffect(uiState.isPhoneVerified) {
+        if (uiState.isPhoneVerified) {
+            focusManager.clearFocus()
+        }
+    }
+
 
     Column {
         // ... (이메일, 비밀번호, 휴대폰 입력 필드 코드는 기존과 동일하게 유지 - 분량상 생략하지 않고 모두 적어드립니다) ...
@@ -79,6 +95,7 @@ fun Step1BasicScreen(
             placeholder = "인증번호 입력",
             buttonText = "확인",
             timerText = uiState.emailTimerText,
+            errorText = uiState.emaiilVerifedError,
             isEnabled = uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted,
             isButtonEnabled = (uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted)
                     && !uiState.isEmailTimerExpired
@@ -122,6 +139,7 @@ fun Step1BasicScreen(
             buttonText = if(uiState.isPhoneVerified) "인증완료" else if(uiState.isPhoneCodeSent) "재전송" else "인증번호 전송",
             keyboardType = KeyboardType.Number,
             visualTransformation = NumberVisualTransformation(),
+            errorText = uiState.phoneError,
             isEnabled = !uiState.isPhoneVerified,
             isButtonEnabled = !uiState.isPhoneVerified && uiState.phone.length == 11,
             onButtonClick = {
@@ -143,6 +161,7 @@ fun Step1BasicScreen(
             buttonText = "확인",
             timerText = uiState.phoneTimerText,
             keyboardType = KeyboardType.Number,
+            errorText = uiState.phoneVerifedError,
             isEnabled = uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted,
             isButtonEnabled = (uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted)
                     && !uiState.isPhoneTimerExpired

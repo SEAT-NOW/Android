@@ -1,4 +1,3 @@
-// [file name: Step2BusinessInfoScreen.kt]
 package com.gmg.seatnow.presentation.owner.signup.steps
 
 import androidx.compose.foundation.background
@@ -8,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -33,7 +33,7 @@ fun Step2BusinessInfoScreen(
     val focusManager = LocalFocusManager.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        
+
         // 1. 대표자명 (일반 텍스트)
         SeatNowTextField(
             value = uiState.repName,
@@ -41,7 +41,7 @@ fun Step2BusinessInfoScreen(
             placeholder = "대표자명",
             keyboardType = KeyboardType.Text
         )
-        
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // 2. 사업자 등록번호 (숫자패드, 10자 제한, 확인 버튼)
@@ -51,6 +51,7 @@ fun Step2BusinessInfoScreen(
             onValueChange = { onAction(SignUpAction.UpdateBusinessNum(it)) },
             placeholder = "사업자등록번호",
             buttonText = if (uiState.isBusinessNumVerified) "인증완료" else "확인",
+            errorText = uiState.businessNumberError,
             isEnabled = !uiState.isBusinessNumVerified, // 인증되면 입력 불가
             isButtonEnabled = !uiState.isBusinessNumVerified && uiState.businessNumber.length == 10,
             keyboardType = KeyboardType.NumberPassword, // 숫자만
@@ -73,13 +74,13 @@ fun Step2BusinessInfoScreen(
                 // 요구사항 4: "기본적으로 text입력이 가능하게 열어두고... 검색 버튼" (이미지 참조 시 TextField 내부에 버튼이 있는 형태)
                 // 여기서는 SeatNowTextField 옆에 버튼을 두거나, SignUpTextFieldWithButton을 활용합니다.
                 // 편의상 SignUpTextFieldWithButton을 재활용하되 버튼 텍스트를 "검색"으로 둡니다.
-                
+
                 SignUpTextFieldWithButton(
                     value = uiState.storeName,
                     onValueChange = { onAction(SignUpAction.UpdateStoreName(it)) },
                     placeholder = "상호명",
                     buttonText = "검색",
-                    onButtonClick = { 
+                    onButtonClick = {
                         // 디바운싱에 의해 자동 검색되지만, 버튼 클릭 시 즉시 검색 등의 처리 가능
                         // 현재는 입력 시 자동 검색 흐름
                     }
@@ -91,8 +92,9 @@ fun Step2BusinessInfoScreen(
                 expanded = uiState.isStoreSearchDropdownExpanded && uiState.storeSearchResults.isNotEmpty(),
                 onDismissRequest = { /* 닫힘 처리 */ },
                 modifier = Modifier
-                    .fillMaxWidth(0.9f) // 부모 너비에 맞춤 (Padding 고려)
-                    .background(White)
+                    .fillMaxWidth(0.8f) // 부모 너비에 맞춤 (Padding 고려)
+                    .background(White),
+                properties = PopupProperties(focusable = false)
             ) {
                 uiState.storeSearchResults.forEach { result ->
                     DropdownMenuItem(
@@ -114,16 +116,19 @@ fun Step2BusinessInfoScreen(
                 value = uiState.mainAddress,
                 onValueChange = {}, // ReadOnly
                 placeholder = "주소",
-                modifier = Modifier.clickable { onAction(SignUpAction.OnAddressClick) } // 클릭 감지
+                modifier = Modifier.clickable { onAction(SignUpAction.OnAddressClick) }, // 클릭 감지
             )
             // 클릭 이벤트를 뺏기지 않도록 투명 박스로 덮음 (TextField 자체 enabled=false 하면 스타일이 변하므로)
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clickable { onAction(SignUpAction.OnAddressClick) }
+                    .clickable {
+                        focusManager.clearFocus()
+                        onAction(SignUpAction.OnAddressClick)
+                    }
             )
         }
-        
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // 5. 우편번호 (주소 아래에 추가, 입력 불가)
@@ -163,6 +168,10 @@ fun Step2BusinessInfoScreen(
             fileName = uiState.licenseFileName,
             onClick = { /* 추후 파일 피커 연동 */ }
         )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+
     }
 }
 
