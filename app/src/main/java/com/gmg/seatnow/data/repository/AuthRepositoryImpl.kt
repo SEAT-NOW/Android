@@ -78,4 +78,31 @@ class AuthRepositoryImpl @Inject constructor(
             Result.failure(Exception("인증번호가 일치하지 않습니다."))
         }
     }
+
+    // 사업자 번호 검증 Mock
+    override suspend fun verifyBusinessNumber(number: String): Result<Unit> {
+        delay(500)
+        // 예시: 10자리이고 1로 끝나면 성공이라고 가정
+        return if (number.length == 10) Result.success(Unit)
+        else Result.failure(Exception("유효하지 않은 사업자 번호입니다."))
+    }
+
+    // 상호명 검색 Mock
+    override suspend fun searchStore(query: String): Result<List<String>> {
+        delay(300)
+        if (query.isBlank()) return Result.success(emptyList())
+        // 검색어에 따른 더미 데이터 반환
+        return Result.success(listOf(
+            "$query 대학로점",
+            "$query 본점",
+            "$query 2호점"
+        ))
+    }
+
+    // 주변 대학 찾기 Mock
+    override suspend fun getNearbyUniversity(address: String): Result<String> {
+        delay(500)
+        // 무조건 명지대학교 반환
+        return Result.success("명지대학교")
+    }
 }

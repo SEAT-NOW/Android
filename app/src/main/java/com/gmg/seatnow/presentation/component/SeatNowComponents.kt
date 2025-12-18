@@ -36,6 +36,8 @@ fun SeatNowTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     height : Dp = 52.dp,
+    isEnabled: Boolean = true,         // TextField 입력 가능 여부
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     isPassword: Boolean = false,
     errorText: String? = null,           // null이면 에러 없음 (Simple 모드)
     imeAction: ImeAction = ImeAction.Next,

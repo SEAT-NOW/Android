@@ -29,14 +29,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gmg.seatnow.presentation.component.PhoneNumberVisualTransformation
+import com.gmg.seatnow.presentation.component.NumberVisualTransformation
 import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.TermItem
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.SignUpAction
-import com.gmg.seatnow.presentation.owner.signup.TermType
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.TermType
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import com.gmg.seatnow.presentation.theme.SubBlack
@@ -121,7 +121,7 @@ fun Step1BasicScreen(
             placeholder = "휴대폰 번호('-' 제외)",
             buttonText = if(uiState.isPhoneVerified) "인증완료" else if(uiState.isPhoneCodeSent) "재전송" else "인증번호 전송",
             keyboardType = KeyboardType.Number,
-            visualTransformation = PhoneNumberVisualTransformation(),
+            visualTransformation = NumberVisualTransformation(),
             isEnabled = !uiState.isPhoneVerified,
             isButtonEnabled = !uiState.isPhoneVerified && uiState.phone.length == 11,
             onButtonClick = {

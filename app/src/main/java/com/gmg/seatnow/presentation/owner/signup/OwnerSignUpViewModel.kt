@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.usecase.OwnerAuthUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -25,7 +26,39 @@ class OwnerSignUpViewModel @Inject constructor(
     private var phoneTimerJob: Job? = null
 
     private val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\$".toRegex()
-    private val passwordRegex = "^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#\$%^&*()_+=-]).{8,20}\$".toRegex()
+    private val passwordRegex =
+        "^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#\$%^&*()_+=-]).{8,20}\$".toRegex()
+
+    private val _storeSearchQuery = MutableSharedFlow<String>()
+
+    init {
+        // 검색어 입력 감지 및 디바운싱 처리
+        viewModelScope.launch {
+            @OptIn(FlowPreview::class)
+            _storeSearchQuery
+                .debounce(500) // 0.5초 디바운스
+                .collect { query ->
+                    if (query.isNotBlank()) {
+                        authUseCase.searchStore(query)
+                            .onSuccess { results ->
+                                _uiState.update {
+                                    it.copy(
+                                        storeSearchResults = results,
+                                        isStoreSearchDropdownExpanded = true
+                                    )
+                                }
+                            }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                storeSearchResults = emptyList(),
+                                isStoreSearchDropdownExpanded = false
+                            )
+                        }
+                    }
+                }
+        }
+    }
 
     fun onAction(action: SignUpAction) {
         when (action) {
@@ -49,10 +82,47 @@ class OwnerSignUpViewModel @Inject constructor(
 
             is SignUpAction.OnNextClick -> handleNextStep()
             is SignUpAction.OnBackClick -> handleBackStep()
+
+            // Step 2 Implementations
+            is SignUpAction.UpdateRepName -> {
+                _uiState.update { it.copy(repName = action.name) }
+            }
+
+            is SignUpAction.UpdateBusinessNum -> {
+                // 숫자만 입력 가능 & 최대 10자리
+                if (action.num.length <= 10 && action.num.all { it.isDigit() }) {
+                    _uiState.update { it.copy(businessNumber = action.num) }
+                }
+            }
+
+            is SignUpAction.VerifyBusinessNum -> verifyBusinessNumber()
+            is SignUpAction.UpdateStoreName -> {
+                _uiState.update { it.copy(storeName = action.name) }
+                viewModelScope.launch { _storeSearchQuery.emit(action.name) }
+            }
+
+            is SignUpAction.SelectStoreName -> {
+                _uiState.update {
+                    it.copy(
+                        storeName = action.name,
+                        isStoreSearchDropdownExpanded = false,
+                        storeSearchResults = emptyList()
+                    )
+                }
+            }
+
+            is SignUpAction.OnAddressClick -> simulateAddressSelection()
+            is SignUpAction.UpdateStoreContact -> {
+                // 숫자만 입력, 최대 11자리
+                if (action.phone.length <= 11 && action.phone.all { it.isDigit() }) {
+                    _uiState.update { it.copy(storeContact = action.phone) }
+                }
+            }
         }
         checkNextButtonEnabled()
     }
 
+    //Step1
     // --- 약관 동의 로직 ---
     private fun toggleAllTerms(isChecked: Boolean) {
         _uiState.update {
@@ -197,7 +267,8 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun validateAndUpdateEmail(email: String) {
-        val error = if (email.isNotBlank() && !email.matches(emailRegex)) "올바른 이메일 형식이 아닙니다." else null
+        val error =
+            if (email.isNotBlank() && !email.matches(emailRegex)) "올바른 이메일 형식이 아닙니다." else null
         _uiState.update {
             it.copy(
                 email = email,
@@ -211,7 +282,8 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun validateAndUpdatePassword(password: String) {
-        val error = if (password.isNotBlank() && !password.matches(passwordRegex)) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
+        val error =
+            if (password.isNotBlank() && !password.matches(passwordRegex)) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
         _uiState.update { it.copy(password = password, passwordError = error) }
         validateAndUpdatePasswordCheck(_uiState.value.passwordCheck)
     }
@@ -222,17 +294,74 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { it.copy(passwordCheck = check, passwordCheckError = error) }
     }
 
-    private fun checkNextButtonEnabled() {
-        val s = _uiState.value
-        // ★ [핵심] 다음 버튼 활성화 조건에 "약관 동의" 추가
-        val isStep1Valid = s.isEmailVerified &&
-                s.isPhoneVerified &&
-                s.password.isNotBlank() && s.passwordError == null &&
-                s.passwordCheck.isNotBlank() && s.passwordCheckError == null &&
-                // 모든 필수 약관이 동의되어야 함
-                s.isAgeVerified && s.isServiceVerified && s.isPrivacyCollectVerified && s.isPrivacyProvideVerified
+    private fun verifyBusinessNumber() {
+        val num = _uiState.value.businessNumber
+        if (num.length != 10) return
 
-        _uiState.update { it.copy(isNextButtonEnabled = isStep1Valid) }
+        viewModelScope.launch {
+            authUseCase.verifyBusinessNumber(num)
+                .onSuccess {
+                    _uiState.update { it.copy(isBusinessNumVerified = true) }
+                    checkNextButtonEnabled()
+                }
+        }
+    }
+
+    private fun simulateAddressSelection() {
+        // Mock: 주소 API 선택 시나리오
+        val mockAddress = "서울특별시 서대문구 거북골로 34"
+        val mockZip = "03722"
+
+        _uiState.update {
+            it.copy(
+                mainAddress = mockAddress,
+                zipCode = mockZip
+            )
+        }
+
+        // 주소 선택 후 주변 대학 자동 조회
+        viewModelScope.launch {
+            authUseCase.getNearbyUniversity(mockAddress)
+                .onSuccess { univ ->
+                    _uiState.update { it.copy(nearbyUniv = univ) }
+                    checkNextButtonEnabled()
+                }
+        }
+    }
+
+
+    private fun checkNextButtonEnabled() {
+        val state = _uiState.value
+
+        // 1. 현재 단계(currentStep)에 따라 통과 여부(isValid)를 결정합니다.
+        val isValid = when (state.currentStep) {
+
+            // [Step 1] 기본 정보 & 약관
+            SignUpStep.STEP_1_BASIC -> {
+                state.isEmailVerified &&
+                        state.isPhoneVerified &&
+                        state.password.isNotBlank() && state.passwordError == null &&
+                        state.passwordCheck.isNotBlank() && state.passwordCheckError == null &&
+                        state.isAgeVerified && state.isServiceVerified &&
+                        state.isPrivacyCollectVerified && state.isPrivacyProvideVerified
+            }
+
+            // [Step 2] 사업자 정보
+            SignUpStep.STEP_2_BUSINESS -> {
+                state.repName.isNotBlank() &&
+                        state.isBusinessNumVerified &&     // 사업자 번호 인증 완료
+                        state.storeName.isNotBlank() &&    // 상호명 입력 완료
+                        state.mainAddress.isNotBlank() &&  // 주소 입력 완료
+                        state.nearbyUniv.isNotBlank()      // 주변 대학 자동 입력 완료
+                // (가게 연락처, 파일 업로드는 선택 사항이므로 조건에서 제외)
+            }
+
+            // [그 외 단계] 아직 구현 안 함 -> 일단 false
+            else -> false
+        }
+
+        // 2. 결정된 값으로 UI 상태를 '한 번만' 업데이트합니다.
+        _uiState.update { it.copy(isNextButtonEnabled = isValid) }
     }
 
     private fun handleNextStep() {
@@ -260,78 +389,105 @@ class OwnerSignUpViewModel @Inject constructor(
             viewModelScope.launch { _event.emit(SignUpEvent.NavigateBack) }
         }
     }
-}
 
-// 약관 종류 구분용 Enum
-enum class TermType(val title: String) {
-    AGE("[필수] 만 14세 이상"),
-    SERVICE("[필수] 이용약관 동의"),
-    PRIVACY_COLLECT("[필수] 개인정보 수집이용 동의"),
-    PRIVACY_PROVIDE("[필수] 개인정보 처리방침 동의")
-}
+    // 약관 종류 구분용 Enum
+    enum class TermType(val title: String) {
+        AGE("[필수] 만 14세 이상"),
+        SERVICE("[필수] 이용약관 동의"),
+        PRIVACY_COLLECT("[필수] 개인정보 수집이용 동의"),
+        PRIVACY_PROVIDE("[필수] 개인정보 처리방침 동의")
+    }
 
-data class OwnerSignUpUiState(
-    val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
-    val isNextButtonEnabled: Boolean = false,
+    data class OwnerSignUpUiState(
+        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
+        val isNextButtonEnabled: Boolean = false,
 
-    // 약관 관련 상태
-    val isAllTermsAgreed: Boolean = false,
-    val isAgeVerified: Boolean = false,
-    val isServiceVerified: Boolean = false,
-    val isPrivacyCollectVerified: Boolean = false,
-    val isPrivacyProvideVerified: Boolean = false,
-    val openedTermType: TermType? = null, // 현재 열린 약관 상세 (null이면 안 열림)
+        // 약관 관련 상태
+        val isAllTermsAgreed: Boolean = false,
+        val isAgeVerified: Boolean = false,
+        val isServiceVerified: Boolean = false,
+        val isPrivacyCollectVerified: Boolean = false,
+        val isPrivacyProvideVerified: Boolean = false,
+        val openedTermType: TermType? = null, // 현재 열린 약관 상세 (null이면 안 열림)
 
-    // 이메일
-    val email: String = "",
-    val emailError: String? = null,
-    val isEmailCodeSent: Boolean = false,
-    val isEmailVerified: Boolean = false,
-    val isEmailVerificationAttempted: Boolean = false,
-    val emailTimerText: String? = null,
-    val isEmailTimerExpired: Boolean = false,
-    val authCode: String = "",
+        // 이메일
+        val email: String = "",
+        val emailError: String? = null,
+        val isEmailCodeSent: Boolean = false,
+        val isEmailVerified: Boolean = false,
+        val isEmailVerificationAttempted: Boolean = false,
+        val emailTimerText: String? = null,
+        val isEmailTimerExpired: Boolean = false,
+        val authCode: String = "",
 
-    // 비밀번호
-    val password: String = "",
-    val passwordError: String? = null,
-    val passwordCheck: String = "",
-    val passwordCheckError: String? = null,
+        // 비밀번호
+        val password: String = "",
+        val passwordError: String? = null,
+        val passwordCheck: String = "",
+        val passwordCheckError: String? = null,
 
-    // 휴대폰
-    val phone: String = "",
-    val isPhoneCodeSent: Boolean = false,
-    val isPhoneVerified: Boolean = false,
-    val isPhoneVerificationAttempted: Boolean = false,
-    val phoneTimerText: String? = null,
-    val isPhoneTimerExpired: Boolean = false,
-    val phoneAuthCode: String = "",
-)
+        // 휴대폰
+        val phone: String = "",
+        val isPhoneCodeSent: Boolean = false,
+        val isPhoneVerified: Boolean = false,
+        val isPhoneVerificationAttempted: Boolean = false,
+        val phoneTimerText: String? = null,
+        val isPhoneTimerExpired: Boolean = false,
+        val phoneAuthCode: String = "",
 
-sealed interface SignUpAction {
-    data class UpdateEmail(val email: String) : SignUpAction
-    data class UpdateAuthCode(val code: String) : SignUpAction
-    data class UpdatePassword(val password: String) : SignUpAction
-    data class UpdatePasswordCheck(val check: String) : SignUpAction
-    data class UpdatePhone(val phone: String) : SignUpAction
-    data class UpdatePhoneAuthCode(val code: String) : SignUpAction
+        // Step 2 State
+        val repName: String = "",
+        val businessNumber: String = "",
+        val isBusinessNumVerified: Boolean = false, // 인증 완료 시 true (수정 불가)
 
-    // 약관 관련 액션
-    data class ToggleAllTerms(val isChecked: Boolean) : SignUpAction
-    data class ToggleTerm(val termType: TermType) : SignUpAction
-    data class OpenTermDetail(val termType: TermType) : SignUpAction
-    object CloseTermDetail : SignUpAction
+        val storeName: String = "",
+        val storeSearchResults: List<String> = emptyList(), // 검색 결과
+        val isStoreSearchDropdownExpanded: Boolean = false,
 
-    object RequestEmailCode : SignUpAction
-    object VerifyEmailCode : SignUpAction
-    object RequestPhoneCode : SignUpAction
-    object VerifyPhoneCode : SignUpAction
+        val mainAddress: String = "", // 도로명 주소
+        val zipCode: String = "",     // 우편 번호
+        val nearbyUniv: String = "",  // 주변 대학
 
-    object OnNextClick : SignUpAction
-    object OnBackClick : SignUpAction
-}
+        val storeContact: String = "",
 
-sealed interface SignUpEvent {
-    object NavigateBack : SignUpEvent
-    object NavigateToHome : SignUpEvent
+        val licenseFileName: String? = null // 파일명 (선택 시 표시용)
+    )
+
+    sealed interface SignUpAction {
+        // Step 1 Actions
+        data class UpdateEmail(val email: String) : SignUpAction
+        data class UpdateAuthCode(val code: String) : SignUpAction
+        data class UpdatePassword(val password: String) : SignUpAction
+        data class UpdatePasswordCheck(val check: String) : SignUpAction
+        data class UpdatePhone(val phone: String) : SignUpAction
+        data class UpdatePhoneAuthCode(val code: String) : SignUpAction
+
+        data class ToggleAllTerms(val isChecked: Boolean) : SignUpAction
+        data class ToggleTerm(val termType: TermType) : SignUpAction
+        data class OpenTermDetail(val termType: TermType) : SignUpAction
+        object CloseTermDetail : SignUpAction
+
+        object RequestEmailCode : SignUpAction
+        object VerifyEmailCode : SignUpAction
+        object RequestPhoneCode : SignUpAction
+        object VerifyPhoneCode : SignUpAction
+
+        // Step 2 Actions
+        data class UpdateRepName(val name: String) : SignUpAction
+        data class UpdateBusinessNum(val num: String) : SignUpAction
+        object VerifyBusinessNum : SignUpAction
+        data class UpdateStoreName(val name: String) : SignUpAction // 검색 트리거
+        data class SelectStoreName(val name: String) : SignUpAction // 검색 결과 선택
+        object OnAddressClick : SignUpAction // 주소 클릭 (Mock API 호출)
+        data class UpdateStoreContact(val phone: String) : SignUpAction
+        // 파일 업로드 (생략 - 버튼만 활성화)
+
+        object OnNextClick : SignUpAction
+        object OnBackClick : SignUpAction
+    }
+
+    sealed interface SignUpEvent {
+        object NavigateBack : SignUpEvent
+        object NavigateToHome : SignUpEvent
+    }
 }

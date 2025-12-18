@@ -17,7 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.owner.signup.steps.Step1BasicScreen
+import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessInfoScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.TermsDetailScreen
 import com.gmg.seatnow.presentation.theme.*
 
@@ -96,7 +99,7 @@ fun SignUpFormScreen(
 
             when(uiState.currentStep) {
                 SignUpStep.STEP_1_BASIC -> Step1BasicScreen(uiState, onAction)
-                // 다른 단계는 생략
+                SignUpStep.STEP_2_BUSINESS -> Step2BusinessInfoScreen(uiState, onAction)
                 else -> Text("준비 중")
             }
 
@@ -131,11 +134,25 @@ fun SignUpFormScreen(
 
 @Preview(showBackground = true, name = "Step 1 UI")
 @Composable
-fun PreviewOwnerSignUpContent() {
-    MaterialTheme {
+fun PreviewOwnerSignUpStep1Content() {
+    SeatNowTheme {
         OwnerSignUpContent(
             uiState = OwnerSignUpUiState(
                 currentStep = SignUpStep.STEP_1_BASIC
+            ),
+            onAction = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Step 2 UI")
+@Composable
+fun PreviewOwnerSignUpStep2Content() {
+    SeatNowTheme {
+        OwnerSignUpContent(
+            uiState = OwnerSignUpUiState(
+                currentStep = SignUpStep.STEP_2_BUSINESS
             ),
             onAction = {},
             onBackClick = {}

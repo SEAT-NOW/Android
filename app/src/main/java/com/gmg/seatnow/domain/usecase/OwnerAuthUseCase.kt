@@ -18,4 +18,13 @@ class OwnerAuthUseCase @Inject constructor(
     suspend fun verifyAuthCode(target: String, code: String): Result<Unit> {
         return repository.verifyAuthCode(target, code)
     }
+
+    // 사업자 번호 검증 요청
+    suspend fun verifyBusinessNumber(number: String) = repository.verifyBusinessNumber(number)
+
+    //검색 기능 api 요청
+    suspend fun searchStore(query: String) = repository.searchStore(query)
+
+    // 근처 대학명 찾기 요청
+    suspend fun getNearbyUniversity(address: String) = repository.getNearbyUniversity(address)
 }
