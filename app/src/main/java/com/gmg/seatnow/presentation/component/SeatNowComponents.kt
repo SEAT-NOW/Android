@@ -237,7 +237,7 @@ fun TermItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggle) // 행 전체 클릭 시 체크 토글
-            .padding(vertical = 8.dp, horizontal = 12.dp),
+            .padding(vertical = 6.dp, horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -252,7 +252,7 @@ fun TermItem(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = Body2_Regular_14,
                 // ★ 체크 여부와 상관없이 글자는 잘 보여야 하므로 SubDarkGray 유지 (요청 시 변경 가능)
                 color = SubDarkGray
             )

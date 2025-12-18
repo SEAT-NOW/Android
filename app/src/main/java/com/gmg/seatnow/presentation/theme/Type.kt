@@ -69,6 +69,6 @@ val Typography = Typography(
     labelSmall = Subtitle1_SemiBold_12,
 
     bodyLarge = Body1_Medium_16,
-    bodyMedium = Body1_Medium_14,
+    bodyMedium = Body1_Medium_12,
     bodySmall = Body1_Medium_12
 )
