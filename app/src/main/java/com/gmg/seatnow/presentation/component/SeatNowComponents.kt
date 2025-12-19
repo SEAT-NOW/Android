@@ -37,12 +37,15 @@ fun SeatNowTextField(
     modifier: Modifier = Modifier,
     height : Dp = 52.dp,
     isEnabled: Boolean = true,         // TextField 입력 가능 여부
+    readOnly: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     isPassword: Boolean = false,
     errorText: String? = null,           // null이면 에러 없음 (Simple 모드)
     imeAction: ImeAction = ImeAction.Next,
     keyboardType: KeyboardType = KeyboardType.Text // 기본값 Text, 필요시 Number/Email 등 설정 가능
 ) {
+    val backgroundColor = if (isEnabled) White else SubLightGray
+
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
@@ -68,6 +71,7 @@ fun SeatNowTextField(
                     alpha = 0.15f,
                     cornersRadius = 12.dp
                 )
+                .background(color = backgroundColor, shape = RoundedCornerShape(12.dp))
                 .border(
                     width = 1.dp,
                     color = borderColor,
@@ -83,15 +87,26 @@ fun SeatNowTextField(
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
             isError = errorText != null,
+            readOnly = readOnly,
+            enabled = isEnabled,
             colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = White,
-                focusedContainerColor = White,
-                unfocusedBorderColor = Color.Transparent, // border는 modifier로 처리
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent, // 이게 이미지 버그의 원인이었습니다.
+                errorContainerColor = Color.Transparent,
+
+                // 텍스트/커서 색상
+                focusedTextColor = SubBlack,
+                unfocusedTextColor = SubBlack,
+
+                // 테두리도 Modifier로 그렸으니 여기선 투명
                 focusedBorderColor = Color.Transparent,
-                errorBorderColor = Color.Transparent,
-                errorContainerColor = White
+                unfocusedBorderColor = Color.Transparent,
+                disabledBorderColor = Color.Transparent,
+                errorBorderColor = Color.Transparent
             ),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+                visualTransformation = if (isPassword) PasswordVisualTransformation() else visualTransformation,
+
             keyboardOptions = KeyboardOptions(
                 keyboardType = finalKeyboardType,
                 imeAction = imeAction

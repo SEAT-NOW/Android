@@ -1,5 +1,8 @@
 package com.gmg.seatnow.presentation.owner.signup.steps
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -31,6 +35,15 @@ fun Step2BusinessInfoScreen(
     onAction: (SignUpAction) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+
+    // ★ 파일 선택기 (이미지 전용)
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            onAction(SignUpAction.UploadLicenseImage(uri))
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
 
@@ -116,12 +129,14 @@ fun Step2BusinessInfoScreen(
                 value = uiState.mainAddress,
                 onValueChange = {}, // ReadOnly
                 placeholder = "주소",
-                modifier = Modifier.clickable { onAction(SignUpAction.OnAddressClick) }, // 클릭 감지
+                isEnabled = true,
+                readOnly = true
             )
             // 클릭 이벤트를 뺏기지 않도록 투명 박스로 덮음 (TextField 자체 enabled=false 하면 스타일이 변하므로)
             Box(
                 modifier = Modifier
                     .matchParentSize()
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable {
                         focusManager.clearFocus()
                         onAction(SignUpAction.OnAddressClick)
@@ -136,8 +151,9 @@ fun Step2BusinessInfoScreen(
             value = uiState.zipCode,
             onValueChange = {},
             placeholder = "우편번호",
-            isEnabled = false // 스타일 유지를 위해 enabled=false 대신 위처럼 투명박스 처리를 권장하나, 여기선 비활성 스타일 허용 시 이렇게
-        )
+            isEnabled = uiState.zipCode.isEmpty(),
+            readOnly = true,
+            )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -146,7 +162,8 @@ fun Step2BusinessInfoScreen(
             value = uiState.nearbyUniv,
             onValueChange = {},
             placeholder = "주변 대학명",
-            isEnabled = false // 자동 입력 필드이므로 비활성화
+            isEnabled = uiState.nearbyUniv.isEmpty(),
+            readOnly = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))

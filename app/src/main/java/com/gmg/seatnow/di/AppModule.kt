@@ -1,6 +1,8 @@
 package com.gmg.seatnow.di
 
 import com.gmg.seatnow.data.repository.AuthRepositoryImpl
+import com.gmg.seatnow.data.repository.ImageRepository
+import com.gmg.seatnow.data.repository.MockImageRepositoryImpl
 import com.gmg.seatnow.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
@@ -17,4 +19,18 @@ abstract class AppModule {
     abstract fun bindAuthRepository(
         authRepositoryImpl: AuthRepositoryImpl
     ): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindImageRepository(
+        mockRepository: MockImageRepositoryImpl
+    ): ImageRepository
+
+    /*
+    @Binds
+    @Singleton
+    abstract fun bindImageRepository(
+        realRepository: ImageRepositoryImpl
+    ): ImageRepository
+    */
 }

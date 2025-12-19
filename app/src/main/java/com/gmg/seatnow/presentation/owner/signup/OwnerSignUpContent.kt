@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.gmg.seatnow.presentation.component.PostcodeScreen
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
@@ -31,22 +33,45 @@ fun OwnerSignUpContent(
     onAction: (SignUpAction) -> Unit,
     onBackClick: () -> Unit
 ) {
+    //주소 검색 열려있으면 닫기 (최우선순위)
+    BackHandler(enabled = uiState.isAddressSearchVisible) {
+        onAction(SignUpAction.CloseAddressSearch)
+    }
+
     // 상세 화면이 열려있으면 뒤로가기 키를 눌렀을 때 상세 화면만 닫음
     BackHandler(enabled = uiState.openedTermType != null) {
         onAction(SignUpAction.CloseTermDetail)
     }
 
-    // ★ 상태에 따라 [회원가입 폼] <-> [약관 상세 화면] 전환
-    Crossfade(targetState = uiState.openedTermType, label = "TermDetailTransition") { termType ->
-        if (termType != null) {
-            // 약관 상세 화면 보여주기
-            TermsDetailScreen(
-                termType = termType,
-                onBackClick = { onAction(SignUpAction.CloseTermDetail) }
-            )
-        } else {
-            // 기존 회원가입 폼 보여주기
-            SignUpFormScreen(uiState, onAction, onBackClick)
+    Box(modifier = Modifier.fillMaxSize()) {
+        // [레이어 1] 메인 콘텐츠 (회원가입 폼 및 약관 상세)
+        Crossfade(targetState = uiState.openedTermType, label = "TermDetailTransition") { termType ->
+            if (termType != null) {
+                TermsDetailScreen(
+                    termType = termType,
+                    onBackClick = { onAction(SignUpAction.CloseTermDetail) }
+                )
+            } else {
+                SignUpFormScreen(uiState, onAction, onBackClick)
+            }
+        }
+
+        // [레이어 2] 주소 검색 Overlay (★ 여기가 추가되어야 합니다!)
+        if (uiState.isAddressSearchVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(1f) // zIndex를 주어 가장 위에 표시
+            ) {
+                PostcodeScreen(
+                    onBackClick = {
+                        onAction(SignUpAction.CloseAddressSearch)
+                    },
+                    onAddressSelected = { zoneCode, roadAddress ->
+                        onAction(SignUpAction.AddressSelected(zoneCode, roadAddress))
+                    }
+                )
+            }
         }
     }
 }

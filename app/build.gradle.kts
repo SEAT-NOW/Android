@@ -76,6 +76,7 @@ dependencies {
     // 5. Network (Retrofit + Kotlinx Serialization)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
 
@@ -89,4 +90,7 @@ dependencies {
 
     // 8. DataStore (Preferences) - TokenManager 구현용
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // 9. Json 파싱
+    implementation("com.google.code.gson:gson:2.10.1")
 }
