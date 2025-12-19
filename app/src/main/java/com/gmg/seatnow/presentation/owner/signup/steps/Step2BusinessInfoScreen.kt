@@ -1,6 +1,8 @@
 package com.gmg.seatnow.presentation.owner.signup.steps
 
+import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -15,11 +17,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.platform.LocalContext
 import com.gmg.seatnow.presentation.component.BusinessNumberVisualTransformation
 import com.gmg.seatnow.presentation.component.NumberVisualTransformation
 import com.gmg.seatnow.presentation.component.SeatNowTextField
@@ -29,19 +38,22 @@ import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpActi
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step2BusinessInfoScreen(
     uiState: OwnerSignUpUiState,
     onAction: (SignUpAction) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     // ★ 파일 선택기 (이미지 전용)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            onAction(SignUpAction.UploadLicenseImage(uri))
+            val fileName = getFileNameFromUri(context, uri)
+            onAction(SignUpAction.UploadLicenseImage(uri, fileName))
         }
     }
 
@@ -79,44 +91,56 @@ fun Step2BusinessInfoScreen(
 
         // 3. 상호명 (검색 Dropdown 포함)
         Box(modifier = Modifier.fillMaxWidth()) {
+            var textFieldWidth by remember { mutableStateOf(0) }
+            val density = LocalDensity.current // 픽셀을 dp로 변환하기 위해 필요
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .onSizeChanged { size ->
+                        textFieldWidth = size.width
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 검색 버튼이 포함된 형태를 원하신다면 SignUpTextFieldWithButton을 개조하거나 Row로 구성
-                // 요구사항 4: "기본적으로 text입력이 가능하게 열어두고... 검색 버튼" (이미지 참조 시 TextField 내부에 버튼이 있는 형태)
-                // 여기서는 SeatNowTextField 옆에 버튼을 두거나, SignUpTextFieldWithButton을 활용합니다.
-                // 편의상 SignUpTextFieldWithButton을 재활용하되 버튼 텍스트를 "검색"으로 둡니다.
 
-                SignUpTextFieldWithButton(
+
+                SeatNowTextField(
                     value = uiState.storeName,
                     onValueChange = { onAction(SignUpAction.UpdateStoreName(it)) },
-                    placeholder = "상호명",
-                    buttonText = "검색",
-                    onButtonClick = {
-                        // 디바운싱에 의해 자동 검색되지만, 버튼 클릭 시 즉시 검색 등의 처리 가능
-                        // 현재는 입력 시 자동 검색 흐름
-                    }
+                    placeholder = "상호명"
                 )
             }
+            val dropDownWidthRatio = 0.96f
 
             // 드롭다운 메뉴 (검색 결과)
             DropdownMenu(
                 expanded = uiState.isStoreSearchDropdownExpanded && uiState.storeSearchResults.isNotEmpty(),
                 onDismissRequest = { /* 닫힘 처리 */ },
                 modifier = Modifier
-                    .fillMaxWidth(0.8f) // 부모 너비에 맞춤 (Padding 고려)
+                    .width(with(density) {(textFieldWidth * dropDownWidthRatio).toDp()})
                     .background(White),
+                offset = DpOffset(
+                    x = with(density) { (textFieldWidth * (1 - dropDownWidthRatio) / 2).toDp() },
+                    y = 0.dp
+                ),
                 properties = PopupProperties(focusable = false)
             ) {
-                uiState.storeSearchResults.forEach { result ->
+                uiState.storeSearchResults.forEachIndexed { index, result ->
                     DropdownMenuItem(
                         text = { Text(text = result, style = MaterialTheme.typography.bodyMedium) },
                         onClick = {
                             onAction(SignUpAction.SelectStoreName(result))
                             focusManager.clearFocus()
-                        }
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                     )
+
+                    if (index < uiState.storeSearchResults.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp), // 양옆 여백 (이미지처럼 살짝 띄우려면)
+                            thickness = 1.dp,        // 선 두께
+                            color = SubLightGray     // 색상 (기존 테마 색상 활용)
+                        )
+                    }
                 }
             }
         }
@@ -181,47 +205,68 @@ fun Step2BusinessInfoScreen(
 
         // 8. 사업자등록증 파일 선택 (버튼만 활성화)
         // 커스텀 UI: 텍스트필드처럼 보이지만 우측에 아이콘이 있고 전체가 클릭되는 형태
-        FileSelectionField(
-            fileName = uiState.licenseFileName,
-            onClick = { /* 추후 파일 피커 연동 */ }
-        )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // 1. 텍스트 필드 (모양 담당, 입력 불가, 읽기 전용)
+            SeatNowTextField(
+                value = uiState.licenseFileName ?: "", // 파일명 표시, 없으면 빈값
+                onValueChange = {},
+                placeholder = "사업자등록증 파일 선택",
+                isEnabled = true, // 활성화된 색상(흰색 배경)을 유지하기 위해 true
+                readOnly = true   // 키보드 안 올라오게 설정
+            )
 
-        Spacer(modifier = Modifier.height(10.dp))
+            // 2. 우측 아이콘 (링크 모양)
+            Icon(
+                painter = painterResource(id = R.drawable.ic_link),
+                contentDescription = "파일 첨부",
+                tint = SubLightGray, // 색상 맞춤
+                modifier = Modifier
+                    .align(Alignment.CenterEnd) // 오른쪽 중앙 정렬
+                    .padding(end = 16.dp)       // 우측 여백
+                    .size(20.dp)                // 아이콘 크기 조절
+            )
+
+            // 3. 전체 클릭 영역 (투명 버튼 역할)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(12.dp)) // 텍스트 필드 모양대로 클리핑
+                    .clickable {
+                        // 갤러리 열기 (이미지만)
+                        imagePickerLauncher.launch("image/*")
+                    }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
 
 
     }
 }
 
-// 파일 선택용 커스텀 컴포저블 (TextField 모양 흉내)
-@Composable
-fun FileSelectionField(
-    fileName: String?,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .clickable(onClick = onClick)
-            .border(1.dp, SubLightGray, RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = fileName ?: "사업자등록증 파일 선택",
-            color = if (fileName == null) SubLightGray else SubBlack,
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Icon(
-            // Attachment 아이콘 대신 rotate된 링크 아이콘 등을 사용 (임시로 Check 사용하거나 리소스 필요)
-            // 여기서는 기본 아이콘 사용
-            painter = painterResource(id = R.drawable.ic_link),
-            contentDescription = null,
-            tint = SubLightGray,
-            modifier = Modifier.rotate(-45f)
-        )
+fun getFileNameFromUri(context: Context, uri: Uri): String {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor.use {
+            if (it != null && it.moveToFirst()) {
+                val index = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) {
+                    result = it.getString(index)
+                }
+            }
+        }
     }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/')
+        if (cut != null && cut != -1) {
+            result = result?.substring(cut + 1)
+        }
+    }
+    return result ?: "unknown_file"
 }
 
 @Preview(showBackground = true, name = "Step 2 Only", heightDp = 800)
@@ -229,7 +274,11 @@ fun FileSelectionField(
 fun PreviewStep2BusinessInfoScreen() {
     SeatNowTheme {
         Step2BusinessInfoScreen(
-            uiState = OwnerSignUpUiState(),
+            uiState = OwnerSignUpUiState(
+                storeName = "메가커피", // 입력된 텍스트 예시
+                storeSearchResults = listOf("메가커피 건대점", "메가커피 세종대점", "메가커피 어린이대공원점"),
+                isStoreSearchDropdownExpanded = true,
+            ),
             onAction = {}
         )
     }

@@ -118,7 +118,7 @@ class OwnerSignUpViewModel @Inject constructor(
                 handleAddressSelected(action.zoneCode, action.address)
                 _uiState.update { it.copy(isAddressSearchVisible = false) }
             }
-            is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri)
+            is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri, action.fileName)
         }
         checkNextButtonEnabled()
     }
@@ -312,6 +312,33 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
+    private fun uploadLicenseImage(uri: Uri, fileName: String) {
+        // 1. 먼저 UI에 파일명 표시 (사용자에게 즉각 반응)
+        _uiState.update {
+            it.copy(licenseFileName = fileName)
+        }
+
+        viewModelScope.launch {
+            // 2. 실제 업로드 로직 수행
+            imageRepository.uploadImage(uri)
+                .onSuccess { imageUrl ->
+                    _uiState.update {
+                        it.copy(
+                            licenseImageUrl = imageUrl,
+                            // 업로드 성공 시 파일명을 그대로 유지하거나 "업로드 완료" 등으로 변경 가능
+                            licenseFileName = fileName
+                        )
+                    }
+                    checkNextButtonEnabled()
+                }
+                .onFailure {
+                    _uiState.update {
+                        it.copy(licenseFileName = "업로드 실패: 다시 선택해주세요")
+                    }
+                }
+        }
+    }
+
     private fun checkNextButtonEnabled() {
         val state = _uiState.value
         val isValid = when (state.currentStep) {
@@ -431,7 +458,8 @@ class OwnerSignUpViewModel @Inject constructor(
         val licenseFileName: String? = null,
 
         // ★ [추가됨] 서버에서 받은 이미지 URL을 저장할 변수
-        val licenseImageUrl: String? = null
+        val licenseImageUrl: String? = null,
+        val fileName: String? = null
     )
 
     sealed interface SignUpAction {
@@ -459,7 +487,7 @@ class OwnerSignUpViewModel @Inject constructor(
         object CloseAddressSearch : SignUpAction // ★
         data class AddressSelected(val zoneCode: String, val address: String) : SignUpAction
         data class UpdateStoreContact(val phone: String) : SignUpAction
-        data class UploadLicenseImage(val uri: Uri) : SignUpAction
+        data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction
     }
