@@ -6,7 +6,6 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,7 +15,6 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -40,7 +38,7 @@ import com.gmg.seatnow.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Step2BusinessInfoScreen(
+fun Step2BusinessScreen(
     uiState: OwnerSignUpUiState,
     onAction: (SignUpAction) -> Unit
 ) {
@@ -273,7 +271,7 @@ fun getFileNameFromUri(context: Context, uri: Uri): String {
 @Composable
 fun PreviewStep2BusinessInfoScreen() {
     SeatNowTheme {
-        Step2BusinessInfoScreen(
+        Step2BusinessScreen(
             uiState = OwnerSignUpUiState(
                 storeName = "메가커피", // 입력된 텍스트 예시
                 storeSearchResults = listOf("메가커피 건대점", "메가커피 세종대점", "메가커피 어린이대공원점"),

@@ -17,14 +17,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import com.gmg.seatnow.presentation.component.PostcodeScreen
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.owner.signup.steps.Step1BasicScreen
-import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessInfoScreen
+import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.TermsDetailScreen
 import com.gmg.seatnow.presentation.theme.*
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,13 +41,8 @@ fun OwnerSignUpContent(
     onBackClick: () -> Unit
 ) {
     //주소 검색 열려있으면 닫기 (최우선순위)
-    BackHandler(enabled = uiState.isAddressSearchVisible) {
-        onAction(SignUpAction.CloseAddressSearch)
-    }
-
-    // 상세 화면이 열려있으면 뒤로가기 키를 눌렀을 때 상세 화면만 닫음
-    BackHandler(enabled = uiState.openedTermType != null) {
-        onAction(SignUpAction.CloseTermDetail)
+    BackHandler(enabled = true) {
+        onAction(SignUpAction.OnBackClick)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -52,7 +54,10 @@ fun OwnerSignUpContent(
                     onBackClick = { onAction(SignUpAction.CloseTermDetail) }
                 )
             } else {
-                SignUpFormScreen(uiState, onAction, onBackClick)
+                SignUpFormScreen(
+                    uiState,
+                    onAction,
+                    onBackClick = {onAction(SignUpAction.OnBackClick)})
             }
         }
 
@@ -122,9 +127,35 @@ fun SignUpFormScreen(
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
+            AnimatedContent(
+                targetState = uiState.currentStep,
+                label = "SignUpStepAnimation",
+                transitionSpec = {
+                    // Enum의 순서(ordinal)를 비교하여 방향 결정
+                    if (targetState.ordinal > initialState.ordinal) {
+                        // [다음 단계로 이동]: 새 화면이 오른쪽에서 들어오고(SlideIn), 옛날 화면은 왼쪽으로 나감(SlideOut)
+                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> -width } + fadeOut())
+                    } else {
+                        // [이전 단계로 이동]: 새 화면이 왼쪽에서 들어오고, 옛날 화면은 오른쪽으로 나감
+                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> width } + fadeOut())
+                    }
+                }
+            ) { targetStep ->
+                // 애니메이션 안에서 렌더링될 화면들
+                when (targetStep) {
+                    SignUpStep.STEP_1_BASIC -> Step1BasicScreen(uiState, onAction)
+                    SignUpStep.STEP_2_BUSINESS -> Step2BusinessScreen(uiState, onAction)
+//                    SignUpStep.STEP_3_STORE -> Step3StoreScreen(uiState, onAction)
+                    else -> Text("준비 중")
+                }
+            }
+
             when(uiState.currentStep) {
                 SignUpStep.STEP_1_BASIC -> Step1BasicScreen(uiState, onAction)
-                SignUpStep.STEP_2_BUSINESS -> Step2BusinessInfoScreen(uiState, onAction)
+                SignUpStep.STEP_2_BUSINESS -> Step2BusinessScreen(uiState, onAction)
+//                SignUpStep.STEP_3_STORE -> Step3StoreScreen(uiState, onAction)
                 else -> Text("준비 중")
             }
 
