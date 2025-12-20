@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.usecase.OwnerAuthUseCase
+import com.gmg.seatnow.presentation.owner.SpaceItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -119,6 +120,19 @@ class OwnerSignUpViewModel @Inject constructor(
                 _uiState.update { it.copy(isAddressSearchVisible = false) }
             }
             is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri, action.fileName)
+
+            is SignUpAction.UpdateSpaceInput -> _uiState.update { it.copy(spaceInput = action.input) }
+            is SignUpAction.UpdateTablePersonCount -> _uiState.update { it.copy(tablePersonCount = action.count) }
+            is SignUpAction.UpdateTableCount -> _uiState.update { it.copy(tableCount = action.count) }
+
+            is SignUpAction.UpdateSpaceInput -> {
+                _uiState.update { it.copy(spaceInput = action.input, spaceInputError = null) }
+            }
+            is SignUpAction.AddSpace -> addSpaceItem()
+            is SignUpAction.RemoveSpace -> removeSpaceItem(action.id)
+            is SignUpAction.EditSpace -> toggleEditMode(action.id, true)
+            is SignUpAction.UpdateEditInput -> updateEditInput(action.id, action.input)
+            is SignUpAction.SaveSpace -> saveSpaceItem(action.id)
         }
         checkNextButtonEnabled()
     }
@@ -339,6 +353,61 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
+    private fun addSpaceItem() {
+        val input = _uiState.value.spaceInput.trim()
+        if (input.isBlank()) {
+            _uiState.update { it.copy(spaceInputError = "텍스트를 입력해주세요.") }
+            return
+        }
+
+        val newItem = SpaceItem(name = input)
+        _uiState.update {
+            it.copy(
+                spaceList = it.spaceList + newItem,
+                spaceInput = "", // 입력창 초기화
+                spaceInputError = null
+            )
+        }
+    }
+
+    private fun removeSpaceItem(id: Long) {
+        _uiState.update { state ->
+            state.copy(spaceList = state.spaceList.filter { it.id != id })
+        }
+    }
+
+    private fun toggleEditMode(id: Long, isEditing: Boolean) {
+        _uiState.update { state ->
+            state.copy(spaceList = state.spaceList.map { item ->
+                if (item.id == id) {
+                    // 수정 시작할 때 현재 이름을 editInput에 복사
+                    item.copy(isEditing = isEditing, editInput = if(isEditing) item.name else "")
+                } else item
+            })
+        }
+    }
+
+    private fun updateEditInput(id: Long, input: String) {
+        _uiState.update { state ->
+            state.copy(spaceList = state.spaceList.map {
+                if (it.id == id) it.copy(editInput = input) else it
+            })
+        }
+    }
+
+    private fun saveSpaceItem(id: Long) {
+        _uiState.update { state ->
+            state.copy(spaceList = state.spaceList.map { item ->
+                if (item.id == id) {
+                    // 입력값이 비어있으면 저장 안 함 (혹은 에러 처리)
+                    if (item.editInput.isBlank()) item
+                    else item.copy(name = item.editInput, isEditing = false)
+                } else item
+            })
+        }
+    }
+
+
     private fun checkNextButtonEnabled() {
         val state = _uiState.value
         val isValid = when (state.currentStep) {
@@ -403,7 +472,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_2_BUSINESS,
+        val currentStep: SignUpStep = SignUpStep.STEP_3_STORE,
         val isNextButtonEnabled: Boolean = false,
 
         // 약관 관련
@@ -459,10 +528,18 @@ class OwnerSignUpViewModel @Inject constructor(
 
         // ★ [추가됨] 서버에서 받은 이미지 URL을 저장할 변수
         val licenseImageUrl: String? = null,
-        val fileName: String? = null
+        val fileName: String? = null,
+
+        // ★ [Step 3 추가] 공간/테이블 구성 관련 State
+        val spaceInput: String = "",
+        val tablePersonCount: String = "", // N (인원)
+        val tableCount: String = "",       // M (개수)
+        val spaceInputError: String? = null, // 에러 메시지용
+        val spaceList: List<SpaceItem> = emptyList(), // 추가된 공간 리스트
     )
 
     sealed interface SignUpAction {
+        //step1
         data class UpdateEmail(val email: String) : SignUpAction
         data class UpdateAuthCode(val code: String) : SignUpAction
         data class UpdatePassword(val password: String) : SignUpAction
@@ -478,6 +555,7 @@ class OwnerSignUpViewModel @Inject constructor(
         object RequestPhoneCode : SignUpAction
         object VerifyPhoneCode : SignUpAction
 
+        //step2
         data class UpdateRepName(val name: String) : SignUpAction
         data class UpdateBusinessNum(val num: String) : SignUpAction
         object VerifyBusinessNum : SignUpAction
@@ -488,6 +566,19 @@ class OwnerSignUpViewModel @Inject constructor(
         data class AddressSelected(val zoneCode: String, val address: String) : SignUpAction
         data class UpdateStoreContact(val phone: String) : SignUpAction
         data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
+
+        //step3
+        data class UpdateSpaceInput(val input: String) : SignUpAction
+        data class UpdateTablePersonCount(val count: String) : SignUpAction
+        data class UpdateTableCount(val count: String) : SignUpAction
+
+        object AddSpace : SignUpAction // 플러스 버튼 클릭 시
+        data class RemoveSpace(val id: Long) : SignUpAction
+        data class EditSpace(val id: Long) : SignUpAction // 수정 버튼 클릭 (Read -> Edit)
+        data class UpdateEditInput(val id: Long, val input: String) : SignUpAction // 수정 중 텍스트 변경
+        data class SaveSpace(val id: Long) : SignUpAction // 완료 버튼 클릭 (Edit -> Read)
+
+
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction
     }

@@ -27,6 +27,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.presentation.theme.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 // ★ 병합된 통합 텍스트 필드
 @Composable
@@ -324,5 +340,141 @@ fun SeatNowTopAppBar(
                 titleContentColor = SubBlack
             )
         )
+    }
+}
+
+// ★ [공통 컴포넌트] 원형 숫자 입력 필드 (N, M 등 입력용)
+@Composable
+fun CircularNumberField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(48.dp) // 원 크기 고정
+            .border(2.dp, PointRed, CircleShape) // 빨간 테두리
+            .background(Color.Transparent, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        // 값이 비어있으면 Placeholder 표시
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PointRed, // Placeholder는 빨간색
+                    textAlign = TextAlign.Center
+                )
+            )
+        }
+        // 실제 입력 필드
+        BasicTextField(
+            value = value,
+            onValueChange = {
+                // 숫자만 입력 가능 + 최대 2자리 제한
+                if (it.all { char -> char.isDigit() } && it.length <= 2) {
+                    onValueChange(it)
+                }
+            },
+            textStyle = TextStyle(
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = SubBlack, // 입력된 숫자는 검은색
+                textAlign = TextAlign.Center
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            cursorBrush = SolidColor(PointRed), // 커서 색상도 깔맞춤
+            modifier = Modifier.wrapContentSize()
+        )
+    }
+}
+
+// ★ [공통 컴포넌트] 빨간색 플러스 버튼
+@Composable
+fun SeatNowRedPlusButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .width(100.dp)
+            .height(40.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = PointRed,
+            contentColor = White
+        ),
+        shape = RoundedCornerShape(8.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "추가",
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+fun SpaceItemCard(
+    name: String,
+    seatCount: Int,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 1. 빨간 테두리 박스 (이름 + 좌석수)
+        Row(
+            modifier = Modifier
+                .weight(1f) // 남은 공간 차지
+                .fillMaxHeight()
+                .border(1.dp, PointRed, RoundedCornerShape(4.dp)) // 각진 테두리 (이미지 참고)
+                .background(White, RoundedCornerShape(4.dp))
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = PointRed
+            )
+            Text(
+                text = "${seatCount}석",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = PointRed
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // 2. 수정 아이콘 (진한 회색 연필)
+        IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "수정",
+                tint = SubDarkGray
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // 3. 삭제 아이콘 (빨간 휴지통)
+        IconButton(onClick = onDeleteClick, modifier = Modifier.size(24.dp)) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "삭제",
+                tint = PointRed
+            )
+        }
     }
 }

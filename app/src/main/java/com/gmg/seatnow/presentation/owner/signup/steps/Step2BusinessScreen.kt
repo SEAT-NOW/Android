@@ -60,8 +60,12 @@ fun Step2BusinessScreen(
         // 1. 대표자명 (일반 텍스트)
         SeatNowTextField(
             value = uiState.repName,
-            onValueChange = { onAction(SignUpAction.UpdateRepName(it)) },
-            placeholder = "대표자명",
+            onValueChange = { input ->
+                if (input.all { char -> char.isLetter() || char.isWhitespace() }) {
+                    onAction(SignUpAction.UpdateRepName(input))
+                }
+            },
+            placeholder = "대표자명(특수문자/숫자 입력 불가)",
             keyboardType = KeyboardType.Text
         )
 
@@ -72,7 +76,7 @@ fun Step2BusinessScreen(
         SignUpTextFieldWithButton(
             value = uiState.businessNumber,
             onValueChange = { onAction(SignUpAction.UpdateBusinessNum(it)) },
-            placeholder = "사업자등록번호",
+            placeholder = "사업자등록번호('-' 제외)",
             buttonText = if (uiState.isBusinessNumVerified) "인증완료" else "확인",
             errorText = uiState.businessNumberError,
             isEnabled = !uiState.isBusinessNumVerified, // 인증되면 입력 불가
@@ -165,17 +169,6 @@ fun Step2BusinessScreen(
                     }
             )
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 5. 우편번호 (주소 아래에 추가, 입력 불가)
-        SeatNowTextField(
-            value = uiState.zipCode,
-            onValueChange = {},
-            placeholder = "우편번호",
-            isEnabled = uiState.zipCode.isEmpty(),
-            readOnly = true,
-            )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -272,11 +265,7 @@ fun getFileNameFromUri(context: Context, uri: Uri): String {
 fun PreviewStep2BusinessInfoScreen() {
     SeatNowTheme {
         Step2BusinessScreen(
-            uiState = OwnerSignUpUiState(
-                storeName = "메가커피", // 입력된 텍스트 예시
-                storeSearchResults = listOf("메가커피 건대점", "메가커피 세종대점", "메가커피 어린이대공원점"),
-                isStoreSearchDropdownExpanded = true,
-            ),
+            uiState = OwnerSignUpUiState(),
             onAction = {}
         )
     }

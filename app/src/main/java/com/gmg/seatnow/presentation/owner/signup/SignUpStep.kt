@@ -11,7 +11,7 @@ enum class SignUpStep(
     STEP_2_BUSINESS("사업자 정보 입력", 0.4f),
     
     // 3단계: 공간 테이블 구성 입력 (60%)
-    STEP_3_STORE("공간 테이블 구성 입력", 0.6f),
+    STEP_3_STORE("공간/테이블 구성 입력", 0.6f),
 
     // 4단계: 운영 정보 입력 (80%)
     STEP_4_OPERATION("운영 정보 입력", 0.8f),
