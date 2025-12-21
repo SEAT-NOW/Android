@@ -23,7 +23,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import com.gmg.seatnow.presentation.component.PostcodeScreen
+import androidx.compose.foundation.background
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
@@ -63,19 +63,16 @@ fun OwnerSignUpContent(
         }
 
         // [레이어 2] 주소 검색 Overlay (★ 여기가 추가되어야 합니다!)
-        if (uiState.isAddressSearchVisible) {
+        if (uiState.isStoreSearchVisible) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f) // zIndex를 주어 가장 위에 표시
+                    .background(White)
             ) {
-                PostcodeScreen(
-                    onBackClick = {
-                        onAction(SignUpAction.CloseAddressSearch)
-                    },
-                    onAddressSelected = { zoneCode, roadAddress ->
-                        onAction(SignUpAction.AddressSelected(zoneCode, roadAddress))
-                    }
+                StoreSearchScreen(
+                    uiState = uiState,
+                    onAction = onAction
                 )
             }
         }

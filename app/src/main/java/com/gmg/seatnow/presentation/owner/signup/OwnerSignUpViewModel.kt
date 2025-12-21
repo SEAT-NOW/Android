@@ -4,8 +4,9 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.repository.ImageRepository
+import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.usecase.OwnerAuthUseCase
-import com.gmg.seatnow.presentation.owner.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -36,7 +37,7 @@ class OwnerSignUpViewModel @Inject constructor(
     private val _storeSearchQuery = MutableSharedFlow<String>()
 
     init {
-        // 검색어 입력 감지 및 디바운싱 처리 (기존 유지)
+        // ★ [Step 2] 상호명 검색 디바운싱 로직
         viewModelScope.launch {
             @OptIn(FlowPreview::class)
             _storeSearchQuery
@@ -45,23 +46,14 @@ class OwnerSignUpViewModel @Inject constructor(
                     if (query.isNotBlank()) {
                         authUseCase.searchStore(query)
                             .onSuccess { results ->
-                                _uiState.update {
-                                    it.copy(
-                                        storeSearchResults = results,
-                                        isStoreSearchDropdownExpanded = true
-                                    )
-                                }
+                                _uiState.update { it.copy(storeSearchResults = results) }
                             }
                     } else {
-                        _uiState.update {
-                            it.copy(
-                                storeSearchResults = emptyList(),
-                                isStoreSearchDropdownExpanded = false
-                            )
-                        }
+                        _uiState.update { it.copy(storeSearchResults = emptyList()) }
                     }
                 }
         }
+
     }
 
     fun onAction(action: SignUpAction) {
@@ -72,19 +64,14 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.UpdatePasswordCheck -> validateAndUpdatePasswordCheck(action.check)
             is SignUpAction.UpdatePhone -> _uiState.update { it.copy(phone = action.phone) }
             is SignUpAction.UpdatePhoneAuthCode -> _uiState.update { it.copy(phoneAuthCode = action.code) }
-
             is SignUpAction.RequestEmailCode -> requestEmailCode()
             is SignUpAction.VerifyEmailCode -> verifyEmailCode()
             is SignUpAction.RequestPhoneCode -> requestPhoneCode()
             is SignUpAction.VerifyPhoneCode -> verifyPhoneCode()
-
             is SignUpAction.ToggleAllTerms -> toggleAllTerms(action.isChecked)
             is SignUpAction.ToggleTerm -> toggleSingleTerm(action.termType)
             is SignUpAction.OpenTermDetail -> _uiState.update { it.copy(openedTermType = action.termType) }
             is SignUpAction.CloseTermDetail -> _uiState.update { it.copy(openedTermType = null) }
-
-            is SignUpAction.OnNextClick -> handleNextStep()
-            is SignUpAction.OnBackClick -> handleBackStep()
 
             // Step 2 Implementations
             is SignUpAction.UpdateRepName -> { _uiState.update { it.copy(repName = action.name) } }
@@ -94,30 +81,21 @@ class OwnerSignUpViewModel @Inject constructor(
                 }
             }
             is SignUpAction.VerifyBusinessNum -> verifyBusinessNumber()
-            is SignUpAction.UpdateStoreName -> {
-                _uiState.update { it.copy(storeName = action.name) }
-                viewModelScope.launch { _storeSearchQuery.emit(action.name) }
+            // ★ [변경] 상호명 검색 관련 Action 처리
+            is SignUpAction.OpenStoreSearch -> _uiState.update { it.copy(isStoreSearchVisible = true) }
+            is SignUpAction.CloseStoreSearch -> _uiState.update { it.copy(isStoreSearchVisible = false) }
+            is SignUpAction.SearchStoreQuery -> {
+                viewModelScope.launch { _storeSearchQuery.emit(action.query) }
             }
-            is SignUpAction.SelectStoreName -> {
-                _uiState.update {
-                    it.copy(
-                        storeName = action.name,
-                        isStoreSearchDropdownExpanded = false,
-                    )
-                }
-            }
+            is SignUpAction.SelectStore -> selectStore(action.store)
+
+            // ★ [변경] 주소 직접 수정 Action (우편번호 삭제됨)
+            is SignUpAction.UpdateMainAddress -> _uiState.update { it.copy(mainAddress = action.address) }
+
             is SignUpAction.UpdateStoreContact -> {
                 if (action.phone.length <= 11 && action.phone.all { it.isDigit() }) {
                     _uiState.update { it.copy(storeContact = action.phone) }
                 }
-            }
-
-            // --- 주소 검색 및 파일 업로드 Action 처리 ---
-            is SignUpAction.OnAddressClick -> _uiState.update { it.copy(isAddressSearchVisible = true) }
-            is SignUpAction.CloseAddressSearch -> _uiState.update { it.copy(isAddressSearchVisible = false) }
-            is SignUpAction.AddressSelected -> {
-                handleAddressSelected(action.zoneCode, action.address)
-                _uiState.update { it.copy(isAddressSearchVisible = false) }
             }
             is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri, action.fileName)
 
@@ -133,6 +111,9 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.EditSpace -> toggleEditMode(action.id, true)
             is SignUpAction.UpdateEditInput -> updateEditInput(action.id, action.input)
             is SignUpAction.SaveSpace -> saveSpaceItem(action.id)
+
+            is SignUpAction.OnNextClick -> handleNextStep()
+            is SignUpAction.OnBackClick -> handleBackStep()
         }
         checkNextButtonEnabled()
     }
@@ -284,6 +265,7 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { it.copy(passwordCheck = check, passwordCheckError = error) }
     }
 
+    //Step2
     private fun verifyBusinessNumber() {
         val num = _uiState.value.businessNumber
         if (num.length != 10) return
@@ -297,31 +279,33 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
-    private fun uploadLicenseImage(uri: Uri) {
+    private fun selectStore(store: StoreSearchResult) {
+        _uiState.update {
+            it.copy(
+                storeName = store.placeName,     // 상호명 자동 입력
+                mainAddress = store.addressName, // 주소 자동 입력
+                isStoreSearchVisible = false,    // 검색창 닫기
+                nearbyUniv = "대학 검색 중...",   // 로딩 표시
+                isNearbyUnivEnabled = true      // 아직 입력 불가
+            )
+        }
+
+        // 위도/경도로 대학 찾기 API 호출
         viewModelScope.launch {
-            imageRepository.uploadImage(uri)
-                .onSuccess { imageUrl ->
+            authUseCase.getNearbyUniversity(store.latitude, store.longitude)
+                .onSuccess { univ ->
                     _uiState.update {
                         it.copy(
-                            licenseFileName = "등록 완료",
-                            licenseImageUrl = imageUrl // ★ 중요: State에 이 필드가 있어야 오류가 안 납니다.
+                            nearbyUniv = univ,
+                            isNearbyUnivEnabled = false // ★ 성공 시 활성화
                         )
                     }
                     checkNextButtonEnabled()
                 }
                 .onFailure {
-                    _uiState.update { it.copy(licenseFileName = "업로드 실패: 다시 시도해주세요") }
-                }
-        }
-    }
-
-    private fun handleAddressSelected(zoneCode: String, address: String) {
-        _uiState.update { it.copy(mainAddress = address, zipCode = zoneCode) }
-        viewModelScope.launch {
-            authUseCase.getNearbyUniversity(address)
-                .onSuccess { univ ->
-                    _uiState.update { it.copy(nearbyUniv = univ) }
-                    checkNextButtonEnabled()
+                    _uiState.update {
+                        it.copy(nearbyUniv = "대학을 찾을 수 없습니다.", isNearbyUnivEnabled = false)
+                    }
                 }
         }
     }
@@ -425,6 +409,7 @@ class OwnerSignUpViewModel @Inject constructor(
                         state.mainAddress.isNotBlank() &&
                         state.nearbyUniv.isNotBlank()
             }
+            SignUpStep.STEP_3_STORE -> state.spaceList.isNotEmpty()
             else -> false
         }
         _uiState.update { it.copy(isNextButtonEnabled = isValid) }
@@ -443,8 +428,8 @@ class OwnerSignUpViewModel @Inject constructor(
     // ★ [수정됨] 뒤로가기 처리: 주소 검색창이 열려있으면 그것만 닫습니다.
     private fun handleBackStep() {
         // 1. 주소 검색창이 열려있으면 닫기
-        if (_uiState.value.isAddressSearchVisible) {
-            _uiState.update { it.copy(isAddressSearchVisible = false) }
+        if (_uiState.value.isStoreSearchVisible) {
+            _uiState.update { it.copy(isStoreSearchVisible = false) }
             return
         }
 
@@ -515,20 +500,15 @@ class OwnerSignUpViewModel @Inject constructor(
         val isBusinessNumVerified: Boolean = false,
         val businessNumberError: String? = null,
         val storeName: String = "",
-        val storeSearchResults: List<String> = emptyList(),
-        val isStoreSearchDropdownExpanded: Boolean = false,
         val mainAddress: String = "",
-        val zipCode: String = "",
         val nearbyUniv: String = "",
+        val isNearbyUnivEnabled: Boolean = true,
         val nearbyUnivError: String? = null,
         val storeContact: String = "",
-
-        val isAddressSearchVisible: Boolean = false,
         val licenseFileName: String? = null,
-
-        // ★ [추가됨] 서버에서 받은 이미지 URL을 저장할 변수
         val licenseImageUrl: String? = null,
-        val fileName: String? = null,
+        val isStoreSearchVisible: Boolean = false,
+        val storeSearchResults: List<StoreSearchResult> = emptyList(),
 
         // ★ [Step 3 추가] 공간/테이블 구성 관련 State
         val spaceInput: String = "",
@@ -559,14 +539,13 @@ class OwnerSignUpViewModel @Inject constructor(
         data class UpdateRepName(val name: String) : SignUpAction
         data class UpdateBusinessNum(val num: String) : SignUpAction
         object VerifyBusinessNum : SignUpAction
-        data class UpdateStoreName(val name: String) : SignUpAction
-        data class SelectStoreName(val name: String) : SignUpAction
-        object OnAddressClick : SignUpAction
-        object CloseAddressSearch : SignUpAction // ★
-        data class AddressSelected(val zoneCode: String, val address: String) : SignUpAction
+        object OpenStoreSearch : SignUpAction
+        object CloseStoreSearch : SignUpAction
+        data class SearchStoreQuery(val query: String) : SignUpAction
+        data class SelectStore(val store: StoreSearchResult) : SignUpAction
+        data class UpdateMainAddress(val address: String) : SignUpAction
         data class UpdateStoreContact(val phone: String) : SignUpAction
         data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
-
         //step3
         data class UpdateSpaceInput(val input: String) : SignUpAction
         data class UpdateTablePersonCount(val count: String) : SignUpAction

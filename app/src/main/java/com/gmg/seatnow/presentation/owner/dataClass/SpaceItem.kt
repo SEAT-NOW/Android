@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner
+package com.gmg.seatnow.presentation.owner.dataClass
 
 data class SpaceItem(
     val id: Long = System.currentTimeMillis(), // 고유 ID

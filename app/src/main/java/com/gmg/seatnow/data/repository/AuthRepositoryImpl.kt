@@ -2,6 +2,7 @@ package com.gmg.seatnow.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -88,21 +89,25 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     // 상호명 검색 Mock
-    override suspend fun searchStore(query: String): Result<List<String>> {
-        delay(300)
+    override suspend fun searchStore(query: String): Result<List<StoreSearchResult>> {
+        delay(300) // API 호출 흉내
         if (query.isBlank()) return Result.success(emptyList())
-        // 검색어에 따른 더미 데이터 반환
-        return Result.success(listOf(
-            "$query 대학로점",
-            "$query 본점",
-            "$query 2호점"
-        ))
+
+        // 더미 데이터 생성
+        val mockList = listOf(
+            StoreSearchResult("용용선생 대학로점", "서울 종로구 대학로8가길 36 1층", 37.582, 127.001),
+            StoreSearchResult("용용선생 건대점", "서울 광진구 아차산로33길 25", 37.541, 127.067),
+            StoreSearchResult("용용선생 강남역점", "서울 강남구 강남대로96길 17", 37.498, 127.027)
+        )
+        // 검색어가 포함된 것만 필터링하는 척 하거나 그냥 리턴
+        return Result.success(mockList)
     }
 
     // 주변 대학 찾기 Mock
-    override suspend fun getNearbyUniversity(address: String): Result<String> {
-        delay(500)
-        // 무조건 명지대학교 반환
+    override suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<String> {
+        delay(800)
+        Log.d("AuthRepo", "대학 검색 요청: $lat, $lng")
+        // 좌표에 따라 다른 대학 리턴 (Mock)
         return Result.success("명지대학교")
     }
 }

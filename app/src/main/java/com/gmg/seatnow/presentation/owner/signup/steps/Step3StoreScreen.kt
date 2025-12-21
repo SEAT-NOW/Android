@@ -18,7 +18,7 @@ import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.R
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.SpaceItemCard
-import com.gmg.seatnow.presentation.owner.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 
 @Composable
 fun Step3StoreScreen(

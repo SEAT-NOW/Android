@@ -5,13 +5,11 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,11 +19,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.platform.LocalContext
 import com.gmg.seatnow.presentation.component.BusinessNumberVisualTransformation
 import com.gmg.seatnow.presentation.component.NumberVisualTransformation
@@ -105,96 +99,55 @@ fun Step2BusinessScreen(
             ) {
 
 
-                SeatNowTextField(
+                SignUpTextFieldWithButton(
                     value = uiState.storeName,
-                    onValueChange = { onAction(SignUpAction.UpdateStoreName(it)) },
-                    placeholder = "상호명"
-                )
-            }
-            val dropDownWidthRatio = 0.96f
-
-            // 드롭다운 메뉴 (검색 결과)
-            DropdownMenu(
-                expanded = uiState.isStoreSearchDropdownExpanded && uiState.storeSearchResults.isNotEmpty(),
-                onDismissRequest = { /* 닫힘 처리 */ },
-                modifier = Modifier
-                    .width(with(density) {(textFieldWidth * dropDownWidthRatio).toDp()})
-                    .background(White),
-                offset = DpOffset(
-                    x = with(density) { (textFieldWidth * (1 - dropDownWidthRatio) / 2).toDp() },
-                    y = 0.dp
-                ),
-                properties = PopupProperties(focusable = false)
-            ) {
-                uiState.storeSearchResults.forEachIndexed { index, result ->
-                    DropdownMenuItem(
-                        text = { Text(text = result, style = MaterialTheme.typography.bodyMedium) },
-                        onClick = {
-                            onAction(SignUpAction.SelectStoreName(result))
-                            focusManager.clearFocus()
-                        },
-                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                    )
-
-                    if (index < uiState.storeSearchResults.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp), // 양옆 여백 (이미지처럼 살짝 띄우려면)
-                            thickness = 1.dp,        // 선 두께
-                            color = SubLightGray     // 색상 (기존 테마 색상 활용)
-                        )
+                    onValueChange = {}, // ReadOnly라 변경 불가
+                    placeholder = "상호명",
+                    buttonText = "검색",
+                    isEnabled = false, // ★ 텍스트 필드 비활성화 (회색 처리 or 입력 불가)
+                    isButtonEnabled = true, // 버튼은 활성화
+                    onButtonClick = {
+                        onAction(SignUpAction.OpenStoreSearch) // 검색 화면 열기
                     }
-                }
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         // 4. 주소 (입력 불가, 클릭 시 API 호출)
-        Box(modifier = Modifier.fillMaxWidth()) {
-            SeatNowTextField(
-                value = uiState.mainAddress,
-                onValueChange = {}, // ReadOnly
-                placeholder = "주소",
-                isEnabled = true,
-                readOnly = true
-            )
-            // 클릭 이벤트를 뺏기지 않도록 투명 박스로 덮음 (TextField 자체 enabled=false 하면 스타일이 변하므로)
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        focusManager.clearFocus()
-                        onAction(SignUpAction.OnAddressClick)
-                    }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 6. 주변 대학명 (입력 불가, 자동 채움)
         SeatNowTextField(
-            value = uiState.nearbyUniv,
-            onValueChange = {},
-            placeholder = "주변 대학명",
-            isEnabled = uiState.nearbyUniv.isEmpty(),
-            readOnly = true
+            value = uiState.mainAddress,
+            onValueChange = { onAction(SignUpAction.UpdateMainAddress(it)) },
+            placeholder = "주소 (상호명 검색 시 자동 입력)",
+            isEnabled = true // 수정 가능
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 7. 가게 연락처 (선택 사항, 복잡한 하이픈 로직)
+        // 5. 주변 대학명 (입력 불가, 자동 채움)
+        SeatNowTextField(
+            value = uiState.nearbyUniv,
+            onValueChange = {}, // 자동 입력이므로 사용자가 타이핑할 필요는 없음 (혹은 허용 가능)
+            placeholder = "주변 대학명 (자동 입력)",
+            isEnabled = uiState.isNearbyUnivEnabled, // ★ API 호출 완료 시 true로 변경됨
+            readOnly = true // enabled 되어도 타이핑은 막고 싶다면 true, 수정 허용하려면 false
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 6. 가게 연락처 (선택 사항, 복잡한 하이픈 로직)
         SeatNowTextField(
             value = uiState.storeContact,
             onValueChange = { onAction(SignUpAction.UpdateStoreContact(it)) },
             placeholder = "가게 연락처('-' 제외)",
             keyboardType = KeyboardType.Number,
-            visualTransformation = NumberVisualTransformation() // 커스텀 로직 적용
+            visualTransformation = NumberVisualTransformation()
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 8. 사업자등록증 파일 선택 (버튼만 활성화)
+        // 7. 사업자등록증 파일 선택 (버튼만 활성화)
         // 커스텀 UI: 텍스트필드처럼 보이지만 우측에 아이콘이 있고 전체가 클릭되는 형태
         Box(
             modifier = Modifier.fillMaxWidth()
