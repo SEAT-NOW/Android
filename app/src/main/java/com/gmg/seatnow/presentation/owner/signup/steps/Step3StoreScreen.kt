@@ -18,6 +18,7 @@ import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.R
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.SpaceItemCard
+import com.gmg.seatnow.presentation.component.TableItemCard
 import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 
 @Composable
@@ -54,7 +55,6 @@ fun Step3StoreScreen(
 
         uiState.spaceList.forEach { item ->
             if (item.isEditing) {
-                // [수정 모드]: SignUpTextFieldWithButton 사용 (완료 버튼 포함)
                 SignUpTextFieldWithButton(
                     value = item.editInput,
                     onValueChange = { onAction(SignUpAction.UpdateEditInput(item.id, it)) },
@@ -64,10 +64,14 @@ fun Step3StoreScreen(
                     onButtonClick = { onAction(SignUpAction.SaveSpace(item.id)) }
                 )
             } else {
-                // [보기 모드]: SpaceItemCard 사용 (수정/삭제 버튼 포함)
+                // ★ 선택된 공간인지 확인
+                val isSelected = uiState.selectedSpaceId == item.id
+
                 SpaceItemCard(
                     name = item.name,
-                    seatCount = item.seatCount, // 현재는 0석
+                    seatCount = item.seatCount,
+                    isSelected = isSelected, // ★ 색상 변경 로직 적용
+                    onItemClick = { onAction(SignUpAction.SelectSpace(item.id)) }, // ★ 선택 이벤트
                     onEditClick = { onAction(SignUpAction.EditSpace(item.id)) },
                     onDeleteClick = { onAction(SignUpAction.RemoveSpace(item.id)) }
                 )
@@ -79,8 +83,16 @@ fun Step3StoreScreen(
         HorizontalDivider(thickness = 1.dp, color = SubLightGray)
         Spacer(modifier = Modifier.height(40.dp))
 
+        val displayTableList = if (uiState.selectedSpaceId != null) {
+            uiState.spaceList.find { it.id == uiState.selectedSpaceId }?.tableList ?: emptyList()
+        } else {
+            uiState.tempTableList
+        }
 
-        // --- 2. 테이블 구성 섹션 ---
+        val totalSeats = displayTableList.sumOf {
+            (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0)
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -91,18 +103,18 @@ fun Step3StoreScreen(
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = SubBlack
             )
-            // 총 좌석 수 계산 표시
             Text(
-                text = "총 = SUM(N*M)석",
-                style = MaterialTheme.typography.labelSmall,
+                text = "총 ${totalSeats}석",
+                style = MaterialTheme.typography.labelMedium,
                 color = SubGray
             )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 테이블 입력 Row
-        TableRowItem(
+        // ★ [수정됨] 1. 테이블 입력 Row (위로 이동)
+        // 선택된 공간이 있든 없든 항상 노출 -> "상시 수정 가능"
+        TableRowInput(
             nValue = uiState.tablePersonCount,
             mValue = uiState.tableCount,
             onNChange = { onAction(SignUpAction.UpdateTablePersonCount(it)) },
@@ -111,17 +123,29 @@ fun Step3StoreScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 테이블 추가 버튼
+        // ★ [수정됨] 2. 테이블 추가 버튼 (중간 위치)
         SeatNowRedPlusButton(
-            onClick = { /* TODO: 테이블 추가 로직 */ },
+            onClick = { onAction(SignUpAction.AddTableConfig) },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ★ [수정됨] 3. 테이블 리스트 (버튼 아래로 이동)
+        displayTableList.forEach { tableItem ->
+            TableItemCard(
+                item = tableItem,
+                onDeleteClick = {
+                    onAction(SignUpAction.RemoveTableConfig(tableItem.id))
+                }
+            )
+        }
     }
 }
 
 // 테이블 입력 행 (화면 전용 컴포넌트로 유지하거나 필요시 공통으로 이동)
 @Composable
-private fun TableRowItem(
+private fun TableRowInput(
     nValue: String,
     mValue: String,
     onNChange: (String) -> Unit,

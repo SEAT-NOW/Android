@@ -7,6 +7,7 @@ import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.usecase.OwnerAuthUseCase
 import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataClass.TableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -99,12 +100,26 @@ class OwnerSignUpViewModel @Inject constructor(
             }
             is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri, action.fileName)
 
-            is SignUpAction.UpdateSpaceInput -> _uiState.update { it.copy(spaceInput = action.input) }
-            is SignUpAction.UpdateTablePersonCount -> _uiState.update { it.copy(tablePersonCount = action.count) }
-            is SignUpAction.UpdateTableCount -> _uiState.update { it.copy(tableCount = action.count) }
-
+            //STEP 3
             is SignUpAction.UpdateSpaceInput -> {
-                _uiState.update { it.copy(spaceInput = action.input, spaceInputError = null) }
+                // 입력 시 에러 초기화, 선택 해제(새로 작성 모드)
+                _uiState.update {
+                    it.copy(
+                        spaceInput = action.input,
+                        spaceInputError = null,
+                        selectedSpaceId = null // 텍스트 입력하면 선택 해제하고 입력 모드로 전환
+                    )
+                }
+            }
+            is SignUpAction.SelectSpace -> {
+                _uiState.update {
+                    it.copy(
+                        selectedSpaceId = action.id,
+                        spaceInput = "", // 상단 공간명 입력창 비움 (선택된 공간 이름으로 채우지 않음)
+                        tablePersonCount = "", // 하단 테이블 입력창 초기화
+                        tableCount = ""
+                    )
+                }
             }
             is SignUpAction.AddSpace -> addSpaceItem()
             is SignUpAction.RemoveSpace -> removeSpaceItem(action.id)
@@ -112,6 +127,14 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.UpdateEditInput -> updateEditInput(action.id, action.input)
             is SignUpAction.SaveSpace -> saveSpaceItem(action.id)
 
+            // 테이블 관련
+            is SignUpAction.UpdateTablePersonCount -> _uiState.update { it.copy(tablePersonCount = action.count) }
+            is SignUpAction.UpdateTableCount -> _uiState.update { it.copy(tableCount = action.count) }
+            is SignUpAction.AddTableConfig -> addTableConfig()
+            is SignUpAction.RemoveTableConfig -> removeTableConfig(action.tableId)
+
+
+            //NEXT, BACK
             is SignUpAction.OnNextClick -> handleNextStep()
             is SignUpAction.OnBackClick -> handleBackStep()
         }
@@ -337,26 +360,16 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
-    private fun addSpaceItem() {
-        val input = _uiState.value.spaceInput.trim()
-        if (input.isBlank()) {
-            _uiState.update { it.copy(spaceInputError = "텍스트를 입력해주세요.") }
-            return
-        }
-
-        val newItem = SpaceItem(name = input)
-        _uiState.update {
-            it.copy(
-                spaceList = it.spaceList + newItem,
-                spaceInput = "", // 입력창 초기화
-                spaceInputError = null
-            )
-        }
-    }
+    // STEP3
 
     private fun removeSpaceItem(id: Long) {
         _uiState.update { state ->
-            state.copy(spaceList = state.spaceList.filter { it.id != id })
+            // 만약 삭제하려는게 현재 선택된거면 선택 해제
+            val nextSelectedId = if (state.selectedSpaceId == id) null else state.selectedSpaceId
+            state.copy(
+                spaceList = state.spaceList.filter { it.id != id },
+                selectedSpaceId = nextSelectedId
+            )
         }
     }
 
@@ -388,6 +401,100 @@ class OwnerSignUpViewModel @Inject constructor(
                     else item.copy(name = item.editInput, isEditing = false)
                 } else item
             })
+        }
+    }
+
+    private fun addTableConfig() {
+        val person = _uiState.value.tablePersonCount
+        val count = _uiState.value.tableCount
+
+        if (person.isNotBlank() && count.isNotBlank()) {
+            val newItem = TableItem(personCount = person, tableCount = count)
+            val selectedId = _uiState.value.selectedSpaceId
+
+            _uiState.update { state ->
+                if (selectedId != null) {
+                    // ★ [Case 1] 공간이 선택된 상태: 선택된 공간의 tableList에 즉시 추가
+                    val updatedSpaceList = state.spaceList.map { space ->
+                        if (space.id == selectedId) {
+                            val newTableList = space.tableList + newItem
+                            // 총 좌석 수 재계산
+                            val newSeatCount = newTableList.sumOf { (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0) }
+                            space.copy(tableList = newTableList, seatCount = newSeatCount)
+                        } else space
+                    }
+                    state.copy(
+                        spaceList = updatedSpaceList,
+                        tablePersonCount = "", // 입력창 초기화
+                        tableCount = ""
+                    )
+                } else {
+                    // ★ [Case 2] 선택된 공간 없음(작성 모드): 임시 리스트(Draft)에 추가
+                    state.copy(
+                        tempTableList = state.tempTableList + newItem,
+                        tablePersonCount = "",
+                        tableCount = ""
+                    )
+                }
+            }
+        }
+    }
+
+    private fun removeTableConfig(tableId: Long) {
+        val selectedId = _uiState.value.selectedSpaceId
+
+        _uiState.update { state ->
+            if (selectedId != null) {
+                // ★ [Case 1] 선택된 공간에서 테이블 삭제
+                val updatedSpaceList = state.spaceList.map { space ->
+                    if (space.id == selectedId) {
+                        val newTableList = space.tableList.filter { it.id != tableId }
+                        val newSeatCount = newTableList.sumOf { (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0) }
+                        space.copy(tableList = newTableList, seatCount = newSeatCount)
+                    } else space
+                }
+                state.copy(spaceList = updatedSpaceList)
+            } else {
+                // ★ [Case 2] 작성 중인 리스트에서 테이블 삭제
+                state.copy(tempTableList = state.tempTableList.filter { it.id != tableId })
+            }
+        }
+    }
+
+    private fun addSpaceItem() {
+        val input = _uiState.value.spaceInput.trim()
+        val currentTables = _uiState.value.tempTableList
+
+        // 1. 공간명 미입력 시 에러
+        if (input.isBlank()) {
+            _uiState.update { it.copy(spaceInputError = "텍스트를 입력해주세요.") }
+            return
+        }
+
+        // 2. 테이블 구성 미입력 시 에러
+        if (currentTables.isEmpty()) {
+            _uiState.update { it.copy(spaceInputError = "해당 공간의 테이블 구성을 추가해 주세요.") }
+            return
+        }
+
+        val totalSeats = currentTables.sumOf { (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0) }
+
+        val newItem = SpaceItem(
+            name = input,
+            seatCount = totalSeats,
+            tableList = currentTables
+        )
+
+        _uiState.update {
+            it.copy(
+                spaceList = it.spaceList + newItem,
+                spaceInput = "",       // 입력 초기화
+                spaceInputError = null,
+                tempTableList = emptyList(), // Draft 초기화
+                tablePersonCount = "",
+                tableCount = "",
+                selectedSpaceId = null // 추가 후 선택 해제 (Default 화면으로 복귀)
+            )
         }
     }
 
@@ -512,10 +619,15 @@ class OwnerSignUpViewModel @Inject constructor(
 
         // ★ [Step 3 추가] 공간/테이블 구성 관련 State
         val spaceInput: String = "",
-        val tablePersonCount: String = "", // N (인원)
-        val tableCount: String = "",       // M (개수)
-        val spaceInputError: String? = null, // 에러 메시지용
-        val spaceList: List<SpaceItem> = emptyList(), // 추가된 공간 리스트
+        val spaceInputError: String? = null,
+        val spaceList: List<SpaceItem> = emptyList(), // 전체 공간 리스트
+
+        val selectedSpaceId: Long? = null, // ★ 현재 선택된 공간 ID (null이면 작성 모드)
+
+        val tablePersonCount: String = "",
+        val tableCount: String = "",
+
+        val tempTableList: List<TableItem> = emptyList()
     )
 
     sealed interface SignUpAction {
@@ -548,15 +660,18 @@ class OwnerSignUpViewModel @Inject constructor(
         data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
         //step3
         data class UpdateSpaceInput(val input: String) : SignUpAction
+        data class SelectSpace(val id: Long) : SignUpAction // ★ 공간 선택
+        object AddSpace : SignUpAction // 공간 추가
+        data class RemoveSpace(val id: Long) : SignUpAction
+        data class EditSpace(val id: Long) : SignUpAction
+        data class UpdateEditInput(val id: Long, val input: String) : SignUpAction
+        data class SaveSpace(val id: Long) : SignUpAction
+
+        // 테이블 관련
         data class UpdateTablePersonCount(val count: String) : SignUpAction
         data class UpdateTableCount(val count: String) : SignUpAction
-
-        object AddSpace : SignUpAction // 플러스 버튼 클릭 시
-        data class RemoveSpace(val id: Long) : SignUpAction
-        data class EditSpace(val id: Long) : SignUpAction // 수정 버튼 클릭 (Read -> Edit)
-        data class UpdateEditInput(val id: Long, val input: String) : SignUpAction // 수정 중 텍스트 변경
-        data class SaveSpace(val id: Long) : SignUpAction // 완료 버튼 클릭 (Edit -> Read)
-
+        object AddTableConfig : SignUpAction // ★ 테이블 구성 추가
+        data class RemoveTableConfig(val tableId: Long) : SignUpAction // ★ 테이블 구성 삭제
 
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction

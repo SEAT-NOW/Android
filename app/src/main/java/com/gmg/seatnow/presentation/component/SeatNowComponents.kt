@@ -38,11 +38,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gmg.seatnow.presentation.owner.dataClass.TableItem
+import com.gmg.seatnow.R
 
 // ★ 병합된 통합 텍스트 필드
 @Composable
@@ -94,11 +97,13 @@ fun SeatNowTextField(
                     shape = RoundedCornerShape(12.dp)
                 ),
             placeholder = {
-                Text(
-                    text = placeholder,
-                    color = SubLightGray,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                if (!isFocused) {
+                    Text(
+                        text = placeholder,
+                        color = SubLightGray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             },
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
@@ -198,7 +203,9 @@ fun SignUpTextFieldWithButton(
                 modifier = Modifier.weight(1f),
                 interactionSource = interactionSource, // 포커스 소스 연결
                 placeholder = {
-                    Text(text = placeholder, color = SubLightGray, style = MaterialTheme.typography.bodyMedium)
+                    if (!isFocused) {
+                        Text(text = placeholder, color = SubLightGray, style = MaterialTheme.typography.bodyMedium)
+                    }
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 visualTransformation = visualTransformation,
@@ -351,6 +358,9 @@ fun CircularNumberField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
     Box(
         modifier = modifier
             .size(48.dp) // 원 크기 고정
@@ -359,13 +369,13 @@ fun CircularNumberField(
         contentAlignment = Alignment.Center
     ) {
         // 값이 비어있으면 Placeholder 표시
-        if (value.isEmpty()) {
+        if (value.isEmpty() && !isFocused) {
             Text(
                 text = placeholder,
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = PointRed, // Placeholder는 빨간색
+                    color = PointRed,
                     textAlign = TextAlign.Center
                 )
             )
@@ -374,20 +384,22 @@ fun CircularNumberField(
         BasicTextField(
             value = value,
             onValueChange = {
-                // 숫자만 입력 가능 + 최대 2자리 제한
                 if (it.all { char -> char.isDigit() } && it.length <= 2) {
                     onValueChange(it)
                 }
             },
+            // InteractionSource 연결
+            interactionSource = interactionSource,
             textStyle = TextStyle(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = SubBlack, // 입력된 숫자는 검은색
+                color = SubBlack,
                 textAlign = TextAlign.Center
             ),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
-            cursorBrush = SolidColor(PointRed), // 커서 색상도 깔맞춤
+            // ★ 커서 색상 다시 빨간색으로 복구 (보이게)
+            cursorBrush = SolidColor(PointRed),
             modifier = Modifier.wrapContentSize()
         )
     }
@@ -423,13 +435,26 @@ fun SeatNowRedPlusButton(
 fun SpaceItemCard(
     name: String,
     seatCount: Int,
+    isSelected: Boolean,
+    onItemClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    val contentColor = if (isSelected) PointRed else SubDarkGray
+    val borderColor = if (isSelected) PointRed else SubLightGray
+
+    val interactionSource = remember { MutableInteractionSource() }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(52.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onItemClick
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. 빨간 테두리 박스 (이름 + 좌석수)
@@ -437,7 +462,7 @@ fun SpaceItemCard(
             modifier = Modifier
                 .weight(1f) // 남은 공간 차지
                 .fillMaxHeight()
-                .border(1.dp, PointRed, RoundedCornerShape(4.dp)) // 각진 테두리 (이미지 참고)
+                .border(1.dp, borderColor, RoundedCornerShape(4.dp)) // 각진 테두리 (이미지 참고)
                 .background(White, RoundedCornerShape(4.dp))
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -446,12 +471,12 @@ fun SpaceItemCard(
             Text(
                 text = name,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = PointRed
+                color = contentColor
             )
             Text(
                 text = "${seatCount}석",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = PointRed
+                color = contentColor
             )
         }
 
@@ -469,6 +494,78 @@ fun SpaceItemCard(
         Spacer(modifier = Modifier.width(12.dp))
 
         // 3. 삭제 아이콘 (빨간 휴지통)
+        IconButton(onClick = onDeleteClick, modifier = Modifier.size(24.dp)) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "삭제",
+                tint = PointRed
+            )
+        }
+    }
+}
+
+@Composable
+fun TableItemCard(
+    item: TableItem,
+    onDeleteClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        // N (원형)
+        Box(
+            modifier = Modifier
+                .size(40.dp) // 크기 약간 조정
+                .border(1.dp, PointRed, CircleShape)
+                .background(White, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = item.personCount,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = PointRed
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "인 테이블", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // X 아이콘 (굵은 X)
+        Icon(
+            painter = painterResource(id = R.drawable.ic_table_multiply), // 커스텀 아이콘 있으면 사용
+            contentDescription = "multiply",
+            tint = PointRed,
+            modifier = Modifier.size(12.dp) // 굵게 보이려면 stroke 조절 필요하나 일단 기본 사용
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // M (원형)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .border(1.dp, PointRed, CircleShape)
+                .background(White, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = item.tableCount,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = PointRed
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "개", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+
+        Spacer(modifier = Modifier.width(24.dp))
+
+        // 삭제 버튼
         IconButton(onClick = onDeleteClick, modifier = Modifier.size(24.dp)) {
             Icon(
                 imageVector = Icons.Default.Delete,
