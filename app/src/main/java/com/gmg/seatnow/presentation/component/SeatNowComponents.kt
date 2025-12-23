@@ -356,15 +356,18 @@ fun CircularNumberField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
+    val mainColor = if(isEnabled) PointRed else SubGray
+
     Box(
         modifier = modifier
             .size(48.dp) // 원 크기 고정
-            .border(2.dp, PointRed, CircleShape) // 빨간 테두리
+            .border(2.dp, mainColor, CircleShape) // 빨간 테두리
             .background(Color.Transparent, CircleShape),
         contentAlignment = Alignment.Center
     ) {
@@ -375,7 +378,7 @@ fun CircularNumberField(
                 style = TextStyle(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = PointRed,
+                    color = mainColor,
                     textAlign = TextAlign.Center
                 )
             )
@@ -388,18 +391,12 @@ fun CircularNumberField(
                     onValueChange(it)
                 }
             },
-            // InteractionSource 연결
+            enabled = isEnabled,
             interactionSource = interactionSource,
-            textStyle = TextStyle(
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = SubBlack,
-                textAlign = TextAlign.Center
-            ),
+            textStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = SubBlack, textAlign = TextAlign.Center),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
-            // ★ 커서 색상 다시 빨간색으로 복구 (보이게)
-            cursorBrush = SolidColor(PointRed),
+            cursorBrush = SolidColor(mainColor), // 커서 색상도 변경
             modifier = Modifier.wrapContentSize()
         )
     }
@@ -409,7 +406,8 @@ fun CircularNumberField(
 @Composable
 fun SeatNowRedPlusButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEnabled: Boolean = true
 ) {
     Button(
         onClick = onClick,
@@ -417,9 +415,10 @@ fun SeatNowRedPlusButton(
             .width(100.dp)
             .height(40.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = PointRed,
+            containerColor = if(isEnabled) PointRed else SubGray,
             contentColor = White
         ),
+        enabled = isEnabled,
         shape = RoundedCornerShape(8.dp),
         contentPadding = PaddingValues(0.dp)
     ) {
@@ -438,10 +437,12 @@ fun SpaceItemCard(
     isSelected: Boolean,
     onItemClick: () -> Unit,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    isDeleteEnabled: Boolean = true
 ) {
     val contentColor = if (isSelected) PointRed else SubDarkGray
     val borderColor = if (isSelected) PointRed else SubLightGray
+    val deleteIconColor = if (isDeleteEnabled) PointRed else SubLightGray
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -462,7 +463,7 @@ fun SpaceItemCard(
             modifier = Modifier
                 .weight(1f) // 남은 공간 차지
                 .fillMaxHeight()
-                .border(1.dp, borderColor, RoundedCornerShape(4.dp)) // 각진 테두리 (이미지 참고)
+                .border(1.dp, borderColor, RoundedCornerShape(4.dp))
                 .background(White, RoundedCornerShape(4.dp))
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -482,7 +483,7 @@ fun SpaceItemCard(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // 2. 수정 아이콘 (진한 회색 연필)
+        // 2. 수정 아이콘
         IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
             Icon(
                 imageVector = Icons.Default.Edit,
@@ -493,12 +494,16 @@ fun SpaceItemCard(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // 3. 삭제 아이콘 (빨간 휴지통)
-        IconButton(onClick = onDeleteClick, modifier = Modifier.size(24.dp)) {
+        // 3. 삭제 아이콘 (활성/비활성 처리)
+        IconButton(
+            onClick = onDeleteClick,
+            enabled = isDeleteEnabled, // ★ 클릭 제한
+            modifier = Modifier.size(24.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = "삭제",
-                tint = PointRed
+                tint = deleteIconColor // ★ 색상 적용
             )
         }
     }
@@ -506,71 +511,63 @@ fun SpaceItemCard(
 
 @Composable
 fun TableItemCard(
-    item: TableItem,
-    onDeleteClick: () -> Unit
+    nValue: String,
+    mValue: String,
+    onNChange: (String) -> Unit,
+    onMChange: (String) -> Unit,
+    onDeleteClick: () -> Unit,
+    isDeleteEnabled: Boolean = true, // 삭제 버튼 활성/비활성 제어
+    isEnabled: Boolean = true
 ) {
+    val iconColor = if (isEnabled) PointRed else SubGray
+    val textColor = if (isEnabled) SubBlack else SubGray
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        // N (원형)
-        Box(
-            modifier = Modifier
-                .size(40.dp) // 크기 약간 조정
-                .border(1.dp, PointRed, CircleShape)
-                .background(White, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = item.personCount,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = PointRed
-            )
-        }
+        CircularNumberField(
+            value = nValue,
+            onValueChange = onNChange,
+            placeholder = "N",
+            isEnabled = isEnabled // 전달
+        )
 
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "인 테이블", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+        Text(text = "인 테이블", style = MaterialTheme.typography.bodyMedium, color = if(isEnabled) SubBlack else SubGray)
         Spacer(modifier = Modifier.width(16.dp))
 
-        // X 아이콘 (굵은 X)
         Icon(
-            painter = painterResource(id = R.drawable.ic_table_multiply), // 커스텀 아이콘 있으면 사용
+            painter = painterResource(id = R.drawable.ic_table_multiply),
             contentDescription = "multiply",
-            tint = PointRed,
-            modifier = Modifier.size(12.dp) // 굵게 보이려면 stroke 조절 필요하나 일단 기본 사용
+            tint = iconColor, // 아이콘 색상 변경
+            modifier = Modifier.size(12.dp)
         )
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // M (원형)
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .border(1.dp, PointRed, CircleShape)
-                .background(White, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = item.tableCount,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = PointRed
-            )
-        }
+        CircularNumberField(
+            value = mValue,
+            onValueChange = onMChange,
+            placeholder = "M",
+            isEnabled = isEnabled // 전달
+        )
 
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "개", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+        Text(text = "개", style = MaterialTheme.typography.bodyMedium, color = if(isEnabled) SubBlack else SubGray)
 
         Spacer(modifier = Modifier.width(24.dp))
 
-        // 삭제 버튼
-        IconButton(onClick = onDeleteClick, modifier = Modifier.size(24.dp)) {
+        IconButton(
+            onClick = onDeleteClick,
+            enabled = isDeleteEnabled && isEnabled, // 삭제 조건 추가
+            modifier = Modifier.size(24.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = "삭제",
-                tint = PointRed
+                tint = if (isDeleteEnabled && isEnabled) PointRed else SubLightGray
             )
         }
     }
