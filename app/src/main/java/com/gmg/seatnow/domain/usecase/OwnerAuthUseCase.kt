@@ -26,5 +26,7 @@ class OwnerAuthUseCase @Inject constructor(
     suspend fun searchStore(query: String) = repository.searchStore(query)
 
     // 근처 대학명 찾기 요청
-    suspend fun getNearbyUniversity(lat: Double, lng: Double) = repository.getNearbyUniversity(lat, lng)
+    suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<List<String>> {
+        return repository.getNearbyUniversity(lat, lng)
+    }
 }

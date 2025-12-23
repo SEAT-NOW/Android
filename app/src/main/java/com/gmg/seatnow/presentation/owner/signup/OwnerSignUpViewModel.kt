@@ -304,23 +304,35 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun selectStore(store: StoreSearchResult) {
         _uiState.update {
             it.copy(
-                storeName = store.placeName,     // 상호명 자동 입력
-                mainAddress = store.addressName, // 주소 자동 입력
-                isStoreSearchVisible = false,    // 검색창 닫기
-                nearbyUniv = "대학 검색 중...",   // 로딩 표시
-                isNearbyUnivEnabled = true      // 아직 입력 불가
+                storeName = store.placeName,
+                mainAddress = store.addressName,
+                isStoreSearchVisible = false,
+                nearbyUniv = "대학 검색 중...",
+                isNearbyUnivEnabled = true // 로딩 중엔 활성화(혹은 스타일 유지)
             )
         }
 
-        // 위도/경도로 대학 찾기 API 호출
         viewModelScope.launch {
             authUseCase.getNearbyUniversity(store.latitude, store.longitude)
-                .onSuccess { univ ->
-                    _uiState.update {
-                        it.copy(
-                            nearbyUniv = univ,
-                            isNearbyUnivEnabled = false // ★ 성공 시 활성화
-                        )
+                .onSuccess { univList ->
+                    // ★ [핵심 로직] 리스트가 비어있거나 null인지 확인
+                    if (univList.isEmpty()) {
+                        _uiState.update {
+                            it.copy(
+                                nearbyUniv = "근처 대학 없음", // 빈 값 처리
+                                isNearbyUnivEnabled = false
+                            )
+                        }
+                    } else {
+                        // ★ 여러 개의 대학명을 " / " 로 연결 (예: 명지대학교 / 연세대학교)
+                        val joinedUnivString = univList.joinToString(" / ")
+
+                        _uiState.update {
+                            it.copy(
+                                nearbyUniv = joinedUnivString,
+                                isNearbyUnivEnabled = false // 입력 완료 후 비활성화(읽기 전용 느낌)
+                            )
+                        }
                     }
                     checkNextButtonEnabled()
                 }
@@ -605,7 +617,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_3_STORE,
+        val currentStep: SignUpStep = SignUpStep.STEP_2_BUSINESS,
         val isNextButtonEnabled: Boolean = false,
 
         // 약관 관련

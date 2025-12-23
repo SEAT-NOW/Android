@@ -104,10 +104,11 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     // 주변 대학 찾기 Mock
-    override suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<String> {
+    override suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<List<String>> {
         delay(800)
         Log.d("AuthRepo", "대학 검색 요청: $lat, $lng")
+        val mockUniverSities = listOf("명지대학교", "연세대학교")
         // 좌표에 따라 다른 대학 리턴 (Mock)
-        return Result.success("명지대학교")
+        return Result.success(mockUniverSities)
     }
 }
