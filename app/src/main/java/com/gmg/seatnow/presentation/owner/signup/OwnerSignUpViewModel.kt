@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.usecase.OwnerAuthUseCase
+import com.gmg.seatnow.presentation.owner.dataClass.OperatingScheduleItem
 import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 import com.gmg.seatnow.presentation.owner.dataClass.TableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -132,6 +133,61 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.UpdateTableItemN -> updateTableItemValue(action.tableId, nValue = action.value, mValue = null)
             is SignUpAction.UpdateTableItemM -> updateTableItemValue(action.tableId, nValue = null, mValue = action.value)
             is SignUpAction.RemoveTableItemRow -> removeTableItemRow(action.tableId)
+
+            // [Step 4 Logic]
+            is SignUpAction.SetRegularHolidayType -> {
+                _uiState.update { it.copy(regularHolidayType = action.type) }
+//                validateStep4() // 유효성 검사
+            }
+            is SignUpAction.SetRegularHolidayDay -> {
+                // 정기 휴무일이 변경되면, 운영 정보에서 해당 요일 선택 해제해야 함
+                _uiState.update { state ->
+                    val updatedSchedules = state.operatingSchedules.map { schedule ->
+                        schedule.copy(selectedDays = schedule.selectedDays - action.dayIdx)
+                    }
+                    state.copy(regularHolidayDay = action.dayIdx, operatingSchedules = updatedSchedules)
+                }
+//                validateStep4()
+            }
+            is SignUpAction.SetRegularHolidayWeek -> {
+                _uiState.update { it.copy(regularHolidayWeek = action.week) }
+            }
+            // ... (기타 Step 4 Actions 구현)
+            is SignUpAction.AddOperatingSchedule -> {
+                val newItem = OperatingScheduleItem()
+                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules + newItem) }
+            }
+            is SignUpAction.RemoveOperatingSchedule -> {
+                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules.filter { item -> item.id != action.id }) }
+            }
+            is SignUpAction.UpdateOperatingDays -> {
+                _uiState.update { state ->
+                    state.copy(operatingSchedules = state.operatingSchedules.map { item ->
+                        if (item.id == action.id) {
+                            // 토글 로직
+                            val newDays = if (item.selectedDays.contains(action.dayIdx)) {
+                                item.selectedDays - action.dayIdx
+                            } else {
+                                item.selectedDays + action.dayIdx
+                            }
+                            item.copy(selectedDays = newDays)
+                        } else item
+                    })
+                }
+            }
+            is SignUpAction.UpdateOperatingTime -> {
+                _uiState.update { state ->
+                    state.copy(operatingSchedules = state.operatingSchedules.map { item ->
+                        if (item.id == action.id) {
+                            item.copy(
+                                startHour = action.startH, startMin = action.startM * 5, // index * 5
+                                endHour = action.endH, endMin = action.endM * 5
+                            )
+                        } else item
+                    })
+                }
+            }
+
 
             //NEXT, BACK
             is SignUpAction.OnNextClick -> handleNextStep()
@@ -617,10 +673,10 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_2_BUSINESS,
+        val currentStep: SignUpStep = SignUpStep.STEP_4_OPERATION,
         val isNextButtonEnabled: Boolean = false,
 
-        // 약관 관련
+        //STEP1
         val isAllTermsAgreed: Boolean = false,
         val isAgeVerified: Boolean = false,
         val isServiceVerified: Boolean = false,
@@ -628,7 +684,6 @@ class OwnerSignUpViewModel @Inject constructor(
         val isPrivacyProvideVerified: Boolean = false,
         val openedTermType: TermType? = null,
 
-        // 이메일
         val email: String = "",
         val emailError: String? = null,
         val isEmailCodeSent: Boolean = false,
@@ -639,7 +694,6 @@ class OwnerSignUpViewModel @Inject constructor(
         val isEmailTimerExpired: Boolean = false,
         val authCode: String = "",
 
-        // 비밀번호, 휴대폰
         val password: String = "",
         val passwordError: String? = null,
         val passwordCheck: String = "",
@@ -675,7 +729,16 @@ class OwnerSignUpViewModel @Inject constructor(
         val selectedSpaceId: Long? = null,
 
         // 테이블 리스트 (기본적으로 1개의 빈 아이템 보유)
-        val tempTableList: List<TableItem> = listOf(TableItem(personCount = "", tableCount = ""))
+        val tempTableList: List<TableItem> = listOf(TableItem(personCount = "", tableCount = "")),
+
+        val regularHolidayType: Int = 0, // 0: 없음, 1: 매주, 2: 매월
+        val regularHolidayDay: Int? = null, // 정기 휴무 요일 (0~6)
+        val regularHolidayWeek: Int? = 1, // 매월 몇째 주 (1~5)
+
+        val tempHolidayStart: String = "", // 임시 휴무 시작일
+        val tempHolidayEnd: String = "",   // 임시 휴무 종료일
+
+        val operatingSchedules: List<OperatingScheduleItem> = listOf(OperatingScheduleItem())
     )
 
     sealed interface SignUpAction {
@@ -720,6 +783,15 @@ class OwnerSignUpViewModel @Inject constructor(
         data class UpdateTableItemM(val tableId: Long, val value: String) : SignUpAction
         data class RemoveTableItemRow(val tableId: Long) : SignUpAction
 
+        //step4
+        data class SetRegularHolidayType(val type: Int) : SignUpAction
+        data class SetRegularHolidayDay(val dayIdx: Int) : SignUpAction
+        data class SetRegularHolidayWeek(val week: Int) : SignUpAction
+
+        object AddOperatingSchedule : SignUpAction
+        data class RemoveOperatingSchedule(val id: Long) : SignUpAction
+        data class UpdateOperatingDays(val id: Long, val dayIdx: Int) : SignUpAction
+        data class UpdateOperatingTime(val id: Long, val startH: Int, val startM: Int, val endH: Int, val endM: Int) : SignUpAction
 
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction
