@@ -1,8 +1,6 @@
 package com.gmg.seatnow.presentation.owner.signup.steps
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,26 +12,36 @@ import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step4OperatingScreen(
     uiState: OwnerSignUpUiState,
     onAction: (SignUpAction) -> Unit
 ) {
-    // 정기 휴무일로 지정된 요일 계산 (운영 정보에서 비활성화용)
-    val disabledOperatingDays = if (uiState.regularHolidayType == 1 && uiState.regularHolidayDay != null) {
-        setOf(uiState.regularHolidayDay)
-    } else {
-        emptySet()
-    }
+    val disabledOperatingDays = if (uiState.regularHolidayType == 1) uiState.weeklyHolidayDays else emptySet()
+    val daysText = listOf("일", "월", "화", "수", "목", "금", "토")
+
+    // Helper: 요일 Set -> "월 · 화" 변환
+    fun formatDays(indices: Set<Int>): String =
+        if(indices.isEmpty()) "요일 선택" else indices.sorted().joinToString(" · ") { daysText[it] }
+
+    // Helper: 주차 Set -> "2 · 4 주" 변환
+    fun formatWeeks(indices: Set<Int>): String =
+        if (indices.isEmpty()) "주 선택" else indices.sorted().joinToString(" · ") + " 주"
+
+    fun millisToDate(millis: Long?): String =
+        if (millis != null) SimpleDateFormat("yyyy/MM/dd", Locale.KOREA).format(Date(millis)) else ""
 
     // ★ [수정] LazyColumn -> Column (부모 스크롤 사용)
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = 100.dp) // 하단 버튼 공간 확보
+            .padding(bottom = 30.dp) // 하단 버튼 공간 확보
     ) {
-        // --- 1. 정기 휴무일 섹션 ---
         Text(
             text = "정기 휴무일",
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -41,64 +49,80 @@ fun Step4OperatingScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 1-1. 매주
+        // 1-1. 매주 (Radio Button Logic)
+        val isWeeklySelected = uiState.regularHolidayType == 1
+        val weeklyTextColor = if (isWeeklySelected) PointRed else SubGray
+        val weeklyBorderColor = if (isWeeklySelected) PointRed else SubLightGray
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            RadioButton(
-                selected = uiState.regularHolidayType == 1,
-                onClick = { onAction(SignUpAction.SetRegularHolidayType(1)) },
-                colors = RadioButtonDefaults.colors(selectedColor = PointRed, unselectedColor = SubGray),
-                modifier = Modifier
-                    .size(24.dp) // 1. 강제로 사이즈를 줄여서 Row 높이를 줄임
+            SeatNowCheckRadioButton(
+                selected = isWeeklySelected,
+                onClick = { onAction(SignUpAction.ToggleRegularHolidayType(1))}
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("매주", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+            Text("매주", style = MaterialTheme.typography.bodyMedium, color = weeklyTextColor)
             Spacer(modifier = Modifier.width(12.dp))
 
             // 요일 선택 드롭다운
+            val displayWeeklyText = formatDays(uiState.weeklyHolidayDays)
             SeatNowDropdownButton(
-                text = uiState.regularHolidayDay?.let { listOf("일", "월", "화", "수", "목", "금", "토")[it] } ?: "일",
-                onClick = { /* TODO: BottomSheet나 Dialog로 요일 선택 띄우기 */ }
+                text = displayWeeklyText,
+                onClick = { onAction(SignUpAction.SetWeeklyDialogVisible(true)) },
+                enabled = isWeeklySelected,
+                modifier = Modifier.widthIn(min = 40.dp),
+                borderColor = weeklyBorderColor,
+                textColor = weeklyTextColor
             )
+
             Spacer(modifier = Modifier.width(8.dp))
-            Text("요일", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+            Text("요일", style = MaterialTheme.typography.bodyMedium, color = weeklyTextColor)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // 1-2. 매월
+        val isMonthlySelected = uiState.regularHolidayType == 2
+        val monthlyTextColor = if (isMonthlySelected) PointRed else SubGray
+        val monthlyBorderColor = if (isMonthlySelected) PointRed else SubLightGray
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
         ) {
-            RadioButton(
-                selected = uiState.regularHolidayType == 2,
-                onClick = { onAction(SignUpAction.SetRegularHolidayType(2)) },
-                colors = RadioButtonDefaults.colors(selectedColor = PointRed, unselectedColor = SubGray),
-                modifier = Modifier
-                    .size(24.dp) // 1. 강제로 사이즈를 줄여서 Row 높이를 줄임
+            SeatNowCheckRadioButton(
+                selected = isMonthlySelected,
+                onClick = { onAction(SignUpAction.ToggleRegularHolidayType(2)) }
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("매월", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+            Text("매월", style = MaterialTheme.typography.bodyMedium, color = monthlyTextColor)
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 주차 선택 드롭다운
+            val displayMonthlyWeekText = formatWeeks(uiState.monthlyHolidayWeeks)
             SeatNowDropdownButton(
-                text = "${uiState.regularHolidayWeek ?: 1}주", // 예: 2·4주
-                onClick = { /* TODO: 주차 선택 로직 */ },
-                modifier = Modifier.widthIn(60.dp)
+                text = displayMonthlyWeekText,
+                onClick = { onAction(SignUpAction.SetMonthlyWeekDialogVisible(true)) },
+                enabled = isMonthlySelected,
+                modifier = Modifier.widthIn(min = 60.dp),
+                borderColor = monthlyBorderColor,
+                textColor = monthlyTextColor
             )
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 요일 선택 드롭다운
+            val displayMonthlyDayText = formatDays(uiState.monthlyHolidayDays)
             SeatNowDropdownButton(
-                text = "일", // 예시
-                onClick = { /* TODO */ }
+                text = displayMonthlyDayText,
+                onClick = { onAction(SignUpAction.SetMonthlyDayDialogVisible(true)) },
+                enabled = isMonthlySelected,
+                modifier = Modifier.widthIn(min = 40.dp),
+                borderColor = monthlyBorderColor,
+                textColor = monthlyTextColor
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("요일", style = MaterialTheme.typography.bodyMedium, color = SubBlack)
+            Text("요일", style = MaterialTheme.typography.bodyMedium, color = monthlyTextColor)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -114,24 +138,34 @@ fun Step4OperatingScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = uiState.regularHolidayType == 2,
-                onClick = { onAction(SignUpAction.SetRegularHolidayType(2)) },
-                colors = RadioButtonDefaults.colors(selectedColor = PointRed, unselectedColor = SubGray),
-                modifier = Modifier
-                    .size(24.dp) // 1. 강제로 사이즈를 줄여서 Row 높이를 줄임
+            SeatNowCheckRadioButton(
+                selected = uiState.isTempHolidayEnabled,
+                onClick = { onAction(SignUpAction.ToggleTempHoliday) },
             )
             Spacer(modifier = Modifier.width(8.dp))
+
+            val tempHolidayBorderColor = if(uiState.isTempHolidayEnabled) PointRed else SubLightGray
+            val tempHolidayTextColor = if(uiState.isTempHolidayEnabled) PointRed else SubGray
+
             SeatNowDateBox(
-                dateText = "2025/12/23", // 예시 데이터
-                onClick = { /* DatePicker */ }
+                dateText = if (uiState.tempHolidayStart.isNotEmpty()) uiState.tempHolidayStart else "YYYY/MM/DD",
+                onClick = { if (uiState.isTempHolidayEnabled) onAction(SignUpAction.SetTempHolidayDatePickerVisible(true)) },
+                enabled = uiState.isTempHolidayEnabled,
+                modifier = Modifier.widthIn(max = 120.dp),
+                borderColor = tempHolidayBorderColor,
+                textColor = tempHolidayTextColor
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text("~", style = MaterialTheme.typography.titleMedium, color = SubBlack)
             Spacer(modifier = Modifier.width(12.dp))
+            // 종료일
             SeatNowDateBox(
-                dateText = "2025/12/23", // 예시 데이터
-                onClick = { /* DatePicker */ }
+                dateText = if (uiState.tempHolidayEnd.isNotEmpty()) uiState.tempHolidayEnd else "YYYY/MM/DD",
+                onClick = { if (uiState.isTempHolidayEnabled) onAction(SignUpAction.SetTempHolidayDatePickerVisible(true)) },
+                enabled = uiState.isTempHolidayEnabled,
+                modifier = Modifier.widthIn(max = 120.dp),
+                borderColor = tempHolidayBorderColor,
+                textColor = tempHolidayTextColor
             )
         }
 
@@ -147,57 +181,115 @@ fun Step4OperatingScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ★ [수정] items() -> forEach 사용
         uiState.operatingSchedules.forEach { schedule ->
             Column(modifier = Modifier.fillMaxWidth()) {
-
-                // 3-1. 요일 선택
                 DayOfWeekSelector(
                     selectedDays = schedule.selectedDays,
                     disabledDays = disabledOperatingDays,
-                    onDayClick = { dayIdx ->
-                        onAction(SignUpAction.UpdateOperatingDays(schedule.id, dayIdx))
-                    }
+                    onDayClick = { dayIdx -> onAction(SignUpAction.UpdateOperatingDays(schedule.id, dayIdx)) }
                 )
-
+                if (schedule.selectedDays.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    OperatingScheduleItem(
+                        schedule = schedule,
+                        isDeleteEnabled = uiState.operatingSchedules.size > 1,
+                        onUpdateStart = { h, m -> onAction(SignUpAction.UpdateOperatingTime(schedule.id, h, m, schedule.endHour, schedule.endMin)) },
+                        onUpdateEnd = { h, m -> onAction(SignUpAction.UpdateOperatingTime(schedule.id, schedule.startHour, schedule.startMin, h, m)) },
+                        onDelete = { onAction(SignUpAction.RemoveOperatingSchedule(schedule.id)) }
+                    )
+                }
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // 3-2. 시간 선택 (휠 피커)
-                OperatingScheduleItem(
-                    schedule = schedule,
-                    // ★ 삭제 버튼 활성화 조건: 리스트 개수가 1개보다 많을 때만 true
-                    isDeleteEnabled = uiState.operatingSchedules.size > 1,
-                    onUpdateStart = { h, m ->
-                        onAction(SignUpAction.UpdateOperatingTime(schedule.id, h, m / 5, schedule.endHour, schedule.endMin / 5))
-                    },
-                    onUpdateEnd = { h, m ->
-                        onAction(SignUpAction.UpdateOperatingTime(schedule.id, schedule.startHour, schedule.startMin / 5, h, m / 5))
-                    },
-                    onDelete = {
-                        onAction(SignUpAction.RemoveOperatingSchedule(schedule.id))
-                    }
-                )
-
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            if (schedule.selectedDays.isEmpty()) {
+                HorizontalDivider(thickness = 1.dp, color = SubPaleGray)
+                Spacer(modifier = Modifier.height(20.dp))
+            }
         }
 
-        // 3-3. 추가 버튼
+        Spacer(modifier = Modifier.height(20.dp))
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            SeatNowRedPlusButton(
-                onClick = { onAction(SignUpAction.AddOperatingSchedule) }
+            SeatNowRedPlusButton(onClick = { onAction(SignUpAction.AddOperatingSchedule) })
+        }
+
+        if (uiState.showWeeklyDayDialog) {
+            WeeklyHolidayDialog(
+                selectedDays = uiState.weeklyHolidayDays,
+                onDismiss = { onAction(SignUpAction.SetWeeklyDialogVisible(false)) },
+                onConfirm = { days -> onAction(SignUpAction.UpdateWeeklyHolidays(days)) }
             )
+        }
+
+        if (uiState.showMonthlyWeekDialog) {
+            MonthlyWeekDialog(
+                selectedWeeks = uiState.monthlyHolidayWeeks,
+                onDismiss = { onAction(SignUpAction.SetMonthlyWeekDialogVisible(false)) },
+                onConfirm = { weeks -> onAction(SignUpAction.UpdateMonthlyWeeks(weeks)) }
+            )
+        }
+        if (uiState.showMonthlyDayDialog) {
+            WeeklyHolidayDialog(
+                selectedDays = uiState.monthlyHolidayDays,
+                onDismiss = { onAction(SignUpAction.SetMonthlyDayDialogVisible(false)) },
+                onConfirm = { days -> onAction(SignUpAction.UpdateMonthlyDays(days)) } // UpdateMonthlyDays 호출
+            )
+        }
+
+
+        // ★ [Fix] DateRangePicker Logic
+        if (uiState.showTempHolidayDatePicker) {
+            val datePickerState = rememberDateRangePickerState()
+            DatePickerDialog(
+                onDismissRequest = { onAction(SignUpAction.SetTempHolidayDatePickerVisible(false)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val startStr = millisToDate(datePickerState.selectedStartDateMillis)
+                        val endStr = millisToDate(datePickerState.selectedEndDateMillis)
+                        // 시작일만 선택하고 종료일 선택 안했을 경우 방어 로직 (시작일 = 종료일)
+                        val finalEndStr = if (endStr.isEmpty()) startStr else endStr
+
+                        if (startStr.isNotEmpty()) {
+                            onAction(SignUpAction.UpdateTempHolidayRange(startStr, finalEndStr))
+                        }
+                    }) { Text("저장") }
+                },
+                colors = DatePickerDefaults.colors(containerColor = White) // 다이얼로그 배경 흰색
+            ) {
+                DateRangePicker(
+                    state = datePickerState,
+                    colors = DatePickerDefaults.colors(containerColor = White)
+                )
+            }
         }
     }
 }
 
-@Preview(showBackground = true, name = "Step 4 Only", heightDp = 800)
+@Preview(showBackground = true, name = "Step 4 (매주 선택)", heightDp = 800)
 @Composable
-fun PreviewStep4OperatingScreen() {
+fun PreviewStep4WeeklySelected() {
     SeatNowTheme {
-        Step4OperatingScreen (
-            uiState = OwnerSignUpUiState(),
+        Step4OperatingScreen(
+            // regularHolidayType = 1로 설정하여 '매주'가 선택된 상태를 보여줌
+            uiState = OwnerSignUpUiState(
+                regularHolidayType = 1,
+//                weeklyHolidayDays = setOf(0) // 예: 일요일 선택된 상태
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Step 4 (매월 선택)", heightDp = 800)
+@Composable
+fun PreviewStep4MonthlySelected() {
+    SeatNowTheme {
+        Step4OperatingScreen(
+            // regularHolidayType = 2로 설정하여 '매월'이 선택된 상태를 보여줌
+            uiState = OwnerSignUpUiState(
+                regularHolidayType = 2,
+//                monthlyHolidayWeeks = setOf(2, 4), // 예: 2, 4주 선택된 상태
+//                monthlyHolidayDays = setOf(0)      // 예: 일요일 선택된 상태
+            ),
             onAction = {}
         )
     }

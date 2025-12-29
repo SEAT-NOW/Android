@@ -15,6 +15,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -23,7 +26,11 @@ class OwnerSignUpViewModel @Inject constructor(
     private val imageRepository: ImageRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(OwnerSignUpUiState())
+    private val _uiState = MutableStateFlow(OwnerSignUpUiState(
+        weeklyHolidayDays = setOf(0),
+        monthlyHolidayDays = setOf(0),
+        monthlyHolidayWeeks = setOf(2,4)
+    ))
     val uiState: StateFlow<OwnerSignUpUiState> = _uiState.asStateFlow()
 
     private val _event = MutableSharedFlow<SignUpEvent>()
@@ -135,59 +142,62 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.RemoveTableItemRow -> removeTableItemRow(action.tableId)
 
             // [Step 4 Logic]
-            is SignUpAction.SetRegularHolidayType -> {
-                _uiState.update { it.copy(regularHolidayType = action.type) }
-//                validateStep4() // 유효성 검사
-            }
-            is SignUpAction.SetRegularHolidayDay -> {
-                // 정기 휴무일이 변경되면, 운영 정보에서 해당 요일 선택 해제해야 함
-                _uiState.update { state ->
-                    val updatedSchedules = state.operatingSchedules.map { schedule ->
-                        schedule.copy(selectedDays = schedule.selectedDays - action.dayIdx)
-                    }
-                    state.copy(regularHolidayDay = action.dayIdx, operatingSchedules = updatedSchedules)
-                }
-//                validateStep4()
-            }
-            is SignUpAction.SetRegularHolidayWeek -> {
-                _uiState.update { it.copy(regularHolidayWeek = action.week) }
-            }
-            // ... (기타 Step 4 Actions 구현)
-            is SignUpAction.AddOperatingSchedule -> {
-                val newItem = OperatingScheduleItem()
-                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules + newItem) }
-            }
-            is SignUpAction.RemoveOperatingSchedule -> {
-                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules.filter { item -> item.id != action.id }) }
-            }
-            is SignUpAction.UpdateOperatingDays -> {
-                _uiState.update { state ->
-                    state.copy(operatingSchedules = state.operatingSchedules.map { item ->
-                        if (item.id == action.id) {
-                            // 토글 로직
-                            val newDays = if (item.selectedDays.contains(action.dayIdx)) {
-                                item.selectedDays - action.dayIdx
-                            } else {
-                                item.selectedDays + action.dayIdx
-                            }
-                            item.copy(selectedDays = newDays)
-                        } else item
-                    })
-                }
-            }
-            is SignUpAction.UpdateOperatingTime -> {
-                _uiState.update { state ->
-                    state.copy(operatingSchedules = state.operatingSchedules.map { item ->
-                        if (item.id == action.id) {
-                            item.copy(
-                                startHour = action.startH, startMin = action.startM * 5, // index * 5
-                                endHour = action.endH, endMin = action.endM * 5
-                            )
-                        } else item
-                    })
+            // 1. 정기 휴무일 타입 토글 (상호 배타적 선택 보장)
+            is SignUpAction.ToggleRegularHolidayType -> {
+                _uiState.update {
+                    // 이미 선택된 걸 누르면 해제(0), 다른 걸 누르면 그걸로 변경(1 or 2)
+                    val newType = if (it.regularHolidayType == action.type) 0 else action.type
+                    it.copy(regularHolidayType = newType)
                 }
             }
 
+            // 2. 정기 휴무 데이터 업데이트
+            is SignUpAction.UpdateWeeklyHolidays -> {
+                _uiState.update { it.copy(weeklyHolidayDays = action.days, showWeeklyDayDialog = false) }
+            }
+            is SignUpAction.UpdateMonthlyWeeks -> {
+                _uiState.update { it.copy(monthlyHolidayWeeks = action.weeks, showMonthlyWeekDialog = false) }
+            }
+            is SignUpAction.UpdateMonthlyDays ->
+                _uiState.update { it.copy(monthlyHolidayDays = action.days, showMonthlyDayDialog = false) }
+            // 3. 임시 휴무 토글
+            is SignUpAction.ToggleTempHoliday -> {
+                _uiState.update { it.copy(isTempHolidayEnabled = !it.isTempHolidayEnabled) }
+            }
+
+            // ★ [버그 수정] DateRangePicker에서 받은 Long(Millis)을 String으로 변환하여 저장
+            is SignUpAction.UpdateTempHolidayRange -> {
+                // action.start/end는 UI에서 이미 String으로 변환해서 주거나,
+                // 혹은 여기서 변환 로직을 태울 수 있습니다.
+                // 이번에는 UI(Screen)에서 Long을 받아서 Action을 호출할 때 String으로 변환해 넘겨주는 방식을 채택합니다.
+                _uiState.update {
+                    it.copy(
+                        tempHolidayStart = action.start,
+                        tempHolidayEnd = action.end,
+                        showTempHolidayDatePicker = false
+                    )
+                }
+            }
+
+            // 4. 운영 스케줄 관리
+            is SignUpAction.AddOperatingSchedule -> {
+                val newId = (_uiState.value.operatingSchedules.maxOfOrNull { it.id } ?: 0) + 1
+                val newItem = OperatingScheduleItem(newId, startHour = 18, startMin = 0, endHour = 0, endMin = 0)
+                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules + newItem) }
+            }
+            is SignUpAction.UpdateOperatingDays -> updateOperatingScheduleDays(action.id, action.dayIdx)
+            is SignUpAction.UpdateOperatingTime -> updateOperatingScheduleTime(action.id, action.startHour, action.startMin, action.endHour, action.endMin)
+            is SignUpAction.RemoveOperatingSchedule -> {
+                _uiState.update {
+                    it.copy(operatingSchedules = it.operatingSchedules.filter { item -> item.id != action.id })
+                }
+            }
+
+            // 5. 다이얼로그 Visible 제어
+            is SignUpAction.SetWeeklyDialogVisible -> _uiState.update { it.copy(showWeeklyDayDialog = action.visible) }
+            is SignUpAction.SetMonthlyWeekDialogVisible -> _uiState.update { it.copy(showMonthlyWeekDialog = action.visible) }
+            is SignUpAction.SetMonthlyDayDialogVisible -> _uiState.update { it.copy(showMonthlyDayDialog = action.visible) }
+            is SignUpAction.SetTempHolidayDatePickerVisible -> _uiState.update { it.copy(showTempHolidayDatePicker = action.visible) }
 
             //NEXT, BACK
             is SignUpAction.OnNextClick -> handleNextStep()
@@ -607,6 +617,41 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
+    //STEP 4
+    private fun updateOperatingScheduleDays(id: Long, dayIdx: Int) {
+        _uiState.update { state ->
+            val updatedList = state.operatingSchedules.map { item ->
+                if (item.id == id) {
+                    val currentDays = item.selectedDays
+                    // 이미 선택되어 있으면 제거, 없으면 추가 (Toggle)
+                    val newDays = if (currentDays.contains(dayIdx)) {
+                        currentDays - dayIdx
+                    } else {
+                        currentDays + dayIdx
+                    }
+                    item.copy(selectedDays = newDays)
+                } else item
+            }
+            state.copy(operatingSchedules = updatedList)
+        }
+    }
+
+    private fun updateOperatingScheduleTime(id: Long, sH: Int, sM: Int, eH: Int, eM: Int) {
+        _uiState.update { state ->
+            val updatedList = state.operatingSchedules.map { item ->
+                if (item.id == id) {
+                    item.copy(startHour = sH, startMin = sM, endHour = eH, endMin = eM)
+                } else item
+            }
+            state.copy(operatingSchedules = updatedList)
+        }
+    }
+
+    fun convertMillisToDateString(millis: Long?): String {
+        if (millis == null) return ""
+        val formatter = SimpleDateFormat("yyyy/MM/dd", Locale.KOREA)
+        return formatter.format(Date(millis))
+    }
 
     private fun checkNextButtonEnabled() {
         val state = _uiState.value
@@ -728,17 +773,25 @@ class OwnerSignUpViewModel @Inject constructor(
         val spaceList: List<SpaceItem> = emptyList(),
         val selectedSpaceId: Long? = null,
 
-        // 테이블 리스트 (기본적으로 1개의 빈 아이템 보유)
-        val tempTableList: List<TableItem> = listOf(TableItem(personCount = "", tableCount = "")),
+        // STEP 4
+        val regularHolidayType: Int = 0, // 0: 설정안함, 1: 매주, 2: 매월
+        val weeklyHolidayDays: Set<Int> = emptySet(), // 매주 휴무 요일 (0:일, 1:월 ~ 6:토) - 다중선택
+        val monthlyHolidayWeeks: Set<Int> = emptySet(), // 매월 휴무 주차 (1~5) - 다중선택
+        val monthlyHolidayDays: Set<Int> = emptySet(), // 매월 휴무 요일 (0:일 ~ 6:토) - 단일선택 (기획상 언급 없으나 주차 선택시 필요하므로 유지)
 
-        val regularHolidayType: Int = 0, // 0: 없음, 1: 매주, 2: 매월
-        val regularHolidayDay: Int? = null, // 정기 휴무 요일 (0~6)
-        val regularHolidayWeek: Int? = 1, // 매월 몇째 주 (1~5)
+        val isTempHolidayEnabled: Boolean = false,
+        val tempHolidayStart: String = "", // YYYY/MM/DD
+        val tempHolidayEnd: String = "",   // YYYY/MM/DD
 
-        val tempHolidayStart: String = "", // 임시 휴무 시작일
-        val tempHolidayEnd: String = "",   // 임시 휴무 종료일
+        val operatingSchedules: List<OperatingScheduleItem> = listOf(
+            // 기본값 18:00 ~ 24:00 (자정은 00:00으로 처리하되 UI 표현 유의)
+            OperatingScheduleItem(id = 0, startHour = 18, startMin = 0, endHour = 0, endMin = 0)
+        ),
 
-        val operatingSchedules: List<OperatingScheduleItem> = listOf(OperatingScheduleItem())
+        val showWeeklyDayDialog: Boolean = false,
+        val showMonthlyWeekDialog: Boolean = false,
+        val showMonthlyDayDialog: Boolean = false,
+        val showTempHolidayDatePicker: Boolean = false
     )
 
     sealed interface SignUpAction {
@@ -769,6 +822,7 @@ class OwnerSignUpViewModel @Inject constructor(
         data class UpdateMainAddress(val address: String) : SignUpAction
         data class UpdateStoreContact(val phone: String) : SignUpAction
         data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
+
         //step3
         object AddSpaceItemRow : SignUpAction
         data class UpdateSpaceItemInput(val id: Long, val input: String) : SignUpAction
@@ -784,14 +838,22 @@ class OwnerSignUpViewModel @Inject constructor(
         data class RemoveTableItemRow(val tableId: Long) : SignUpAction
 
         //step4
-        data class SetRegularHolidayType(val type: Int) : SignUpAction
-        data class SetRegularHolidayDay(val dayIdx: Int) : SignUpAction
-        data class SetRegularHolidayWeek(val week: Int) : SignUpAction
+        data class ToggleRegularHolidayType(val type: Int) : SignUpAction
+        data class SetWeeklyDialogVisible(val visible: Boolean) : SignUpAction
+        data class SetMonthlyWeekDialogVisible(val visible: Boolean) : SignUpAction
+        data class SetMonthlyDayDialogVisible(val visible: Boolean) : SignUpAction
+        data class SetTempHolidayDatePickerVisible(val visible: Boolean) : SignUpAction
+        data class UpdateWeeklyHolidays(val days: Set<Int>) : SignUpAction
+        data class UpdateMonthlyWeeks(val weeks: Set<Int>) : SignUpAction
+        data class UpdateMonthlyDays(val days: Set<Int>) : SignUpAction
+
+        object ToggleTempHoliday : SignUpAction
+        data class UpdateTempHolidayRange(val start: String, val end: String) : SignUpAction
 
         object AddOperatingSchedule : SignUpAction
+        data class UpdateOperatingDays(val id: Long, val dayIdx: Int) : SignUpAction // 요일 선택(토글)
+        data class UpdateOperatingTime(val id: Long, val startHour: Int, val startMin: Int, val endHour: Int, val endMin: Int) : SignUpAction
         data class RemoveOperatingSchedule(val id: Long) : SignUpAction
-        data class UpdateOperatingDays(val id: Long, val dayIdx: Int) : SignUpAction
-        data class UpdateOperatingTime(val id: Long, val startH: Int, val startM: Int, val endH: Int, val endM: Int) : SignUpAction
 
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction

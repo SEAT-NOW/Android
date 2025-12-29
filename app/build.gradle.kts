@@ -1,19 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    // 👇 직렬화(JSON) 및 Hilt 설정
-    id("kotlin-kapt") // ksp 사용시 제거 가능하나, 안전을 위해 유지하거나 ksp로 완전 전환 권장
-    id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp")
-    id("org.jetbrains.kotlin.plugin.serialization")
+    alias(libs.plugins.hilt.android) // Hilt 플러그인도 TOML에서 가져옴
+    alias(libs.plugins.kotlin.serialization) // 직렬화 플러그인도 TOML에서 가져옴
+    id("com.google.devtools.ksp") // KSP는 아직 별도 설정이 편할 수 있음
 }
 
 android {
-    namespace = "com.gmg.seatnow" // 👈 수정됨
+    namespace = "com.gmg.seatnow"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.gmg.seatnow" // 👈 수정됨
+        applicationId = "com.gmg.seatnow"
         minSdk = 29
         targetSdk = 34
         versionCode = 1
@@ -40,6 +38,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true // 필요시 사용
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.10"
@@ -51,46 +50,49 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.splashscreen) // TOML에 추가됨
 
-    // 👇 스플래시 API (Android 12 이상 필수 대응)
-    implementation("androidx.core:core-splashscreen:1.0.1")
-
-    // 2. Jetpack Compose (BOM 사용)
-    val composeBom = platform(libs.androidx.compose.bom)
-    implementation(composeBom)
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // 2. Jetpack Compose (BOM)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 
     // 3. Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // 4. Hilt (Dependency Injection) - KSP 사용
+    // 4. Hilt (DI)
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    ksp(libs.hilt.compiler) // KSP 사용
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // 5. Network (Retrofit + Kotlinx Serialization)
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
+    // 5. Network (Retrofit + Serialization + Gson)
+    implementation(libs.retrofit)
+    implementation(libs.okhttp.logging)
+    implementation(libs.retrofit.gson)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.retrofit.serialization.converter)
+    implementation(libs.gson)
 
-    // 6. Coil (Image Loading)
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    // 6. Coil
+    implementation(libs.coil.compose)
 
-    // 7. Third Party SDKs
-    implementation("io.github.fornewid:naver-map-compose:1.7.2")
-    implementation("com.naver.maps:map-sdk:3.19.0")
-    implementation("com.kakao.sdk:v2-user:2.19.0")
+    // 7. Third Party SDKs (Map, Kakao, Wheel)
+    implementation(libs.naver.map.compose)
+    implementation(libs.naver.map.sdk)
+    implementation(libs.kakao.user)
+    implementation(libs.wheel.picker)
 
-    // 8. DataStore (Preferences) - TokenManager 구현용
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    // 8. DataStore
+    implementation(libs.androidx.datastore.preferences)
 
-    // 9. Json 파싱
-    implementation("com.google.code.gson:gson:2.10.1")
+    // 9. Test
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
 }
