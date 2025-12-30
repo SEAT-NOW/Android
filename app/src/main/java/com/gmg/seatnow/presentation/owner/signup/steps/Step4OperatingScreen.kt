@@ -26,6 +26,11 @@ fun Step4OperatingScreen(
 ) {
     val disabledOperatingDays =
         if (uiState.regularHolidayType == 1) uiState.weeklyHolidayDays else emptySet()
+
+    val scheduledDays = uiState.operatingSchedules.flatMap { it.selectedDays }.toSet()
+
+    val isWeekFull = (disabledOperatingDays + scheduledDays).size >= 7
+
     val daysText = listOf("일", "월", "화", "수", "목", "금", "토")
 
     // Helper: 요일 Set -> "월 · 화" 변환
@@ -290,7 +295,10 @@ fun Step4OperatingScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                SeatNowRedPlusButton(onClick = { onAction(SignUpAction.AddOperatingSchedule) })
+                SeatNowRedPlusButton(
+                    onClick = { onAction(SignUpAction.AddOperatingSchedule) },
+                    isEnabled = !isWeekFull // 꽉 찼으면 false (회색, 클릭 불가)
+                )
             }
 
             if (uiState.showWeeklyDayDialog) {
