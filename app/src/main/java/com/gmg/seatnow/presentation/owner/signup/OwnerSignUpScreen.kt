@@ -1,8 +1,10 @@
 package com.gmg.seatnow.presentation.owner.signup
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpEvent
@@ -15,6 +17,7 @@ fun OwnerSignUpScreen(
 ) {
     // 1. ViewModel의 State 수집
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     // 2. ViewModel의 Event(화면이동 등) 수집
     LaunchedEffect(viewModel.event) {
@@ -22,6 +25,10 @@ fun OwnerSignUpScreen(
             when(event) {
                 is SignUpEvent.NavigateBack -> onBackClick()
                 is SignUpEvent.NavigateToHome -> onNavigateToHome()
+
+                is SignUpEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

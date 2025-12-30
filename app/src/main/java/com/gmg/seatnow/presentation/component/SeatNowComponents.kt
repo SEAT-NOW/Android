@@ -1,6 +1,5 @@
 package com.gmg.seatnow.presentation.component
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -473,9 +472,11 @@ fun SeatNowDateBox(
 fun DayOfWeekSelector(
     selectedDays: Set<Int>,
     disabledDays: Set<Int> = emptySet(),
+    buttonSize: Dp = 40.dp,
     onDayClick: (Int) -> Unit
 ) {
     val days = listOf("일", "월", "화", "수", "목", "금", "토")
+    val fontSize = if(buttonSize < 40.dp) 12.sp else 14.sp
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
@@ -489,14 +490,14 @@ fun DayOfWeekSelector(
 
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(buttonSize)
                     .clip(CircleShape)
                     .background(backgroundColor)
                     .border(1.dp, borderColor, CircleShape)
                     .clickable(enabled = !isDisabled) { onDayClick(index) },
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = dayName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold), color = contentColor)
+                Text(text = dayName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontSize = fontSize), color = contentColor)
             }
         }
     }
@@ -560,13 +561,23 @@ fun SeatNowTimePicker(
 fun OperatingScheduleItem(
     schedule: OperatingScheduleItem,
     isDeleteEnabled: Boolean,
+    expandedTarget: TimeTarget, // ★ 외부에서 제어 (None, Start, End)
+    isSmallScreen: Boolean = false, // ★ 반응형 플래그
+    onToggleStart: () -> Unit, // ★ 클릭 시 토글 요청
+    onToggleEnd: () -> Unit,   // ★ 클릭 시 토글 요청
     onUpdateStart: (Int, Int) -> Unit,
     onUpdateEnd: (Int, Int) -> Unit,
     onDelete: () -> Unit
 ) {
-    var editingTarget by remember { mutableStateOf<TimeTarget>(TimeTarget.None) }
-    val iconSize = 24.dp
-    val iconSpacing = 12.dp
+    // 화면 크기에 따른 사이즈 조정
+    val iconSize = if (isSmallScreen) 20.dp else 24.dp
+    val timeFontSize = if (isSmallScreen) 16.sp else 20.sp
+    val tildeFontSize = if (isSmallScreen) 14.sp else 16.sp
+    val iconSpacing = if (isSmallScreen) 8.dp else 12.dp
+    val textSpacing = if (isSmallScreen) 8.dp else 16.dp
+    val timeBoxWidth = if (isSmallScreen) 70.dp else 85.dp
+
+    // 중앙 정렬을 위한 밸런스 여백 (삭제 아이콘 크기만큼 왼쪽도 띄워줌)
     val sideBalanceWidth = iconSize + iconSpacing
 
     Column(
@@ -578,40 +589,48 @@ fun OperatingScheduleItem(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
+            // 왼쪽 밸런스 여백
             Spacer(modifier = Modifier.width(sideBalanceWidth))
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TimeDisplayBox(
                     hour = schedule.startHour,
                     minute = schedule.startMin,
-                    isSelected = editingTarget == TimeTarget.Start,
-                    onClick = { editingTarget = if (editingTarget == TimeTarget.Start) TimeTarget.None else TimeTarget.Start }
+                    isSelected = expandedTarget == TimeTarget.Start,
+                    onClick = onToggleStart, // ★
+                    width = timeBoxWidth,
+                    fontSize = timeFontSize
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("~", style = MaterialTheme.typography.titleMedium, color = SubGray)
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(textSpacing))
+                Text("~", style = MaterialTheme.typography.titleMedium.copy(fontSize = tildeFontSize), color = SubGray)
+                Spacer(modifier = Modifier.width(textSpacing))
                 TimeDisplayBox(
                     hour = schedule.endHour,
                     minute = schedule.endMin,
-                    isSelected = editingTarget == TimeTarget.End,
-                    onClick = { editingTarget = if (editingTarget == TimeTarget.End) TimeTarget.None else TimeTarget.End }
+                    isSelected = expandedTarget == TimeTarget.End,
+                    onClick = onToggleEnd, // ★
+                    width = timeBoxWidth,
+                    fontSize = timeFontSize
                 )
             }
+
             Spacer(modifier = Modifier.width(iconSpacing))
             IconButton(onClick = onDelete, enabled = isDeleteEnabled, modifier = Modifier.size(iconSize)) {
                 Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = if (isDeleteEnabled) PointRed else SubLightGray)
             }
         }
 
-        if (editingTarget != TimeTarget.None) {
+        // 휠 피커 표시
+        if (expandedTarget != TimeTarget.None) {
             Spacer(modifier = Modifier.height(16.dp))
-            val currentHour = if (editingTarget == TimeTarget.Start) schedule.startHour else schedule.endHour
-            val currentMin = if (editingTarget == TimeTarget.Start) schedule.startMin else schedule.endMin
+            val currentHour = if (expandedTarget == TimeTarget.Start) schedule.startHour else schedule.endHour
+            val currentMin = if (expandedTarget == TimeTarget.Start) schedule.startMin else schedule.endMin
 
             SeatNowTimePicker(
                 hour = currentHour,
                 minute = currentMin,
                 onTimeChanged = { h, m ->
-                    if (editingTarget == TimeTarget.Start) onUpdateStart(h, m) else onUpdateEnd(h, m)
+                    if (expandedTarget == TimeTarget.Start) onUpdateStart(h, m) else onUpdateEnd(h, m)
                 },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -620,17 +639,18 @@ fun OperatingScheduleItem(
 }
 
 // [보조 컴포넌트] 시간 텍스트 (밑줄 포함)
-// ★ 수정: 아이콘 항상 표시 & 회전 방향 수정 (평소 0도=아래, 선택시 180도=위)
 @Composable
 fun TimeDisplayBox(
     hour: Int,
     minute: Int,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    width: Dp = 85.dp,
+    fontSize: androidx.compose.ui.unit.TextUnit = 20.sp
 ) {
     Column(
         modifier = Modifier
-            .width(85.dp) // 아이콘 자리를 위해 너비 약간 확보
+            .width(width) // ★ 반응형 너비
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -639,19 +659,18 @@ fun TimeDisplayBox(
                 text = "%02d:%02d".format(hour, minute),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
+                    fontSize = fontSize // ★ 반응형 폰트
                 ),
                 color = SubBlack
             )
             Spacer(modifier = Modifier.width(4.dp))
-            // ★ 수정됨: 아이콘 항상 표시 (사라짐 해결) + 회전 로직 수정 (반대 해결)
             Icon(
-                imageVector = Icons.Default.ArrowDropDown, // 기본: 아래 방향
+                imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = null,
                 modifier = Modifier
-                    .rotate(if (isSelected) 0f else 180f) // 선택되면 위로, 아니면 아래로
-                    .size(24.dp), // 크기 조정
-                tint = if (isSelected) SubBlack else SubLightGray // 비활성 시 흐리게
+                    .rotate(if (isSelected) 180f else 0f)
+                    .size(if (fontSize < 18.sp) 20.dp else 24.dp), // 아이콘 크기도 조정
+                tint = if (isSelected) SubBlack else SubLightGray
             )
         }
         Spacer(modifier = Modifier.height(4.dp))

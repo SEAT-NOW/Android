@@ -10,6 +10,7 @@ import com.gmg.seatnow.presentation.owner.dataClass.OperatingScheduleItem
 import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 import com.gmg.seatnow.presentation.owner.dataClass.TableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.gmg.seatnow.domain.usecase.*
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,7 +24,12 @@ import javax.inject.Inject
 @HiltViewModel
 class OwnerSignUpViewModel @Inject constructor(
     private val authUseCase: OwnerAuthUseCase,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val validateEmailUseCase: ValidateEmailUseCase,
+    private val validatePasswordUseCase: ValidatePasswordUseCase,
+    private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
+    private val formatDateUseCase: FormatDateUseCase,
+    private val formatTimerUseCase: FormatTimerUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OwnerSignUpUiState(
@@ -38,10 +44,6 @@ class OwnerSignUpViewModel @Inject constructor(
 
     private var emailTimerJob: Job? = null
     private var phoneTimerJob: Job? = null
-
-    private val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\$".toRegex()
-    private val passwordRegex =
-        "^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[!@#\$%^&*()_+=-]).{8,20}\$".toRegex()
 
     private val _storeSearchQuery = MutableSharedFlow<String>()
 
@@ -269,9 +271,8 @@ class OwnerSignUpViewModel @Inject constructor(
             var time = 180
             _uiState.update { it.copy(isEmailTimerExpired = false) }
             while (time > 0) {
-                val minutes = time / 60
-                val seconds = time % 60
-                val timeString = "%d:%02d".format(minutes, seconds)
+                val timeString = formatTimerUseCase(time)
+
                 _uiState.update { it.copy(emailTimerText = timeString) }
                 delay(1000)
                 time--
@@ -336,13 +337,17 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun validateAndUpdateEmail(email: String) {
-        val error = if (email.isNotBlank() && !email.matches(emailRegex)) "올바른 이메일 형식이 아닙니다." else null
+        val isValid = validateEmailUseCase(email)
+        val error = if (email.isNotBlank() && !isValid) "올바른 이메일 형식이 아닙니다." else null
+
         _uiState.update { it.copy(email = email, emailError = error, isEmailVerified = false, isEmailCodeSent = false, isEmailVerificationAttempted = false) }
         stopEmailTimer()
     }
 
     private fun validateAndUpdatePassword(password: String) {
-        val error = if (password.isNotBlank() && !password.matches(passwordRegex)) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
+        val isValid = validatePasswordUseCase(password)
+        val error = if (password.isNotBlank() && !isValid) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
+
         _uiState.update { it.copy(password = password, passwordError = error) }
         validateAndUpdatePasswordCheck(_uiState.value.passwordCheck)
     }
@@ -470,43 +475,7 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(spaceList = state.spaceList.map { item ->
                 if (item.id == id) {
-                    val input = item.editInput.trim()
-
-                    // 1. 공간 이름 유효성 검사
-                    if (input.isBlank()) {
-                        item.copy(inputError = "공간 이름을 입력해주세요.")
-                    } else {
-                        // 2. [핵심] N이나 M 중 하나라도 비어있으면 리스트에서 아예 제외(삭제)
-                        val validTables = item.tableList.filter {
-                            it.personCount.isNotBlank() && it.tableCount.isNotBlank()
-                        }
-
-                        // 3. 총 좌석 수 계산
-                        val totalSeats = validTables.sumOf {
-                            (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0)
-                        }
-
-                        // 4. [방어 로직] 유효한 테이블이 하나도 없어서 리스트가 비어버린 경우
-                        if (validTables.isEmpty()) {
-                            // -> 아예 초기 상태(빈 입력창 1개)로 리셋하여 저장 (UI에 N, M 빈칸 생성)
-                            item.copy(
-                                name = input,
-                                isEditing = false, // 저장 완료 상태로 전환
-                                inputError = null,
-                                seatCount = 0,
-                                tableList = listOf(TableItem(personCount = "", tableCount = ""))
-                            )
-                        } else {
-                            // -> 정상 저장: 불완전한 항목은 제거된 clean한 리스트 저장
-                            item.copy(
-                                name = input,
-                                isEditing = false,
-                                inputError = null,
-                                seatCount = totalSeats,
-                                tableList = validTables // 빈 값은 제거된 리스트
-                            )
-                        }
-                    }
+                    calculateSpaceInfoUseCase(item)
                 } else item
             })
         }
@@ -619,11 +588,27 @@ class OwnerSignUpViewModel @Inject constructor(
 
     //STEP 4
     private fun updateOperatingScheduleDays(id: Long, dayIdx: Int) {
+        val currentSchedules = _uiState.value.operatingSchedules
+        val targetItem = currentSchedules.find { it.id == id } ?: return
+
+        // 1. 현재 내가 선택하려는 요일이, '다른' 스케줄 아이템에서 이미 선택되어 있는지 확인
+        val isOccupiedByOther = currentSchedules.any { item ->
+            item.id != id && item.selectedDays.contains(dayIdx)
+        }
+
+        // 2. 이미 선택되어 있고, 현재 아이템에서 '추가'하려고 할 때 (이미 선택된걸 해제하는건 허용)
+        if (isOccupiedByOther && !targetItem.selectedDays.contains(dayIdx)) {
+            viewModelScope.launch {
+                _event.emit(SignUpEvent.ShowToast("이미 설정된 요일입니다."))
+            }
+            return // 상태 업데이트 하지 않고 종료
+        }
+
+        // 3. 정상적인 토글 로직 진행
         _uiState.update { state ->
             val updatedList = state.operatingSchedules.map { item ->
                 if (item.id == id) {
                     val currentDays = item.selectedDays
-                    // 이미 선택되어 있으면 제거, 없으면 추가 (Toggle)
                     val newDays = if (currentDays.contains(dayIdx)) {
                         currentDays - dayIdx
                     } else {
@@ -634,6 +619,9 @@ class OwnerSignUpViewModel @Inject constructor(
             }
             state.copy(operatingSchedules = updatedList)
         }
+
+        // 4. 상태 변경 후 유효성 검사 수행
+        checkNextButtonEnabled()
     }
 
     private fun updateOperatingScheduleTime(id: Long, sH: Int, sM: Int, eH: Int, eM: Int) {
@@ -671,6 +659,9 @@ class OwnerSignUpViewModel @Inject constructor(
                         state.nearbyUniv.isNotBlank()
             }
             SignUpStep.STEP_3_STORE -> state.spaceList.isNotEmpty()
+            SignUpStep.STEP_4_OPERATION -> {
+                state.operatingSchedules.any {it.selectedDays.isNotEmpty()}
+            }
             else -> false
         }
         _uiState.update { it.copy(isNextButtonEnabled = isValid) }
@@ -862,5 +853,6 @@ class OwnerSignUpViewModel @Inject constructor(
     sealed interface SignUpEvent {
         object NavigateBack : SignUpEvent
         object NavigateToHome : SignUpEvent
+        data class ShowToast(val message: String) : SignUpEvent
     }
 }
