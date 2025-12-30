@@ -32,6 +32,7 @@ import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step3StoreScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step4OperatingScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step5PhotoScreen
+import com.gmg.seatnow.presentation.owner.signup.steps.Step6CompleteScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.TermsDetailScreen
 import com.gmg.seatnow.presentation.theme.*
 
@@ -150,6 +151,7 @@ fun SignUpFormScreen(
                     SignUpStep.STEP_3_STORE -> Step3StoreScreen(uiState, onAction)
                     SignUpStep.STEP_4_OPERATION -> Step4OperatingScreen(uiState, onAction)
                     SignUpStep.STEP_5_PHOTO -> Step5PhotoScreen(uiState, onAction)
+                    SignUpStep.STEP_6_COMPLETE -> Step6CompleteScreen()
                     else -> Text("준비 중")
                 }
             }

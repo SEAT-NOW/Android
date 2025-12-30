@@ -86,5 +86,16 @@ fun SeatNowNavGraph() {
                 onBackClick = { navController.popBackStack() }
             ) { }
         }
+
+        composable("owner_signup") {
+            OwnerSignUpScreen(
+                onBackClick = { navController.popBackStack() },
+                // ★ [수정] 완료(로그인 버튼) 시 'owner_login' 화면으로 복귀
+                onNavigateToHome = {
+                    // 회원가입 화면을 스택에서 제거하여 로그인 화면으로 돌아감
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
