@@ -1,5 +1,6 @@
 package com.gmg.seatnow.presentation.component
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.commandiron.wheel_picker_compose.core.WheelPickerDefaults
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 import com.gmg.seatnow.R
@@ -974,4 +978,114 @@ fun PreviewMonthlyWeekDialog() {
 
 enum class TimeTarget {
     None, Start, End
+}
+
+@Composable
+fun AddPhotoButton(
+    onClick: () -> Unit,
+    currentCount: Int,
+    maxCount: Int = 5,
+    modifier: Modifier = Modifier
+) {
+    // [수정] X버튼 공간 확보용 패딩을 10dp -> 6dp로 축소
+    Box(modifier = modifier.padding(top = 6.dp, end = 6.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(4f / 5f) // 4:5 비율
+                .background(SubPaleGray, RectangleShape)
+                .clickable(onClick = onClick)
+                .border(1.dp, SubLightGray, RectangleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "사진 추가",
+                    tint = SubGray,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$currentCount / $maxCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = SubGray
+                )
+            }
+        }
+    }
+}
+
+// [Step 5] 등록된 사진 아이템 (X버튼 작게, 여백 축소)
+@Composable
+fun PhotoGridItem(
+    uri: Uri,
+    isRepresentative: Boolean,
+    onRemove: () -> Unit,
+    onSetRepresentative: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        val interactionSource = remember { MutableInteractionSource() }
+
+        // 1. 실제 사진 영역
+        Box(
+            modifier = Modifier
+                // [수정] X버튼 공간 확보용 패딩 10dp -> 6dp로 축소 (사진 크기 확보)
+                .padding(top = 6.dp, end = 6.dp)
+                .fillMaxWidth()
+                .aspectRatio(4f / 5f)
+                .background(SubLightGray, RectangleShape)
+                .border(1.dp, SubLightGray, RectangleShape)
+                .clickable(onClick = onSetRepresentative)
+        ) {
+            AsyncImage(
+                model = uri,
+                contentDescription = "가게 사진",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            // 2. 대표 라벨
+            val labelBgColor = if (isRepresentative) PointRed else SubLightGray
+            val labelTextColor = White
+
+            Box(
+                modifier = Modifier
+                    .background(labelBgColor, RectangleShape)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .align(Alignment.TopStart)
+            ) {
+                Text(
+                    text = "대표",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = labelTextColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // 3. 삭제 버튼 (크기 축소)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                // [수정] 버튼 크기 20dp -> 18dp로 축소
+                .size(18.dp)
+                .background(SubBlack, CircleShape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null, // 여기가 null이면 물결이 안 생깁니다.
+                    onClick = onRemove
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "삭제",
+                tint = White,
+                // [수정] 아이콘 크기 12dp -> 10dp로 축소
+                modifier = Modifier.size(10.dp)
+            )
+        }
+    }
 }

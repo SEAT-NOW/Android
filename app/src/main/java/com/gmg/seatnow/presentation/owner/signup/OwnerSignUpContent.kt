@@ -31,6 +31,7 @@ import com.gmg.seatnow.presentation.owner.signup.steps.Step1BasicScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step3StoreScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step4OperatingScreen
+import com.gmg.seatnow.presentation.owner.signup.steps.Step5PhotoScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.TermsDetailScreen
 import com.gmg.seatnow.presentation.theme.*
 
@@ -148,6 +149,7 @@ fun SignUpFormScreen(
                     SignUpStep.STEP_2_BUSINESS -> Step2BusinessScreen(uiState, onAction)
                     SignUpStep.STEP_3_STORE -> Step3StoreScreen(uiState, onAction)
                     SignUpStep.STEP_4_OPERATION -> Step4OperatingScreen(uiState, onAction)
+                    SignUpStep.STEP_5_PHOTO -> Step5PhotoScreen(uiState, onAction)
                     else -> Text("준비 중")
                 }
             }
@@ -230,6 +232,20 @@ fun PreviewOwnerSignUpStep4Content() {
         OwnerSignUpContent(
             uiState = OwnerSignUpUiState(
                 currentStep = SignUpStep.STEP_4_OPERATION
+            ),
+            onAction = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Step 5 UI")
+@Composable
+fun PreviewOwnerSignUpStep5Content() {
+    SeatNowTheme {
+        OwnerSignUpContent(
+            uiState = OwnerSignUpUiState(
+                currentStep = SignUpStep.STEP_5_PHOTO
             ),
             onAction = {},
             onBackClick = {}

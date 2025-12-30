@@ -17,7 +17,7 @@ enum class SignUpStep(
     STEP_4_OPERATION("운영 정보 입력", 0.8f),
     
     // 5단계: 가게 사진 등록 (100%)
-    STEP_5_SAVESTOREPHOTO("가게 사진 등록", 1f),
+    STEP_5_PHOTO("가게 사진 등록", 1f),
 
     // 완료단계 : 회원가입 완료(100%)
     STEP_6_COMPLETE("회원가입 완료", 1f)

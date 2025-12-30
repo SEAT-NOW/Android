@@ -175,11 +175,15 @@ class OwnerSignUpViewModel @Inject constructor(
                 _uiState.update { it.copy(operatingSchedules = it.operatingSchedules.filter { item -> item.id != action.id }) }
             }
 
-            // Dialogs
             is SignUpAction.SetWeeklyDialogVisible -> _uiState.update { it.copy(showWeeklyDayDialog = action.visible) }
             is SignUpAction.SetMonthlyWeekDialogVisible -> _uiState.update { it.copy(showMonthlyWeekDialog = action.visible) }
             is SignUpAction.SetMonthlyDayDialogVisible -> _uiState.update { it.copy(showMonthlyDayDialog = action.visible) }
             is SignUpAction.SetTempHolidayDatePickerVisible -> _uiState.update { it.copy(showTempHolidayDatePicker = action.visible) }
+
+            //step 5
+            is SignUpAction.AddStorePhotos -> addStorePhotos(action.uris)
+            is SignUpAction.RemoveStorePhoto -> removeStorePhoto(action.uri)
+            is SignUpAction.SetRepresentativePhoto -> setRepresentativePhoto(action.uri)
 
             // Navigation
             is SignUpAction.OnNextClick -> handleNextStep()
@@ -570,8 +574,49 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
-    // [UseCase 대체] convertMillisToDateString 제거 -> formatDateUseCase 사용 권장
-    // (현재는 로직 내에서 호출하지 않아서 함수 자체를 삭제해도 됨)
+    private fun addStorePhotos(uris: List<Uri>) {
+        _uiState.update { state ->
+            val currentList = state.storePhotoList
+            // [수정] 최대 5장까지만 유지 (take(5))
+            val newList = (currentList + uris).distinct().take(5)
+
+            // 리스트가 비어있었는데 추가됐다면, 첫 번째 사진을 자동으로 대표로 설정
+            val newRep = if (state.representativePhotoUri == null && newList.isNotEmpty()) {
+                newList.first()
+            } else {
+                state.representativePhotoUri
+            }
+
+            state.copy(
+                storePhotoList = newList,
+                representativePhotoUri = newRep
+            )
+        }
+    }
+
+    private fun removeStorePhoto(uri: Uri) {
+        _uiState.update { state ->
+            val newList = state.storePhotoList.filter { it != uri }
+
+            // 삭제된 사진이 하필 대표 사진이었다면? -> 남은 사진 중 첫 번째를 대표로 승계
+            var newRep = state.representativePhotoUri
+            if (uri == state.representativePhotoUri) {
+                newRep = newList.firstOrNull()
+            }
+
+            state.copy(
+                storePhotoList = newList,
+                representativePhotoUri = newRep
+            )
+        }
+    }
+
+    private fun setRepresentativePhoto(uri: Uri) {
+        // 이미 리스트에 있는 uri인지 확인 후 설정
+        if (_uiState.value.storePhotoList.contains(uri)) {
+            _uiState.update { it.copy(representativePhotoUri = uri) }
+        }
+    }
 
     // ★ [Next Button Check]
     private fun checkNextButtonEnabled() {
@@ -598,6 +643,7 @@ class OwnerSignUpViewModel @Inject constructor(
             SignUpStep.STEP_4_OPERATION -> {
                 state.operatingSchedules.any { it.selectedDays.isNotEmpty() }
             }
+            SignUpStep.STEP_5_PHOTO -> true
             else -> false
         }
         _uiState.update { it.copy(isNextButtonEnabled = isValid) }
@@ -639,7 +685,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_4_OPERATION,
+        val currentStep: SignUpStep = SignUpStep.STEP_5_PHOTO,
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1
@@ -711,7 +757,11 @@ class OwnerSignUpViewModel @Inject constructor(
         val showWeeklyDayDialog: Boolean = false,
         val showMonthlyWeekDialog: Boolean = false,
         val showMonthlyDayDialog: Boolean = false,
-        val showTempHolidayDatePicker: Boolean = false
+        val showTempHolidayDatePicker: Boolean = false,
+
+        // Step 5
+        val storePhotoList: List<Uri> = emptyList(),
+        val representativePhotoUri: Uri? = null,
     )
 
     sealed interface SignUpAction {
@@ -773,6 +823,11 @@ class OwnerSignUpViewModel @Inject constructor(
         data class UpdateOperatingDays(val id: Long, val dayIdx: Int) : SignUpAction
         data class UpdateOperatingTime(val id: Long, val startHour: Int, val startMin: Int, val endHour: Int, val endMin: Int) : SignUpAction
         data class RemoveOperatingSchedule(val id: Long) : SignUpAction
+
+        //step5
+        data class AddStorePhotos(val uris: List<Uri>) : SignUpAction
+        data class RemoveStorePhoto(val uri: Uri) : SignUpAction
+        data class SetRepresentativePhoto(val uri: Uri) : SignUpAction
 
         object OnNextClick : SignUpAction
         object OnBackClick : SignUpAction
