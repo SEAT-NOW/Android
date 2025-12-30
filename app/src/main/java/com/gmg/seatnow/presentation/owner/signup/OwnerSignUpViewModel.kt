@@ -641,7 +641,8 @@ class OwnerSignUpViewModel @Inject constructor(
                 state.spaceList.isNotEmpty() && state.spaceList.none { it.isEditing }
             }
             SignUpStep.STEP_4_OPERATION -> {
-                state.operatingSchedules.any { it.selectedDays.isNotEmpty() }
+                state.operatingSchedules.isNotEmpty() &&
+                        state.operatingSchedules.all { it.selectedDays.isNotEmpty() }
             }
             SignUpStep.STEP_5_PHOTO -> true
             else -> false
@@ -685,7 +686,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_5_PHOTO,
+        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1

@@ -33,12 +33,6 @@ fun Step5PhotoScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "가게 사진 등록",
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-            color = SubBlack
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
             text = "음식, 실내, 외부 사진으로 가게를 소개해주세요 (선택)",
             style = MaterialTheme.typography.bodySmall,
             color = SubGray

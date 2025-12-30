@@ -172,7 +172,9 @@ fun SignUpFormScreen(
                 )
             ) {
                 Text(
-                    text = if(uiState.currentStep == SignUpStep.STEP_6_COMPLETE) "완료" else "다음",
+                    text = if(uiState.currentStep == SignUpStep.STEP_6_COMPLETE) "로그인"
+                    else if(uiState.currentStep == SignUpStep.STEP_5_PHOTO) "가입하기"
+                    else "다음",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 )
             }
