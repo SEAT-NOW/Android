@@ -1,4 +1,4 @@
-package com.gmg.seatnow.domain.usecase
+package com.gmg.seatnow.domain.usecase.logic
 
 import javax.inject.Inject
 

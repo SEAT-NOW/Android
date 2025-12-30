@@ -1,4 +1,4 @@
-package com.gmg.seatnow.domain.usecase
+package com.gmg.seatnow.domain.usecase.logic
 
 import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
 import com.gmg.seatnow.presentation.owner.dataClass.TableItem
