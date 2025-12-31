@@ -1,32 +1,44 @@
 [versions]
-# Gradle Plugin & Kotlin (기존 유지)
+# Gradle & Kotlin
 agp = "8.2.0"
 kotlin = "1.9.22"
 
-coreKtx = "1.12.0"             # 1.17.0 -> 1.12.0 (안정화)
-lifecycleRuntimeKtx = "2.7.0"  # 2.9.4 -> 2.7.0 (안정화)
-activityCompose = "1.8.2"      # 1.11.0 -> 1.8.2 (안정화)
-composeBom = "2024.02.00"      # BOM 버전도 안전하게 맞춤
+# Android Core
+coreKtx = "1.12.0"
+lifecycleRuntimeKtx = "2.7.0"
+activityCompose = "1.8.2"
+composeBom = "2024.02.00"
+splashScreen = "1.0.1"  # 추가됨
 
-# Test (유지)
-junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.1"
-
-# Architecture (유지)
+# Architecture & Network
 hilt = "2.51.1"
 retrofit = "2.9.0"
 okhttp = "4.12.0"
 serializationJson = "1.6.3"
+retrofitSerializationConverter = "1.0.0"
+gson = "2.10.1"
+datastore = "1.0.0"
+
+# UI & Map & 3rd Party
 coil = "2.6.0"
 navigationCompose = "2.7.7"
+naverMapCompose = "1.7.2"
+naverMapSdk = "3.19.0"
+kakaoUser = "2.19.0"
+wheelPicker = "1.1.11"
+
+# Test
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
 
 [libraries]
 # --- Android Core ---
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashScreen" } # 추가됨
 
-# --- Presentation Layer (UI: Compose) ---
+# --- Presentation (Compose) ---
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -43,12 +55,31 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
 
+# --- Network & Serialization ---
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
+retrofit-serialization-converter = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitSerializationConverter" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+# --- DataStore ---
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# --- 3rd Party UI & Maps ---
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+naver-map-compose = { group = "io.github.fornewid", name = "naver-map-compose", version.ref = "naverMapCompose" }
+naver-map-sdk = { group = "com.naver.maps", name = "map-sdk", version.ref = "naverMapSdk" }
+kakao-user = { group = "com.kakao.sdk", name = "v2-user", version.ref = "kakaoUser" }
+wheel-picker = { group = "com.github.commandiron", name = "WheelPickerCompose", version.ref = "wheelPicker" }
+
 # --- Testing ---
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
 [plugins]
-# 플러그인은 아까 설정한 그대로 둡니다.
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
