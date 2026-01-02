@@ -17,4 +17,8 @@ interface AuthRepository {
     suspend fun verifyBusinessNumber(number: String): Result<Unit>
     suspend fun searchStore(query: String): Result<List<StoreSearchResult>> // 상호명 검색
     suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<List<String>> // 주소 기반 대학 찾기
+
+    // OwnerStore
+    suspend fun ownerLogout(): Result<Unit> // 로그아웃
+    suspend fun ownerWithdraw(): Result<Unit> // 회원탈퇴
 }

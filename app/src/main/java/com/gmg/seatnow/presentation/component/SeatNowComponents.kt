@@ -1089,3 +1089,36 @@ fun PhotoGridItem(
         }
     }
 }
+
+@Composable
+fun SeatNowMenuItem(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    textColor: Color = SubBlack, // 기본 검정
+    showArrow: Boolean = true
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp), // 터치 영역 및 간격 확보
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), // 스타일 통일
+            color = textColor
+        )
+
+        if (showArrow) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = SubLightGray,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}

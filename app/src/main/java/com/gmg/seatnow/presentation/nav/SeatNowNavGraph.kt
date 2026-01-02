@@ -1,22 +1,32 @@
 package com.gmg.seatnow.presentation.nav
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.gmg.seatnow.data.local.MockAuthManager
 import com.gmg.seatnow.presentation.login.LoginScreen
-import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen // Import 확인
+import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
+import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
+import com.gmg.seatnow.presentation.owner.store.AccountInfoScreen // 👈 Import 확인
+import com.gmg.seatnow.presentation.owner.store.StoreMainViewModel // 👈 Import 확인
+import com.gmg.seatnow.presentation.owner.store.StoreMainAction // 👈 Import 확인
 import com.gmg.seatnow.presentation.splash.SplashScreen
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun SeatNowNavGraph() {
+fun SeatNowNavGraph(
+    mockAuthManager: MockAuthManager,
+    startDestination: String
+) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "splash") {
+    NavHost(navController = navController, startDestination = startDestination) {
 
         // 1. 스플래시 화면
         composable("splash") {
@@ -34,7 +44,7 @@ fun SeatNowNavGraph() {
             )
         }
 
-        // 2. 로그인 화면 (일반 사용자/사장님 선택)
+        // 2. 로그인 화면
         composable("login") {
             LoginScreen(
                 onNavigateToUserMain = {
@@ -53,48 +63,74 @@ fun SeatNowNavGraph() {
             androidx.compose.material3.Text("사용자 메인 화면 (지도)")
         }
 
-        // 4. 사장님 로그인 (실제 연결)
+        // 4. 사장님 로그인
         composable("owner_login") {
             OwnerLoginScreen(
-                onBackClick = { navController.popBackStack() }, // 뒤로가기
+                onBackClick = { navController.popBackStack() },
                 onNavigateToOwnerMain = {
-                    // 로그인 성공 시 이동할 사장님 메인 화면 (임시 경로)
-                    // 추후 owner_main 등의 경로로 변경 필요
-                    navController.navigate("user_main") { // 일단 user_main으로 연결해둠
-                        popUpTo("owner_login") { inclusive = true }
+                    // 로그인 성공: 토큰 저장 -> 메인 이동
+                    val fakeToken = mockAuthManager.generateMockToken()
+                    mockAuthManager.saveToken(fakeToken)
+
+                    navController.navigate("store_main") {
+                        popUpTo("login") { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {
-                    // 회원가입 화면으로 이동 (아직 미구현이므로 임시 처리)
                     navController.navigate("owner_signup")
                 }
             )
         }
 
-        // 5. 사장님 회원가입 첫번째 탭
-//        composable(
-//            route = "owner_signup",
-//            enterTransition = {
-//                slideIntoContainer(
-//                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
-//                    animationSpec = tween(400)
-//                )
-//            }
-//        ) {
-        composable("owner_signup") {
-            OwnerSignUpScreen(
-                onBackClick = { navController.popBackStack() }
-            ) { }
-        }
-
+        // 5. 사장님 회원가입
         composable("owner_signup") {
             OwnerSignUpScreen(
                 onBackClick = { navController.popBackStack() },
-                // ★ [수정] 완료(로그인 버튼) 시 'owner_login' 화면으로 복귀
                 onNavigateToHome = {
-                    // 회원가입 화면을 스택에서 제거하여 로그인 화면으로 돌아감
                     navController.popBackStack()
                 }
+            )
+        }
+
+        // 6. 사장님 메인 (StoreMain)
+        composable("store_main") {
+            StoreMainRoute(
+                onNavigateToLogin = {
+                    // 로그아웃 시 토큰 삭제 및 이동
+                    mockAuthManager.clearToken()
+                    navController.navigate("login") {
+                        popUpTo("store_main") { inclusive = true }
+                    }
+                },
+                // ✅ 추가됨: 계정 정보 화면으로 이동
+                onNavigateToAccountInfo = {
+                    navController.navigate("account_info")
+                }
+            )
+        }
+
+        // 7. 계정 정보 수정 (AccountInfo) - ✅ 신규 추가
+        composable("account_info") {
+            // 여기서도 로그아웃/탈퇴 로직이 필요하므로 ViewModel 주입
+            val viewModel = hiltViewModel<StoreMainViewModel>()
+
+            // ViewModel 이벤트 리스닝 (로그아웃/탈퇴 성공 시 처리를 위해)
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    if (event is StoreMainViewModel.StoreMainEvent.NavigateToLogin) {
+                        mockAuthManager.clearToken()
+                        navController.navigate("login") {
+                            // 메인 화면까지 포함해서 백스택 다 비움
+                            popUpTo("store_main") { inclusive = true }
+                        }
+                    }
+                }
+            }
+
+            AccountInfoScreen(
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = { viewModel.onAction(StoreMainAction.OnLogoutClick) },
+                onWithdrawClick = { viewModel.onAction(StoreMainAction.OnWithdrawClick) }
             )
         }
     }
