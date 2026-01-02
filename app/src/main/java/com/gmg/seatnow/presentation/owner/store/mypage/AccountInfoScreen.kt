@@ -1,15 +1,11 @@
-package com.gmg.seatnow.presentation.owner.store
+package com.gmg.seatnow.presentation.owner.store.mypage
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,7 +19,7 @@ import com.gmg.seatnow.presentation.theme.White
 fun AccountInfoScreen(
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    onWithdrawClick: () -> Unit
+    onNavigateToWithdraw: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -62,7 +58,7 @@ fun AccountInfoScreen(
                     color = SubGray, // 혹은 위험한 작업임을 알리기 위해 Red 계열 사용 가능
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier
-                        .clickable(onClick = onWithdrawClick)
+                        .clickable(onClick = onNavigateToWithdraw)
                         .padding(8.dp)
                 )
             }
@@ -76,6 +72,6 @@ fun AccountInfoScreenPreview() {
     AccountInfoScreen(
         onBackClick = {},
         onLogoutClick = {},
-        onWithdrawClick = {}
+        onNavigateToWithdraw = {}
     )
 }

@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.dataClass
+package com.gmg.seatnow.presentation.owner.dataclass
 
 data class TableItem(
     val id: Long = System.currentTimeMillis(),

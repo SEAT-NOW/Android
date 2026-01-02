@@ -1,7 +1,7 @@
 package com.gmg.seatnow.domain.usecase.logic
 
-import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
-import com.gmg.seatnow.presentation.owner.dataClass.TableItem
+import com.gmg.seatnow.presentation.owner.dataclass.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataclass.TableItem
 import javax.inject.Inject
 
 class CalculateSpaceInfoUseCase @Inject constructor() {

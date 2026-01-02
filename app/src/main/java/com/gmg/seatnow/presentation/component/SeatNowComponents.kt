@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -48,7 +50,8 @@ import com.commandiron.wheel_picker_compose.core.WheelPickerDefaults
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 import com.gmg.seatnow.R
 import com.gmg.seatnow.presentation.extension.bottomShadow
-import com.gmg.seatnow.presentation.owner.dataClass.OperatingScheduleItem
+import com.gmg.seatnow.presentation.owner.dataclass.OperatingScheduleItem
+import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
 
 // ★ 병합된 통합 텍스트 필드
@@ -562,7 +565,7 @@ fun SeatNowTimePicker(
 }
 
 @Composable
-fun OperatingScheduleItem(
+fun OperatingScheduleItemRow(
     schedule: OperatingScheduleItem,
     isDeleteEnabled: Boolean,
     expandedTarget: TimeTarget, // ★ 외부에서 제어 (None, Start, End)
@@ -1119,6 +1122,189 @@ fun SeatNowMenuItem(
                 tint = SubLightGray,
                 modifier = Modifier.size(24.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun SeatHeaderSection() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "실시간 좌석 관리",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = SubBlack
+        )
+
+        // 토글 스위치 (Mock UI)
+        // 실제로는 상태에 따라 animated toggle로 구현해야 하지만, 이미지대로 정적 UI 구현
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .border(1.dp, PointRed, RoundedCornerShape(20.dp))
+                .background(White)
+                .height(28.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 빈 좌석 (Inactive)
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { /* Toggle Logic */ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "빈 좌석", style = MaterialTheme.typography.labelSmall, color = PointRed)
+                }
+
+                // 이용 좌석 (Active - Red BG)
+                Box(
+                    modifier = Modifier
+                        .background(PointRed, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "이용 좌석", style = MaterialTheme.typography.labelSmall, color = White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FloorFilterRow(
+    categories: List<SeatManagementViewModel.FloorCategory>,
+    selectedId: String,
+    onSelect: (String) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { category ->
+            val isSelected = category.id == selectedId
+            val bgColor = if (isSelected) PointRed else White
+            val textColor = if (isSelected) White else PointRed
+            val borderColor = PointRed
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(bgColor)
+                    .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+                    .clickable { onSelect(category.id) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = category.name,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if(isSelected) FontWeight.Bold else FontWeight.Medium),
+                    color = textColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SeatStatusSummary(emptySeats: Int, totalSeats: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "빈 좌석 수/전체 좌석 수",
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            color = SubBlack
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "${emptySeats}/${totalSeats}석",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = SubBlack
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // 혼잡도 뱃지 (단순 로직: 빈 좌석이 30% 미만이면 혼잡)
+            val isCrowded = (emptySeats.toFloat() / totalSeats.toFloat()) < 0.3f
+            val badgeText = if (isCrowded) "혼잡" else "여유"
+            val badgeColor = if (isCrowded) PointRed else Color.Green // 여유는 초록색 등으로 처리 가능
+
+            Box(
+                modifier = Modifier
+                    .border(1.dp, PointRed, RoundedCornerShape(12.dp)) // 디자인 통일성을 위해 Red 유지
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(text = badgeText, style = MaterialTheme.typography.labelSmall, color = PointRed)
+            }
+        }
+    }
+}
+
+@Composable
+fun TableStepperItem(
+    item: SeatManagementViewModel.TableItem,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 테이블 이름
+        Text(
+            text = item.label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+            color = SubBlack
+        )
+
+        // Stepper Control
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Minus Button
+            IconButton(
+                onClick = onDecrement,
+                modifier = Modifier.size(24.dp)
+            ) {
+                // 아이콘 리소스를 직접 쓰거나 VectorIcon 사용 (여기선 심플하게 구현)
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_minus), // 리소스 필요 (없으면 텍스트로 대체 가능)
+                    contentDescription = "감소",
+                    tint = SubBlack
+                )
+            }
+
+            // Count Circle
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .border(1.dp, PointRed, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${item.currentCount}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PointRed
+                )
+            }
+
+            // Plus Button
+            IconButton(
+                onClick = onIncrement,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_plus),
+                    contentDescription = "증가",
+                    tint = SubBlack
+                )
+            }
         }
     }
 }

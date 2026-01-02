@@ -23,7 +23,7 @@ import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.SpaceItemCard
 import com.gmg.seatnow.presentation.component.TableItemCard
-import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataclass.SpaceItem
 
 // ★ [복구 1] Annotation 추가
 @OptIn(ExperimentalMaterial3Api::class)

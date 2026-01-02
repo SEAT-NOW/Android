@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
-import com.gmg.seatnow.presentation.owner.dataClass.OperatingScheduleItem
-import com.gmg.seatnow.presentation.owner.dataClass.SpaceItem
-import com.gmg.seatnow.presentation.owner.dataClass.TableItem
+import com.gmg.seatnow.presentation.owner.dataclass.OperatingScheduleItem
+import com.gmg.seatnow.presentation.owner.dataclass.SpaceItem
+import com.gmg.seatnow.presentation.owner.dataclass.TableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.gmg.seatnow.domain.usecase.auth.*
 import com.gmg.seatnow.domain.usecase.logic.*
@@ -687,7 +687,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_6_COMPLETE,
+        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1
