@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.dataClass
+package com.gmg.seatnow.presentation.owner.model
 
 data class SpaceItem(
     val id: Long = System.currentTimeMillis(),

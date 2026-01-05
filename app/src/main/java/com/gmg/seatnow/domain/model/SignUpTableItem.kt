@@ -1,6 +1,6 @@
-package com.gmg.seatnow.presentation.owner.dataClass
+package com.gmg.seatnow.domain.model
 
-data class TableItem(
+data class SignUpTableItem(
     val id: Long = System.currentTimeMillis(),
     val personCount: String, // N인
     val tableCount: String   // M개

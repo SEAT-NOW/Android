@@ -232,7 +232,7 @@ fun Step4OperatingScreen(
                     val isMyEndOpen =
                         (expandedScheduleId == schedule.id && expandedTimeTarget == TimeTarget.End)
 
-                    OperatingScheduleItem(
+                    OperatingScheduleItemRow(
                         schedule = schedule,
                         isDeleteEnabled = uiState.operatingSchedules.size > 1,
                         // 현재 열려있는 타겟 정보 전달 (None, Start, End)

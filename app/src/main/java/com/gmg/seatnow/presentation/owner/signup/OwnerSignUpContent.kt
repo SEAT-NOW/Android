@@ -24,6 +24,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.shadow
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
@@ -70,7 +71,7 @@ fun OwnerSignUpContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(1f) // zIndex를 주어 가장 위에 표시
+                    .zIndex(1f)
                     .background(White)
             ) {
                 StoreSearchScreen(
@@ -81,6 +82,7 @@ fun OwnerSignUpContent(
         }
     }
 }
+
 
 @Composable
 fun SignUpFormScreen(
@@ -94,8 +96,13 @@ fun SignUpFormScreen(
         label = "ProgressAnimation"
     )
 
+    // ★ Step 6 여부 확인
+    val isCompleteStep = uiState.currentStep == SignUpStep.STEP_6_COMPLETE
+
     Scaffold(
         topBar = {
+            // Step 6(완료) 화면에서는 TopBar의 프로그래스바가 필요 없다면 숨길 수도 있습니다.
+            // 여기선 그대로 둡니다.
             Column {
                 SeatNowTopAppBar(
                     title = uiState.currentStep.title,
@@ -115,36 +122,71 @@ fun SignUpFormScreen(
                 )
             }
         },
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(White)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Button(
+                    onClick = { onAction(SignUpAction.OnNextClick) },
+                    enabled = uiState.isNextButtonEnabled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PointRed,
+                        disabledContainerColor = SubLightGray,
+                        contentColor = White,
+                        disabledContentColor = White
+                    )
+                ) {
+                    Text(
+                        text = if (isCompleteStep) "로그인"
+                        else if (uiState.currentStep == SignUpStep.STEP_5_PHOTO) "가입하기"
+                        else "다음",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                }
+            }
+        },
         containerColor = White
     ) { paddingValues ->
 
+        // ★ [핵심 수정] Step 6일 때는 스크롤을 끄고 화면 꽉 채움 -> 그래야 중앙 정렬 가능
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .then(
+                    // Step 6가 아닐 때만 스크롤 적용
+                    if (!isCompleteStep) Modifier.verticalScroll(rememberScrollState())
+                    else Modifier
+                )
                 .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            // Step 6가 아니면 위쪽 정렬, Step 6면(사실 Box가 꽉차서 의미없지만) 중앙 정렬
+            verticalArrangement = if(!isCompleteStep) Arrangement.Top else Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            // Step 6가 아닐 때만 상단 여백 줌
+            if (!isCompleteStep) Spacer(modifier = Modifier.height(40.dp))
 
             AnimatedContent(
                 targetState = uiState.currentStep,
                 label = "SignUpStepAnimation",
+                modifier = Modifier.weight(1f, fill = false), // 내용물 크기에 맞춤
                 transitionSpec = {
-                    // Enum의 순서(ordinal)를 비교하여 방향 결정
                     if (targetState.ordinal > initialState.ordinal) {
-                        // [다음 단계로 이동]: 새 화면이 오른쪽에서 들어오고(SlideIn), 옛날 화면은 왼쪽으로 나감(SlideOut)
                         (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
                             slideOutHorizontally { width -> -width } + fadeOut())
                     } else {
-                        // [이전 단계로 이동]: 새 화면이 왼쪽에서 들어오고, 옛날 화면은 오른쪽으로 나감
                         (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
                             slideOutHorizontally { width -> width } + fadeOut())
                     }
                 }
             ) { targetStep ->
-                // 애니메이션 안에서 렌더링될 화면들
                 when (targetStep) {
                     SignUpStep.STEP_1_BASIC -> Step1BasicScreen(uiState, onAction)
                     SignUpStep.STEP_2_BUSINESS -> Step2BusinessScreen(uiState, onAction)
@@ -152,41 +194,13 @@ fun SignUpFormScreen(
                     SignUpStep.STEP_4_OPERATION -> Step4OperatingScreen(uiState, onAction)
                     SignUpStep.STEP_5_PHOTO -> Step5PhotoScreen(uiState, onAction)
                     SignUpStep.STEP_6_COMPLETE -> Step6CompleteScreen()
-                    else -> Text("준비 중")
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // [다음 버튼]
-            Button(
-                onClick = { onAction(SignUpAction.OnNextClick) },
-                enabled = uiState.isNextButtonEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PointRed,
-                    disabledContainerColor = SubLightGray,
-                    contentColor = White,
-                    disabledContentColor = White
-                )
-            ) {
-                Text(
-                    text = if(uiState.currentStep == SignUpStep.STEP_6_COMPLETE) "로그인"
-                    else if(uiState.currentStep == SignUpStep.STEP_5_PHOTO) "가입하기"
-                    else "다음",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                )
-            }
-            Spacer(modifier = Modifier.height(30.dp))
+            if (!isCompleteStep) Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
-
-
-
 @Preview(showBackground = true, name = "Step 1 UI")
 @Composable
 fun PreviewOwnerSignUpStep1Content() {
@@ -250,6 +264,20 @@ fun PreviewOwnerSignUpStep5Content() {
         OwnerSignUpContent(
             uiState = OwnerSignUpUiState(
                 currentStep = SignUpStep.STEP_5_PHOTO
+            ),
+            onAction = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Step 6 UI")
+@Composable
+fun PreviewOwnerSignUpStep6Content() {
+    SeatNowTheme {
+        OwnerSignUpContent(
+            uiState = OwnerSignUpUiState(
+                currentStep = SignUpStep.STEP_6_COMPLETE
             ),
             onAction = {},
             onBackClick = {}

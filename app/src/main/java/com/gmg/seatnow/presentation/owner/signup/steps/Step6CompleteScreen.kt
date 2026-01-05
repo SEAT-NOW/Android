@@ -22,41 +22,57 @@ import com.gmg.seatnow.R
 
 @Composable
 fun Step6CompleteScreen() {
-    // 화면 중앙 정렬을 위한 Column
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 100.dp, bottom = 50.dp), // 상단 여백을 주어 시각적 중앙 배치
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
+        // 화면 중앙 정렬을 위한 Column
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
 //         1. 축하 아이콘 (이미지 리소스로 교체 권장)
-        Image(
-            painter = painterResource(R.drawable.ic_cong),
-            contentDescription = "환영합니다",
-            modifier = Modifier.size(80.dp)
-        )
+            Image(
+                painter = painterResource(R.drawable.ic_cong),
+                contentDescription = "환영합니다",
+                modifier = Modifier.size(100.dp)
+            )
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // 2. 환영 문구
-        Text(
-            text = "SEAT NOW에\n오신 것을",
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = FontWeight.Bold
-            ),
-            color = SubBlack,
-            textAlign = TextAlign.Center
-        )
-        
-        Text(
-            text = "환영합니다!",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Bold
-            ),
-            color = PointRed, // 빨간색 강조
-            textAlign = TextAlign.Center
-        )
+            // 2. 환영 문구
+            Text(
+                text = "SEAT NOW에",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp
+                ),
+                color = SubBlack,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = "오신 것을",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp
+                ),
+                color = SubBlack,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.size(6.dp))
+
+            Text(
+                text = "환영합니다!",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 36.sp
+                ),
+                color = PointRed, // 빨간색 강조
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

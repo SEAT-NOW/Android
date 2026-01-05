@@ -111,4 +111,16 @@ class AuthRepositoryImpl @Inject constructor(
         // 좌표에 따라 다른 대학 리턴 (Mock)
         return Result.success(mockUniverSities)
     }
+
+    override suspend fun ownerLogout(): Result<Unit> {
+        delay(500)
+        Log.d("AuthRepo", "로그아웃 성공")
+        return Result.success(Unit)
+    }
+
+    override suspend fun ownerWithdraw(): Result<Unit> {
+        delay(1000)
+        Log.d("AuthRepo", "회원탈퇴 성공")
+        return Result.success(Unit)
+    }
 }
