@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.dataclass
+package com.gmg.seatnow.domain.model
 
 data class OperatingScheduleItem(
         val id: Long = System.currentTimeMillis(),

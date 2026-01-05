@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
-import com.gmg.seatnow.presentation.owner.dataclass.OperatingScheduleItem
-import com.gmg.seatnow.presentation.owner.dataclass.SpaceItem
-import com.gmg.seatnow.presentation.owner.dataclass.TableItem
+import com.gmg.seatnow.domain.model.OperatingScheduleItem
+import com.gmg.seatnow.domain.model.SpaceItem
+import com.gmg.seatnow.domain.model.SignUpTableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.gmg.seatnow.domain.usecase.auth.*
 import com.gmg.seatnow.domain.usecase.logic.*
@@ -82,7 +82,7 @@ class OwnerSignUpViewModel @Inject constructor(
             seatCount = 0,
             isEditing = true, // 수정 중 상태
             editInput = "전체", // 기본 키워드
-            tableList = listOf(TableItem(personCount = "", tableCount = ""))
+            tableList = listOf(SignUpTableItem(personCount = "", tableCount = ""))
         )
         _uiState.update {
             it.copy(
@@ -413,7 +413,7 @@ class OwnerSignUpViewModel @Inject constructor(
             name = "",
             isEditing = true, // 생성 시 수정 모드
             editInput = "",
-            tableList = listOf(TableItem(personCount = "", tableCount = ""))
+            tableList = listOf(SignUpTableItem(personCount = "", tableCount = ""))
         )
         _uiState.update {
             it.copy(
@@ -490,7 +490,7 @@ class OwnerSignUpViewModel @Inject constructor(
 
     private fun addTableItemRow() {
         val selectedId = _uiState.value.selectedSpaceId ?: return
-        val newItem = TableItem(personCount = "", tableCount = "")
+        val newItem = SignUpTableItem(personCount = "", tableCount = "")
         _uiState.update { state ->
             val updatedSpaceList = state.spaceList.map { space ->
                 if (space.id == selectedId) space.copy(tableList = space.tableList + newItem) else space

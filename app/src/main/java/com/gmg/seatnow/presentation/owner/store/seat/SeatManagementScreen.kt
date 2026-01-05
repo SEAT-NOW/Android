@@ -1,5 +1,6 @@
 package com.gmg.seatnow.presentation.owner.store.seat
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,19 +8,24 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.domain.model.*
 import com.gmg.seatnow.presentation.component.FloorFilterRow
 import com.gmg.seatnow.presentation.component.SeatHeaderSection
 import com.gmg.seatnow.presentation.component.SeatStatusSummary
 import com.gmg.seatnow.presentation.component.TableStepperItem
+import com.gmg.seatnow.presentation.component.TableViewItem
 import com.gmg.seatnow.presentation.theme.*
+import kotlinx.coroutines.flow.collectLatest
 
 // 1. Stateful Screen (ViewModel 연결, 실제 앱에서 사용)
 @Composable
@@ -27,6 +33,18 @@ fun SeatManagementScreen(
     viewModel: SeatManagementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // ★ [추가] ViewModel 이벤트 구독 (저장 성공/실패 토스트)
+    LaunchedEffect(key1 = true) {
+        viewModel.event.collectLatest { event ->
+            when(event) {
+                is SeatManagementEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     SeatManagementContent(
         uiState = uiState,
@@ -94,11 +112,17 @@ fun SeatManagementContent(
                 modifier = Modifier.weight(1f) // 남은 공간 차지
             ) {
                 items(uiState.displayItems) { item ->
-                    TableStepperItem(
-                        item = item,
-                        onIncrement = { onAction(SeatManagementAction.IncrementTableCount(item.id)) },
-                        onDecrement = { onAction(SeatManagementAction.DecrementTableCount(item.id)) }
-                    )
+                    if (uiState.isEditMode) {
+                        // 수정 모드 (사진 2): Stepper (+, - 버튼)
+                        TableStepperItem(
+                            item = item,
+                            onIncrement = { onAction(SeatManagementAction.IncrementTableCount(item.id)) },
+                            onDecrement = { onAction(SeatManagementAction.DecrementTableCount(item.id)) }
+                        )
+                    } else {
+                        // 조회 모드 (사진 1): 단순 텍스트 ("2개")
+                        TableViewItem(item = item)
+                    }
                 }
                 // 하단 버튼에 가려지지 않게 여백 추가
                 item { Spacer(modifier = Modifier.height(80.dp)) }
@@ -107,7 +131,15 @@ fun SeatManagementContent(
 
         // 5. 하단 저장 버튼 (Floating처럼 하단 고정)
         Button(
-            onClick = { onAction(SeatManagementAction.OnSaveClick) },
+            onClick = {
+                if (uiState.isEditMode) {
+                    // 수정 모드일 땐 '저장' 액션 -> 조회 모드로 변경됨
+                    onAction(SeatManagementAction.OnSaveClick)
+                } else {
+                    // 조회 모드일 땐 '업데이트' 액션 -> 수정 모드로 변경됨
+                    onAction(SeatManagementAction.OnUpdateClick)
+                }
+            },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -120,7 +152,7 @@ fun SeatManagementContent(
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = "저장",
+                text = if (uiState.isEditMode) "저장" else "업데이트",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
@@ -133,13 +165,13 @@ fun SeatManagementContent(
 fun SeatManagementScreenPreview() {
     // 더미 데이터 생성
     val mockItems = listOf(
-        SeatManagementViewModel.TableItem("1", "4인 테이블", 4, 5, 2), // 5개 중 2개 사용
-        SeatManagementViewModel.TableItem("2", "2인 테이블", 2, 3, 1)  // 3개 중 1개 사용
+        TableItem("1", "4인 테이블", 4, 5, 2), // 5개 중 2개 사용
+        TableItem("2", "2인 테이블", 2, 3, 1)  // 3개 중 1개 사용
     )
     val mockCategories = listOf(
-        SeatManagementViewModel.FloorCategory("ALL", "전체", mockItems),
-        SeatManagementViewModel.FloorCategory("1F", "1층", emptyList()),
-        SeatManagementViewModel.FloorCategory("2F", "2층", emptyList())
+        FloorCategory("ALL", "전체"),
+        FloorCategory("1F", "1층"),
+        FloorCategory("2F", "2층")
     )
 
     val mockState = SeatManagementViewModel.SeatManagementUiState(

@@ -1,7 +1,7 @@
 package com.gmg.seatnow.domain.usecase.logic
 
-import com.gmg.seatnow.presentation.owner.dataclass.SpaceItem
-import com.gmg.seatnow.presentation.owner.dataclass.TableItem
+import com.gmg.seatnow.domain.model.SpaceItem
+import com.gmg.seatnow.domain.model.SignUpTableItem
 import javax.inject.Inject
 
 class CalculateSpaceInfoUseCase @Inject constructor() {
@@ -32,7 +32,7 @@ class CalculateSpaceInfoUseCase @Inject constructor() {
                 isEditing = false,
                 inputError = null,
                 seatCount = 0,
-                tableList = listOf(TableItem(personCount = "", tableCount = ""))
+                tableList = listOf(SignUpTableItem(personCount = "", tableCount = ""))
             )
         } else {
             item.copy(

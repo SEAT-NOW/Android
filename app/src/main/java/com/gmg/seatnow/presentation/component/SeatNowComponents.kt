@@ -55,8 +55,10 @@ import coil.compose.AsyncImage
 import com.commandiron.wheel_picker_compose.core.WheelPickerDefaults
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
 import com.gmg.seatnow.R
+import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.presentation.extension.bottomShadow
-import com.gmg.seatnow.presentation.owner.dataclass.OperatingScheduleItem
+import com.gmg.seatnow.domain.model.OperatingScheduleItem
+import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
 
@@ -1248,7 +1250,7 @@ private fun AnimatedSeatToggle(
 
 @Composable
 fun FloorFilterRow(
-    categories: List<SeatManagementViewModel.FloorCategory>,
+    categories: List<FloorCategory>,
     selectedId: String,
     onSelect: (String) -> Unit
 ) {
@@ -1286,7 +1288,8 @@ fun SeatStatusSummary(
     totalSeats: Int,
     usedSeats: Int
 ) {
-    // 모드에 따라 표시할 값과 텍스트 결정
+    // 1. 표시할 텍스트 및 숫자 계산
+    // 모드가 '빈 좌석' 보기여도, 태그 로직은 '이용 좌석' 비율 기준이므로 usedSeats/totalSeats로 계산합니다.
     val targetCount = if (mode == SeatManagementViewModel.SeatDisplayMode.EMPTY) {
         totalSeats - usedSeats // 빈 좌석 수
     } else {
@@ -1299,46 +1302,88 @@ fun SeatStatusSummary(
         "이용 좌석 수/전체 좌석 수"
     }
 
-    // 혼잡도 계산 (빈 좌석 기준)
-    val emptySeats = totalSeats - usedSeats
-    val isCrowded = if (totalSeats > 0) (emptySeats.toFloat() / totalSeats.toFloat()) < 0.3f else false
-    val badgeText = if (isCrowded) "혼잡" else "여유"
+    // 2. [핵심 로직] 점유율에 따른 태그 리소스 결정
+    // 비율 계산 (0 ~ 100)
+    val usagePercentage = if (totalSeats == 0) 0f else (usedSeats.toFloat() / totalSeats.toFloat()) * 100f
 
-    // [디자인 유지] 혼잡도 뱃지는 항상 표시하거나, 기획에 따라 숨길 수 있음. 여기선 유지.
+    val tagResId = when {
+        usagePercentage >= 100f -> R.drawable.tag_full    // 100% : 만석
+        usagePercentage >= 67f -> R.drawable.tag_hard     // 67% ~ 99% : 혼잡
+        usagePercentage >= 34f -> R.drawable.tag_normal   // 34% ~ 66% : 보통
+        else -> R.drawable.tag_spare                      // 0% ~ 33% : 여유
+    }
+
+    // 접근성 설명을 위한 텍스트
+    val contentDesc = when {
+        usagePercentage >= 100f -> "만석"
+        usagePercentage >= 67f -> "혼잡"
+        usagePercentage >= 34f -> "보통"
+        else -> "여유"
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 왼쪽: 라벨 (빈 좌석 수/전체 좌석 수)
         Text(
             text = labelText,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
             color = SubBlack
         )
 
+        // 오른쪽: 수치 및 태그 이미지
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "${targetCount}/${totalSeats}석",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = SubBlack
             )
+
             Spacer(modifier = Modifier.width(8.dp))
 
-            Box(
-                modifier = Modifier
-                    .border(1.dp, PointRed, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(text = badgeText, style = MaterialTheme.typography.labelSmall, color = PointRed)
-            }
+            // [수정됨] 기존 Box(Text)를 제거하고 Image 컴포넌트로 XML 리소스 렌더링
+            Image(
+                painter = painterResource(id = tagResId),
+                contentDescription = contentDesc,
+                modifier = Modifier.height(20.dp), // XML 원본 높이(18dp)와 유사하게 조정
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }
 
 @Composable
+fun TableViewItem(
+    item: TableItem
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp), // 상하 여백 적절히
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 테이블 이름 (왼쪽)
+        Text(
+            text = item.label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+            color = SubBlack
+        )
+
+        // 개수 표시 (오른쪽, 예: "2개")
+        Text(
+            text = "${item.currentCount}개",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = SubBlack
+        )
+    }
+}
+
+@Composable
 fun TableStepperItem(
-    item: SeatManagementViewModel.TableItem,
+    item: TableItem,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit
 ) {
