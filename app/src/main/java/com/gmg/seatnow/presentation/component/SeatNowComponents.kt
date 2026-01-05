@@ -1,6 +1,11 @@
 package com.gmg.seatnow.presentation.component
 
 import android.net.Uri
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -1126,52 +1132,119 @@ fun SeatNowMenuItem(
     }
 }
 
+
 @Composable
-fun SeatHeaderSection() {
+fun SeatHeaderSection(
+    currentMode: SeatManagementViewModel.SeatDisplayMode,
+    onModeChange: (SeatManagementViewModel.SeatDisplayMode) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 왼쪽 타이틀
         Text(
             text = "실시간 좌석 관리",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = SubBlack
         )
 
-        // 토글 스위치 (Mock UI)
-        // 실제로는 상태에 따라 animated toggle로 구현해야 하지만, 이미지대로 정적 UI 구현
+        // 오른쪽: 애니메이션이 적용된 커스텀 토글
+        AnimatedSeatToggle(
+            currentMode = currentMode,
+            onModeChange = onModeChange
+        )
+    }
+}
+
+@Composable
+private fun AnimatedSeatToggle(
+    currentMode: SeatManagementViewModel.SeatDisplayMode,
+    onModeChange: (SeatManagementViewModel.SeatDisplayMode) -> Unit
+) {
+    val containerHeight = 24.dp // 디자인 비율에 맞춘 높이
+    val containerWidth = 113.dp // 전체 너비
+    val shape = RoundedCornerShape(50) // 완전 둥근 캡슐 모양
+
+    // 1. 애니메이션 상태 정의
+    // 이용 좌석(OCCUPIED)일 때 true
+    val isOccupied = currentMode == SeatManagementViewModel.SeatDisplayMode.OCCUPIED
+
+    // [핵심] 텍스트 색상 애니메이션 (부드럽게 전환)
+    val emptyTextColor by animateColorAsState(
+        targetValue = if (isOccupied) PointRed else Color.White,
+        label = "EmptyText"
+    )
+    val occupiedTextColor by animateColorAsState(
+        targetValue = if (isOccupied) Color.White else PointRed,
+        label = "OccupiedText"
+    )
+
+    // [핵심] 배경 알약 이동 애니메이션 (Alignment를 이용해 좌우 슬라이딩)
+    // Bias: -1(왼쪽), 1(오른쪽) -> 이를 부드럽게 전환
+    val alignmentBias by animateFloatAsState(
+        targetValue = if (isOccupied) 1f else -1f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing), // 300ms 동안 쫀득하게 이동
+        label = "Slide"
+    )
+
+    Box(
+        modifier = Modifier
+            .width(containerWidth)
+            .height(containerHeight)
+            .border(1.dp, PointRed, shape) // XML 디자인과 동일한 빨간 테두리
+            .clip(shape)
+            .background(Color.White)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null // 물결 효과 제거
+            ) {
+                // 클릭 시 모드 반전
+                val newMode = if (isOccupied) SeatManagementViewModel.SeatDisplayMode.EMPTY
+                else SeatManagementViewModel.SeatDisplayMode.OCCUPIED
+                onModeChange(newMode)
+            }
+    ) {
+        // 2. 움직이는 배경 (빨간색 알약)
+        // 전체 Box 안에서 alignmentBias에 따라 좌우로 움직임
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .border(1.dp, PointRed, RoundedCornerShape(20.dp))
-                .background(White)
-                .height(28.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // 빈 좌석 (Inactive)
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .clickable { /* Toggle Logic */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "빈 좌석", style = MaterialTheme.typography.labelSmall, color = PointRed)
-                }
+                .fillMaxHeight()
+                .fillMaxWidth(0.5f) // 정확히 절반 크기
+                .align(BiasAlignment(horizontalBias = alignmentBias, verticalBias = 0f)) // 애니메이션 적용된 정렬
+                .background(PointRed, shape) // XML 색상 적용
+        )
 
-                // 이용 좌석 (Active - Red BG)
-                Box(
-                    modifier = Modifier
-                        .background(PointRed, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "이용 좌석", style = MaterialTheme.typography.labelSmall, color = White, fontWeight = FontWeight.Bold)
-                }
+        // 3. 텍스트 레이어 (배경 위에 겹쳐짐)
+        Row(modifier = Modifier.fillMaxSize()) {
+            // 빈 좌석 텍스트 (왼쪽)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) {
+                Text(
+                    text = "빈 좌석",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = emptyTextColor // 색상 애니메이션 적용
+                )
+            }
+
+            // 이용 좌석 텍스트 (오른쪽)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.weight(1f).fillMaxHeight()
+            ) {
+                Text(
+                    text = "이용 좌석",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                    color = occupiedTextColor // 색상 애니메이션 적용
+                )
             }
         }
     }
 }
+
 
 @Composable
 fun FloorFilterRow(
@@ -1208,34 +1281,53 @@ fun FloorFilterRow(
 }
 
 @Composable
-fun SeatStatusSummary(emptySeats: Int, totalSeats: Int) {
+fun SeatStatusSummary(
+    mode: SeatManagementViewModel.SeatDisplayMode,
+    totalSeats: Int,
+    usedSeats: Int
+) {
+    // 모드에 따라 표시할 값과 텍스트 결정
+    val targetCount = if (mode == SeatManagementViewModel.SeatDisplayMode.EMPTY) {
+        totalSeats - usedSeats // 빈 좌석 수
+    } else {
+        usedSeats // 이용 좌석 수
+    }
+
+    val labelText = if (mode == SeatManagementViewModel.SeatDisplayMode.EMPTY) {
+        "빈 좌석 수/전체 좌석 수"
+    } else {
+        "이용 좌석 수/전체 좌석 수"
+    }
+
+    // 혼잡도 계산 (빈 좌석 기준)
+    val emptySeats = totalSeats - usedSeats
+    val isCrowded = if (totalSeats > 0) (emptySeats.toFloat() / totalSeats.toFloat()) < 0.3f else false
+    val badgeText = if (isCrowded) "혼잡" else "여유"
+
+    // [디자인 유지] 혼잡도 뱃지는 항상 표시하거나, 기획에 따라 숨길 수 있음. 여기선 유지.
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "빈 좌석 수/전체 좌석 수",
+            text = labelText,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
             color = SubBlack
         )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "${emptySeats}/${totalSeats}석",
+                text = "${targetCount}/${totalSeats}석",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = SubBlack
             )
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 혼잡도 뱃지 (단순 로직: 빈 좌석이 30% 미만이면 혼잡)
-            val isCrowded = (emptySeats.toFloat() / totalSeats.toFloat()) < 0.3f
-            val badgeText = if (isCrowded) "혼잡" else "여유"
-            val badgeColor = if (isCrowded) PointRed else Color.Green // 여유는 초록색 등으로 처리 가능
-
             Box(
                 modifier = Modifier
-                    .border(1.dp, PointRed, RoundedCornerShape(12.dp)) // 디자인 통일성을 위해 Red 유지
+                    .border(1.dp, PointRed, RoundedCornerShape(12.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(text = badgeText, style = MaterialTheme.typography.labelSmall, color = PointRed)
