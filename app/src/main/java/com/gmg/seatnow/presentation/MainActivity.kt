@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
         // 여기서는 간단하게 "이미 로그인 돼있으면 store_main"으로 설정
         val startDest = if (mockAuthManager.hasToken()) "store_main" else "splash"
 
+
         setContent {
             SeatNowTheme {
                 // 3. NavGraph에 매니저와 시작점 전달

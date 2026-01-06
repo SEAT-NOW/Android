@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt.android) // Hilt 플러그인도 TOML에서 가져옴
     alias(libs.plugins.kotlin.serialization) // 직렬화 플러그인도 TOML에서 가져옴
     id("com.google.devtools.ksp") // KSP는 아직 별도 설정이 편할 수 있음
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -18,6 +26,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 1. 네이버 지도 키 (이미 하셨다면 유지)
+        val naverKey = localProperties.getProperty("NAVER_CLIENT_ID") ?: ""
+        buildConfigField("String", "NAVER_CLIENT_ID", "\"$naverKey\"")
+
+        // 2. [추가] 카카오 네이티브 앱 키 연결
+        val kakaoKey = localProperties.getProperty("KAKAO_NATIVE_APP_KEY") ?: ""
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoKey\"")
+
+        manifestPlaceholders["KAKAO_APP_KEY"] = kakaoKey
     }
 
     buildTypes {
@@ -85,6 +103,7 @@ dependencies {
     implementation(libs.naver.map.sdk)
     implementation(libs.kakao.user)
     implementation(libs.wheel.picker)
+    implementation(libs.play.services.location)
 
     // 8. DataStore
     implementation(libs.androidx.datastore.preferences)

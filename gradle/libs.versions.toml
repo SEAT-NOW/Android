@@ -26,6 +26,7 @@ naverMapCompose = "1.7.2"
 naverMapSdk = "3.19.0"
 kakaoUser = "2.19.0"
 wheelPicker = "1.1.11"
+playServicesLocation = "21.0.1"
 
 # Test
 junit = "4.13.2"
@@ -72,6 +73,7 @@ naver-map-compose = { group = "io.github.fornewid", name = "naver-map-compose", 
 naver-map-sdk = { group = "com.naver.maps", name = "map-sdk", version.ref = "naverMapSdk" }
 kakao-user = { group = "com.kakao.sdk", name = "v2-user", version.ref = "kakaoUser" }
 wheel-picker = { group = "com.github.commandiron", name = "WheelPickerCompose", version.ref = "wheelPicker" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # --- Testing ---
 junit = { group = "junit", name = "junit", version.ref = "junit" }
