@@ -67,9 +67,12 @@ import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.util.MapUtils.createMarkerBitmap
 import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.CameraUpdate
+import com.naver.maps.map.LocationSource
 import com.naver.maps.map.compose.CameraPositionState
 import com.naver.maps.map.compose.ExperimentalNaverMapApi
 import com.naver.maps.map.compose.LocationTrackingMode
+import com.naver.maps.map.compose.MapEffect
 import com.naver.maps.map.compose.MapProperties
 import com.naver.maps.map.compose.MapUiSettings
 import com.naver.maps.map.compose.Marker
@@ -1574,23 +1577,26 @@ fun CurrentLocationButton(
 @Composable
 fun UserMapContent(
     cameraPositionState: CameraPositionState,
+    locationSource: LocationSource,
     storeList: List<Store>,
-    isLocationTracking: Boolean,
+    trackingMode: LocationTrackingMode,
     isLoading: Boolean = false,
     onSearchHereClick: () -> Unit,
-    onCurrentLocationClick: () -> Unit
+    onCurrentLocationClick: () -> Unit,
+    onMapGestured: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         // 1. 네이버 지도 (Base)
         NaverMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
+            locationSource = locationSource,
             uiSettings = MapUiSettings(
                 isLocationButtonEnabled = false,
                 isZoomControlEnabled = false
             ),
             properties = MapProperties(
-                locationTrackingMode = if (isLocationTracking) LocationTrackingMode.Follow else LocationTrackingMode.None
+                locationTrackingMode = trackingMode
             )
         ) {
             storeList.forEachIndexed { index, store ->
@@ -1606,6 +1612,15 @@ fun UserMapContent(
                     )
                 }
             }
+
+            MapEffect(Unit) { naverMap ->
+                naverMap.addOnCameraChangeListener { reason, _ ->
+                    if (reason == CameraUpdate.REASON_GESTURE) {
+                        onMapGestured()
+                    }
+                }
+            }
+
         }
 
         // 2. 상단 검색바 (상단 고정)
@@ -1629,7 +1644,7 @@ fun UserMapContent(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 32.dp),
-            isSelected = isLocationTracking,
+            isSelected = trackingMode == LocationTrackingMode.Follow,
             onClick = onCurrentLocationClick
         )
     }

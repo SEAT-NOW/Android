@@ -23,6 +23,7 @@ import com.gmg.seatnow.presentation.util.MapLogicHandler
 fun UserHomeScreen(
     viewModel: UserHomeViewModel = hiltViewModel()
 ) {
+    val locationSource = rememberFusedLocationSource()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val cameraPositionState = rememberCameraPositionState()
@@ -76,18 +77,23 @@ fun UserHomeScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         UserMapContent(
             cameraPositionState = cameraPositionState,
+            locationSource = locationSource,
             storeList = storeList,
-            isLocationTracking = (trackingMode == LocationTrackingMode.Follow),
+            trackingMode = trackingMode,
             isLoading = isLoading,
             onSearchHereClick = {
                 // 재검색: 현재 지도 중심 좌표로 API 호출
                 val center = cameraPositionState.position.target
                 viewModel.fetchStoresInCurrentMap(center.latitude, center.longitude)
-                trackingMode = LocationTrackingMode.None // 지도 움직였으니 트래킹 해제
+                trackingMode = LocationTrackingMode.NoFollow // 지도 움직였으니 트래킹 해제
             },
             onCurrentLocationClick = {
                 // 현재 위치 버튼: 위치 찾고 카메라 이동
                 moveToLocationAndLoad()
+            },
+            onMapGestured = {
+                // ★ 지도를 움직이면 트래킹 모드 해제 -> 버튼 회색으로 변함
+                trackingMode = LocationTrackingMode.NoFollow
             }
         )
     }
