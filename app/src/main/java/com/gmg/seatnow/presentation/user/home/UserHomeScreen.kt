@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.user.home
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -61,7 +62,7 @@ fun UserHomeScreen(
     // ★ [핵심 함수] 현재 위치를 1회 가져와서 -> 지도 이동 및 API 호출
     fun fetchCurrentLocationAndLoadData() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
                 location?.let {
                     // 1. 카메라를 즉시 사용자 위치로 이동 (애니메이션 없이 즉시 이동하여 갭 제거)
                     cameraPositionState.move(CameraUpdate.scrollTo(LatLng(it.latitude, it.longitude)))
