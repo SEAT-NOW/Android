@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,16 +27,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
 
 @Composable
 fun UserMainScreen() {
-    // 탭 상태 관리 (단순 UI 상태이므로 여기서 remember로 관리)
     var currentTab by remember { mutableStateOf(UserTab.HOME) }
 
     Scaffold(
@@ -53,20 +51,33 @@ fun UserMainScreen() {
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                .padding(innerPadding) // BottomBar 높이만큼 패딩 자동 적용
+                .padding(innerPadding)
                 .fillMaxSize()
-                .background(White)
         ) {
-            when (currentTab) {
-                UserTab.HOME -> {
-                    // 홈 탭일 때 지도 화면 표시
-                    UserMapScreen()
-                }
-                UserTab.SEAT_SEARCH -> {
-                    // N명 자리찾기 탭 (Placeholder)
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("N명 자리찾기 화면 준비중", color = SubGray)
+            // [1] 지도 화면 (항상 렌더링)
+            // zIndex: 홈 탭일 때 가장 위(1f), 아니면 뒤(-1f)로 보내 터치 차단
+            // alpha: 홈 탭일 때 보임(1f), 아니면 투명(0f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(if (currentTab == UserTab.HOME) 1f else -1f)
+                    .graphicsLayer {
+                        alpha = if (currentTab == UserTab.HOME) 1f else 0f
                     }
+            ) {
+                UserHomeScreen()
+            }
+
+            // [2] 자리 찾기 화면 (탭이 선택되었을 때만 렌더링해도 무방, 가벼운 화면이므로)
+            if (currentTab == UserTab.SEAT_SEARCH) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(2f) // 지도보다 위에 그려짐
+                        .background(White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("N명 자리찾기 화면 준비중", color = SubGray)
                 }
             }
         }

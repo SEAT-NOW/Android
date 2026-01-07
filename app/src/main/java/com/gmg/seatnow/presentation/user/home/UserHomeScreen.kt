@@ -25,70 +25,96 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.theme.*
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.compose.*
 import com.gmg.seatnow.R
+import com.gmg.seatnow.presentation.util.MapUtils.createMarkerBitmap
+import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.overlay.OverlayImage
+import com.google.android.gms.location.LocationServices
 
 @OptIn(ExperimentalNaverMapApi::class)
 @Composable
-fun UserMapScreen() {
+fun UserHomeScreen(
+    viewModel: UserHomeViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
+    val isPreview = LocalInspectionMode.current
 
+    // 카메라 상태
     val cameraPositionState = rememberCameraPositionState {}
 
-    var trackingMode by remember { mutableStateOf(LocationTrackingMode.Follow) }
+    // 위치 추적 모드 (초기엔 None, 위치 잡으면 Follow)
+    var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // 권한 허용 시 -> 즉시 Follow 모드 발동 (지도가 움직임)
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) {
-            trackingMode = LocationTrackingMode.Follow
+    // FusedLocationClient (위치 가져오기용)
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    val storeList by viewModel.storeList.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // 초기 데이터 로딩 여부 플래그
+    var isInitialLoaded by remember { mutableStateOf(false) }
+
+    // ★ [핵심 함수] 현재 위치를 1회 가져와서 -> 지도 이동 및 API 호출
+    fun fetchCurrentLocationAndLoadData() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                location?.let {
+                    // 1. 카메라를 즉시 사용자 위치로 이동 (애니메이션 없이 즉시 이동하여 갭 제거)
+                    cameraPositionState.move(CameraUpdate.scrollTo(LatLng(it.latitude, it.longitude)))
+
+                    // 2. 추적 모드 켜기 (파란 점 따라다니기)
+                    trackingMode = LocationTrackingMode.Follow
+
+                    // 3. API 호출 (이 시점은 무조건 내 위치임이 보장됨)
+                    if (!isInitialLoaded) {
+                        viewModel.fetchStoresInCurrentMap(it.latitude, it.longitude)
+                        isInitialLoaded = true
+                    }
+                }
+            }
         }
     }
 
-    // 4. 화면 진입 시 권한 체크 & 요청
+    // 권한 요청 런처
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) {
+            // 권한 허용 시 즉시 로직 실행
+            fetchCurrentLocationAndLoadData()
+        }
+    }
+
+    // 1. 화면 진입 시 권한 체크 및 실행
     LaunchedEffect(Unit) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
+            == PackageManager.PERMISSION_GRANTED
         ) {
-            // 권한 없으면 물어보기
+            // 이미 권한이 있으면 바로 실행
+            fetchCurrentLocationAndLoadData()
+        } else {
+            // 권한 없으면 요청
             permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             )
         }
     }
 
-    // ★ Preview 렌더링 문제 해결: 미리보기 모드인지 확인
-    val isPreview = LocalInspectionMode.current
-
-
     Box(modifier = Modifier.fillMaxSize()) {
-
-        // (1) 지도 영역
         if (isPreview) {
-            // 미리보기에서는 지도를 그리지 않고 회색 박스로 대체
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Naver Map (Preview Mode)", color = Color.DarkGray)
-            }
+            Box(Modifier.fillMaxSize().background(Color.LightGray))
         } else {
-            // 실제 기기에서만 지도 렌더링
             NaverMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 uiSettings = MapUiSettings(
-                    isLocationButtonEnabled = false,
+                    isLocationButtonEnabled = false, // 커스텀 버튼 사용하므로 false
                     isZoomControlEnabled = false
                 ),
                 locationSource = rememberFusedLocationSource(),
@@ -96,9 +122,21 @@ fun UserMapScreen() {
                     locationTrackingMode = trackingMode
                 )
             ) {
+                storeList.forEachIndexed { index, store ->
+                    if (index < 10) {
+                        val markerIcon = createMarkerBitmap(index + 1, store.status)
+                        Marker(
+                            state = MarkerState(position = LatLng(store.latitude, store.longitude)),
+                            captionText = store.name,
+                            icon = OverlayImage.fromBitmap(markerIcon),
+                            onClick = { true }
+                        )
+                    }
+                }
+
+                // 제스처 감지 시 추적 모드 해제 (자유 이동)
                 MapEffect(Unit) { naverMap ->
                     naverMap.addOnCameraChangeListener { reason, _ ->
-                        // 사용자의 제스처(드래그, 핀치 등)로 카메라가 움직인 경우
                         if (reason == CameraUpdate.REASON_GESTURE) {
                             trackingMode = LocationTrackingMode.NoFollow
                         }
@@ -107,35 +145,30 @@ fun UserMapScreen() {
             }
         }
 
-        // (2) 상단 검색창 (MVP 제외 요청으로 주석 처리)
-        /*
-        TopSearchBar(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-        )
-        */
-
-        // (3) "현 지도에서 검색" 버튼 (MVP 제외 요청으로 주석 처리)
+        // 현 지도에서 검색 버튼
         SearchHereButton(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
-            onClick = { /* TODO : 검색로직 */ }
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp),
+            isLoading = isLoading,
+            onClick = {
+                val center = cameraPositionState.position.target
+                viewModel.fetchStoresInCurrentMap(center.latitude, center.longitude)
+            }
         )
 
-
-        // (4) 현재 위치 버튼
+        // 현재 위치 버튼
         CurrentLocationButton(
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 24.dp),
             isSelected = trackingMode == LocationTrackingMode.Follow,
             onClick = {
-                // 버튼 누르면 권한 다시 체크하고 이동
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
                     == PackageManager.PERMISSION_GRANTED) {
-                    trackingMode = LocationTrackingMode.Follow
+
+                    // 버튼 클릭 시: 내 위치로 이동 + 데이터 갱신까지 원하시면 아래 함수 호출
+                    fetchCurrentLocationAndLoadData()
+
+                    // 만약 버튼 클릭 시 '이동'만 하고 싶다면:
+                    // trackingMode = LocationTrackingMode.Follow
                 } else {
-                    // 권한 없으면 다시 요청
                     permissionLauncher.launch(
                         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                     )
@@ -177,6 +210,7 @@ fun TopSearchBar(modifier: Modifier = Modifier) {
 @Composable
 fun SearchHereButton(
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
@@ -190,18 +224,32 @@ fun SearchHereButton(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                tint = PointRed,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "현 지도에서 검색",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = PointRed
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = PointRed,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "검색 중...",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PointRed
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    tint = PointRed,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "현 지도에서 검색",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PointRed
+                )
+            }
         }
     }
 }
