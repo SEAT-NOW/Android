@@ -14,25 +14,28 @@ import kotlinx.coroutines.launch
 
 object MapLogicHandler {
 
-    // 현재 위치를 찾고, 카메라를 이동시킨 뒤, 필요하면 API까지 호출하는 공통 함수
+    /**
+     * 현재 위치를 찾아 카메라를 이동시키고, 찾은 좌표로 콜백을 실행하는 공통 함수
+     */
     @OptIn(ExperimentalNaverMapApi::class)
     fun moveCameraToCurrentLocation(
         context: Context,
         cameraPositionState: CameraPositionState,
         coroutineScope: CoroutineScope,
-        onLocationFound: (Double, Double) -> Unit = { _, _ -> } // API 호출 등 후속 작업
+        onLocationFound: (Double, Double) -> Unit // 위치 찾은 후 실행할 로직 (API 호출 등)
     ) {
         // 권한 체크
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-            
+
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 location?.let {
-                    // ★ 핵심 수정: move는 suspend 함수이므로 코루틴 스코프 필수
+                    // 1. 카메라 이동 (Suspend 함수이므로 코루틴 스코프 필요)
                     coroutineScope.launch {
                         cameraPositionState.move(CameraUpdate.scrollTo(LatLng(it.latitude, it.longitude)))
                     }
-                    // 위치 찾은 후 콜백 실행 (API 호출 등)
+
+                    // 2. 후속 작업(API 호출 등) 실행
                     onLocationFound(it.latitude, it.longitude)
                 }
             }

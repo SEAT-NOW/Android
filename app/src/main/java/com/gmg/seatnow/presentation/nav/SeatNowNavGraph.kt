@@ -16,7 +16,7 @@ import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
-import com.gmg.seatnow.presentation.user.home.UserMainScreen
+import com.gmg.seatnow.presentation.user.UserMainScreen
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable

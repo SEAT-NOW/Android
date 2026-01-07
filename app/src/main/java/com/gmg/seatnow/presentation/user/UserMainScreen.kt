@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.user.home
+package com.gmg.seatnow.presentation.user
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
+import com.gmg.seatnow.presentation.user.home.UserHomeScreen
 
 @Composable
 fun UserMainScreen() {
@@ -124,7 +126,7 @@ fun UserBottomNavigation(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.indication(
                             interactionSource = interactionSource, // ★ 부모가 클릭되면 여기서 반응함
-                            indication = androidx.compose.material.ripple.rememberRipple(
+                            indication = rememberRipple(
                                 bounded = false,   // false = 동그랗게 퍼짐 / true = 네모나게 꽉 참
                                 radius = 30.dp,    // ★ 물결 크기 조절 (이걸로 영역 조절하세요)
                                 color = PointRed   // 물결 색상 (원하는 색으로 변경 가능)
