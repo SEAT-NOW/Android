@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageScreen
@@ -47,7 +48,9 @@ fun StoreMainScreen(
     Scaffold(
         containerColor = White,
         bottomBar = {
-            NavigationBar(containerColor = White) {
+            NavigationBar(
+                containerColor = White,
+                tonalElevation = 0.dp) {
                 StoreTab.values().forEach { tab ->
                     val isSelected = uiState.currentTab == tab
                     NavigationBarItem(
@@ -68,7 +71,7 @@ fun StoreMainScreen(
                                 tint = if (isSelected) PointRed else SubGray
                             )
                         },
-                        colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)
+                        colors = NavigationBarItemDefaults.colors(indicatorColor = White)
                     )
                 }
             }

@@ -16,8 +16,7 @@ import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
-// ★ [추가] 사용자 메인 화면 import
-import com.gmg.seatnow.presentation.user.home.UserHomeScreen
+import com.gmg.seatnow.presentation.user.home.UserMainScreen
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -62,7 +61,7 @@ fun SeatNowNavGraph(
         // 3. 사용자 메인 (지도 화면)
         composable("user_main") {
             // ★ [수정됨] 임시 텍스트 제거하고 실제 화면 연결
-            UserHomeScreen()
+            UserMainScreen()
         }
 
         // 4. 사장님 로그인
