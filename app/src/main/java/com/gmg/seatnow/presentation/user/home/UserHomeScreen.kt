@@ -82,10 +82,8 @@ fun UserHomeScreen(
             trackingMode = trackingMode,
             isLoading = isLoading,
             onSearchHereClick = {
-                // 재검색: 현재 지도 중심 좌표로 API 호출
                 val center = cameraPositionState.position.target
                 viewModel.fetchStoresInCurrentMap(center.latitude, center.longitude)
-                trackingMode = LocationTrackingMode.NoFollow // 지도 움직였으니 트래킹 해제
             },
             onCurrentLocationClick = {
                 // 현재 위치 버튼: 위치 찾고 카메라 이동

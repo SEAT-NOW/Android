@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.ripple.rememberRipple
@@ -20,45 +22,58 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.PointRed
-import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.user.home.UserHomeScreen
+import com.gmg.seatnow.presentation.user.seatsearch.SeatSearchScreen
 
 @Composable
 fun UserMainScreen() {
+    // [수정] 키보드 상태 감지 (MainActivity 설정이 되어야 정상 작동)
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    val isKeyboardOpen by remember {
+        derivedStateOf { ime.getBottom(density) > 0 }
+    }
+
     var currentTab by remember { mutableStateOf(UserTab.HOME) }
+
+    // [수정] mutableLongStateOf -> mutableStateOf (에러 방지)
+    var seatSearchResetKey by remember { mutableStateOf(0L) }
 
     Scaffold(
         containerColor = White,
         bottomBar = {
-            UserBottomNavigation(
-                currentTab = currentTab,
-                onTabSelected = { currentTab = it }
-            )
+            // 키보드가 열려있으면 바텀바를 아예 그리지 않음 (숨김)
+            if (!isKeyboardOpen) {
+                UserBottomNavigation(
+                    currentTab = currentTab,
+                    onTabSelected = { tab ->
+                        if (tab == UserTab.SEAT_SEARCH) {
+                            seatSearchResetKey = System.currentTimeMillis()
+                        }
+                        currentTab = tab
+                    }
+                )
+            }
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                .padding(innerPadding)
+                .padding(innerPadding) // 바텀바가 사라지면 padding.bottom은 0이 됨
                 .fillMaxSize()
         ) {
-            // [1] 지도 화면 (항상 렌더링)
-            // zIndex: 홈 탭일 때 가장 위(1f), 아니면 뒤(-1f)로 보내 터치 차단
-            // alpha: 홈 탭일 때 보임(1f), 아니면 투명(0f)
+            // [1] 지도 화면
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -70,22 +85,22 @@ fun UserMainScreen() {
                 UserHomeScreen()
             }
 
-            // [2] 자리 찾기 화면 (탭이 선택되었을 때만 렌더링해도 무방, 가벼운 화면이므로)
+            // [2] 자리 찾기 화면
             if (currentTab == UserTab.SEAT_SEARCH) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .zIndex(2f) // 지도보다 위에 그려짐
-                        .background(White),
-                    contentAlignment = Alignment.Center
+                        .zIndex(2f)
+                        .background(White)
                 ) {
-                    Text("N명 자리찾기 화면 준비중", color = SubGray)
+                    SeatSearchScreen(resetKey = seatSearchResetKey)
                 }
             }
         }
     }
 }
 
+// UserBottomNavigation은 기존과 동일
 @Composable
 fun UserBottomNavigation(
     currentTab: UserTab,
@@ -105,31 +120,28 @@ fun UserBottomNavigation(
                 val isSelected = currentTab == tab
                 val contentColor = if (isSelected) PointRed else Color.DarkGray
 
-                // 1. 클릭 상태를 감지하는 소스 생성 (부모-자식 공유용)
                 val interactionSource = remember { MutableInteractionSource() }
 
-                // 2. 부모: 터치 영역은 넓게 (weight 1f), 하지만 시각 효과는 끔 (indication = null)
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clickable(
-                            interactionSource = interactionSource, // 상태 공유
-                            indication = null,                 // ★ 부모의 거대 Ripple 끄기
+                            interactionSource = interactionSource,
+                            indication = null,
                             onClick = { onTabSelected(tab) }
                         ),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 3. 자식: 실제 Ripple이 그려질 위치 (Icon + Text 그룹)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.indication(
-                            interactionSource = interactionSource, // ★ 부모가 클릭되면 여기서 반응함
+                            interactionSource = interactionSource,
                             indication = rememberRipple(
-                                bounded = false,   // false = 동그랗게 퍼짐 / true = 네모나게 꽉 참
-                                radius = 30.dp,    // ★ 물결 크기 조절 (이걸로 영역 조절하세요)
-                                color = PointRed   // 물결 색상 (원하는 색으로 변경 가능)
+                                bounded = false,
+                                radius = 30.dp,
+                                color = PointRed
                             )
                         )
                     ) {

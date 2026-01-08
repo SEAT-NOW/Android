@@ -51,12 +51,12 @@ fun Step4OperatingScreen(
     var expandedTimeTarget by remember { mutableStateOf(TimeTarget.None) }
 
     // ★ [수정] LazyColumn -> Column (부모 스크롤 사용)
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val isSmallScreen = maxWidth < 380.dp
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(bottom = 30.dp) // 하단 버튼 공간 확보
         ) {
             Text(

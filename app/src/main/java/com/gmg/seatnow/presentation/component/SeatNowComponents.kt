@@ -1606,7 +1606,7 @@ fun UserMapContent(
                     Marker(
                         state = MarkerState(position = LatLng(store.latitude, store.longitude)),
                         captionText = store.name,
-                        captionOffset = 20.dp,
+                        captionOffset = 5.dp,
                         icon = OverlayImage.fromBitmap(markerIcon),
                         onClick = { true }
                     )

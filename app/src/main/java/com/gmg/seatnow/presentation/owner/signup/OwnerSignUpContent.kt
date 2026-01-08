@@ -96,6 +96,13 @@ fun SignUpFormScreen(
         label = "ProgressAnimation"
     )
 
+    // 스크롤 상태를 변수로 추출
+    val scrollState = rememberScrollState()
+
+    // 단계(currentStep)가 바뀔 때마다 스크롤을 맨 위(0)로 초기화
+    LaunchedEffect(uiState.currentStep) {
+        scrollState.scrollTo(0)
+    }
     // ★ Step 6 여부 확인
     val isCompleteStep = uiState.currentStep == SignUpStep.STEP_6_COMPLETE
 
@@ -162,7 +169,7 @@ fun SignUpFormScreen(
                 .padding(paddingValues)
                 .then(
                     // Step 6가 아닐 때만 스크롤 적용
-                    if (!isCompleteStep) Modifier.verticalScroll(rememberScrollState())
+                    if (!isCompleteStep) Modifier.verticalScroll(scrollState)
                     else Modifier
                 )
                 .padding(horizontal = 24.dp),
@@ -176,7 +183,7 @@ fun SignUpFormScreen(
             AnimatedContent(
                 targetState = uiState.currentStep,
                 label = "SignUpStepAnimation",
-                modifier = Modifier.weight(1f, fill = false), // 내용물 크기에 맞춤
+                modifier = Modifier.fillMaxWidth(), // 내용물 크기에 맞춤
                 transitionSpec = {
                     if (targetState.ordinal > initialState.ordinal) {
                         (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
