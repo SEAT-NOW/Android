@@ -87,32 +87,34 @@ fun Step2BusinessScreen(
 
         // 3. 상호명 (검색 Dropdown 포함)
         Box(modifier = Modifier.fillMaxWidth()) {
-            var textFieldWidth by remember { mutableStateOf(0) }
-            val density = LocalDensity.current // 픽셀을 dp로 변환하기 위해 필요
 
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .onSizeChanged { size ->
-                        textFieldWidth = size.width
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // UI 컴포넌트 (기존 TextFieldWithButton)
+            // isEnabled = false로 두어 입력(키보드)은 막되, 스타일은 유지
+            SignUpTextFieldWithButton(
+                value = uiState.storeName,
+                onValueChange = {},
+                placeholder = "상호명",
+                buttonText = "검색",
+                isEnabled = false, // 비활성화 스타일 (회색 배경 등)을 원하면 유지, 아니면 true + readOnly 조합 고려
+                isButtonEnabled = true,
+                onButtonClick = {
+                    onAction(SignUpAction.OpenStoreSearch)
+                }
+            )
 
-
-                SignUpTextFieldWithButton(
-                    value = uiState.storeName,
-                    onValueChange = {}, // ReadOnly라 변경 불가
-                    placeholder = "상호명",
-                    buttonText = "검색",
-                    isEnabled = false, // ★ 텍스트 필드 비활성화 (회색 처리 or 입력 불가)
-                    isButtonEnabled = true, // 버튼은 활성화
-                    onButtonClick = {
-                        onAction(SignUpAction.OpenStoreSearch) // 검색 화면 열기
+            // [핵심] 투명한 클릭 영역 오버레이
+            // TextField와 버튼 전체를 덮어서 어디를 눌러도 검색 액션 실행
+            // (버튼의 클릭 이벤트와 겹칠 수 있으나, 전체 영역 클릭이 목적이므로 상위 Box에서 처리)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(12.dp)) // TextField 모양에 맞춰 클리핑
+                    .clickable {
+                        onAction(SignUpAction.OpenStoreSearch)
                     }
-                )
-            }
+            )
         }
-
+        
         Spacer(modifier = Modifier.height(20.dp))
 
         // 4. 주소 (입력 불가, 클릭 시 API 호출)
