@@ -114,7 +114,7 @@ fun Step2BusinessScreen(
                     }
             )
         }
-        
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // 4. 주소 (입력 불가, 클릭 시 API 호출)
