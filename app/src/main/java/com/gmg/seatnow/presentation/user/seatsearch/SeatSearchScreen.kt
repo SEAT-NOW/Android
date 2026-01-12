@@ -9,11 +9,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,45 +48,13 @@ import com.naver.maps.map.compose.rememberFusedLocationSource
 import com.gmg.seatnow.R
 import com.naver.maps.map.compose.ExperimentalNaverMapApi
 
-@OptIn(ExperimentalNaverMapApi::class)
 @Composable
 fun SeatSearchScreen(
-    resetKey: Long = 0L,
+    onSearchConfirmed: (Int) -> Unit, // Main으로 값을 전달하는 콜백
     viewModel: SeatSearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
-
-    val cameraPositionState = rememberCameraPositionState()
-    val locationSource = rememberFusedLocationSource()
-    var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
-
-    LaunchedEffect(resetKey) {
-        if (resetKey != 0L) {
-            viewModel.reset()
-        }
-    }
-
-    // 뒤로가기 핸들링
-    BackHandler(enabled = uiState.step == SeatSearchViewModel.SearchStep.MAP) {
-        viewModel.goBackToInput()
-    }
-
-    // 검색 실행 로직
-    fun executeSearch() {
-        focusManager.clearFocus()
-        MapLogicHandler.moveCameraToCurrentLocation(
-            context = context,
-            cameraPositionState = cameraPositionState,
-            coroutineScope = coroutineScope,
-            onLocationFound = { lat, lng ->
-                viewModel.searchStores(lat, lng)
-                trackingMode = LocationTrackingMode.Follow
-            }
-        )
-    }
 
     // 배경 클릭 시 포커스 해제
     Box(
@@ -96,48 +66,20 @@ fun SeatSearchScreen(
                 indication = null
             ) { focusManager.clearFocus() }
     ) {
-        when (uiState.step) {
-            // [Step 1] 인원수 입력 화면 (수정됨)
-            SeatSearchViewModel.SearchStep.INPUT -> {
-                SearchInputContent(
-                    headCount = uiState.headCount,
-                    onCountChange = viewModel::updateHeadCount,
-                    onAdjust = viewModel::adjustHeadCount, // +1, +5 등을 위해 통합
-                    onFocusClear = viewModel::finalizeHeadCount,
-                    onSearchClick = {
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                            executeSearch()
-                        } else {
-                            viewModel.searchStores(37.5665, 126.9780)
-                        }
-                    }
-                )
+        // 입력 컨텐츠 (SearchInputContent는 기존 코드 재사용)
+        // SearchInputContent 내부의 버튼 클릭 이벤트 연결
+        SearchInputContent(
+            headCount = uiState.headCount,
+            onCountChange = viewModel::updateHeadCount,
+            onAdjust = viewModel::adjustHeadCount,
+            onFocusClear = viewModel::finalizeHeadCount,
+            onSearchClick = {
+                val count = uiState.headCount.toIntOrNull() ?: 0
+                if (count > 0) {
+                    onSearchConfirmed(count) // Main으로 전달
+                }
             }
-
-            // [Step 2] 지도 결과 화면
-            SeatSearchViewModel.SearchStep.MAP -> {
-                UserMapContent(
-                    cameraPositionState = cameraPositionState,
-                    locationSource = locationSource,
-                    storeList = uiState.filteredStoreList,
-                    trackingMode = trackingMode,
-                    isLoading = uiState.isLoading,
-                    onSearchHereClick = {
-                        val center = cameraPositionState.position.target
-                        viewModel.searchStores(center.latitude, center.longitude)
-                    },
-                    onCurrentLocationClick = {
-                        MapLogicHandler.moveCameraToCurrentLocation(
-                            context = context,
-                            cameraPositionState = cameraPositionState,
-                            coroutineScope = coroutineScope,
-                            onLocationFound = { _, _ -> trackingMode = LocationTrackingMode.Follow }
-                        )
-                    },
-                    onMapGestured = { trackingMode = LocationTrackingMode.NoFollow }
-                )
-            }
-        }
+        )
     }
 }
 
@@ -149,29 +91,30 @@ fun SearchInputContent(
     onFocusClear: () -> Unit,
     onSearchClick: () -> Unit
 ) {
-    // 포커스 상태 감지
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val focusManager = LocalFocusManager.current
 
-    // [수정] 배경색 및 테두리: 포커스 시 White + Border, 아닐 시 LightGray
     val circleBackgroundColor = if (isFocused) White else Color(0xFFF6F6F6)
     val circleBorderColor = if (isFocused) SubGray else Color.Transparent
     val circleBorderWidth = if (isFocused) 2.dp else 0.dp
 
+    // ★ [핵심] Box 레이아웃 사용 + imePadding 제거!
+    // adjustResize로 인해 Box의 높이가 이미 "키보드 위까지"로 줄어들었습니다.
+    // 여기서 BottomCenter로 붙이면 키보드 바로 위에 붙습니다.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
-            .imePadding() // ★ 키패드 올라오면 전체 레이아웃을 밀어올림
     ) {
-        // 중앙 컨텐츠 (타이틀, 숫자 조절, 버튼)
-        // 키패드가 올라와서 공간이 줄어들면 Alignment.Center에 의해 자동으로 위쪽 공간의 중앙으로 이동함
+        // [중앙 컨텐츠]
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = (-20).dp), // 시각적 중심 보정
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "몇 명이신가요?",
@@ -182,91 +125,57 @@ fun SearchInputContent(
                 color = SubBlack
             )
 
-            Spacer(modifier = Modifier.height(30.dp)) // 간격 조정
+            Spacer(modifier = Modifier.height(30.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Minus
-                IconButton(
-                    onClick = { onAdjust(-1) },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_minus),
-                        contentDescription = "감소",
-                        tint = SubBlack,
-                        modifier = Modifier.size(24.dp)
-                    )
+                IconButton(onClick = { onAdjust(-1) }, modifier = Modifier.size(48.dp)) {
+                    Icon(painter = painterResource(id = R.drawable.ic_minus), contentDescription = "감소", tint = SubBlack, modifier = Modifier.size(24.dp))
                 }
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-                // ★ Center Circle Input
                 Box(
                     modifier = Modifier
                         .size(140.dp)
                         .clip(CircleShape)
-                        .background(circleBackgroundColor) // 상태에 따른 배경색
-                        .border(circleBorderWidth, circleBorderColor, CircleShape), // 상태에 따른 테두리
+                        .background(circleBackgroundColor)
+                        .border(circleBorderWidth, circleBorderColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     BasicTextField(
                         value = headCount,
                         onValueChange = onCountChange,
-                        interactionSource = interactionSource, // 포커스 감지 연결
+                        interactionSource = interactionSource,
                         textStyle = TextStyle(
                             color = PointRed,
                             fontSize = 48.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         ),
-                        // [수정] 키보드 옵션: 숫자만, 완료 버튼 활성화
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        // [수정] 완료 버튼 클릭 시 포커스 해제 -> onFocusChanged 트리거
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
-                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         singleLine = true,
                         cursorBrush = SolidColor(PointRed),
                         modifier = Modifier
                             .width(100.dp)
-                            // [핵심] 포커스 변경 감지 -> 포커스 잃으면 빈 값 체크 실행
-                            .onFocusChanged { focusState ->
-                                if (!focusState.isFocused) {
-                                    onFocusClear()
-                                }
-                            }
+                            .onFocusChanged { if (!it.isFocused) onFocusClear() }
                     )
                 }
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-                // Plus
-                IconButton(
-                    onClick = { onAdjust(1) },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_plus),
-                        contentDescription = "증가",
-                        tint = SubBlack,
-                        modifier = Modifier.size(24.dp)
-                    )
+                IconButton(onClick = { onAdjust(1) }, modifier = Modifier.size(48.dp)) {
+                    Icon(painter = painterResource(id = R.drawable.ic_plus), contentDescription = "증가", tint = SubBlack, modifier = Modifier.size(24.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            // 빠른 추가 버튼들
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 listOf(1, 5, 10).forEach { amount ->
                     Box(
                         modifier = Modifier
@@ -284,13 +193,16 @@ fun SearchInputContent(
                     }
                 }
             }
+
+            // 버튼과 겹치지 않게 하단 여백 추가
+            Spacer(modifier = Modifier.height(80.dp))
         }
 
-        // 하단 버튼 (키패드가 올라오면 그 바로 위에 위치)
+        // [하단 버튼]
         Button(
             onClick = onSearchClick,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomCenter) // Box 바닥(키보드 위)에 붙음
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
                 .height(56.dp),

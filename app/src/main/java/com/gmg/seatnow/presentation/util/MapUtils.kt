@@ -7,11 +7,10 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import androidx.compose.ui.graphics.toArgb
 import com.gmg.seatnow.domain.model.StoreStatus
-import com.gmg.seatnow.presentation.theme.COLOR_FULL
-import com.gmg.seatnow.presentation.theme.COLOR_HARD
-import com.gmg.seatnow.presentation.theme.COLOR_NORMAL
-import com.gmg.seatnow.presentation.theme.COLOR_SPARE
-import com.gmg.seatnow.presentation.theme.PointRed
+import com.gmg.seatnow.presentation.theme.ColorFull
+import com.gmg.seatnow.presentation.theme.ColorHard
+import com.gmg.seatnow.presentation.theme.ColorNormal
+import com.gmg.seatnow.presentation.theme.ColorSpare
 
 object MapUtils {
 
@@ -35,10 +34,10 @@ object MapUtils {
         // 2. 상태별 색상 원 (흰색 테두리 안쪽에 조금 작게 그리기)
         val innerRadius = radius - borderSize
         paint.color = when (status) {
-            StoreStatus.SPARE -> COLOR_SPARE.toArgb()
-            StoreStatus.NORMAL -> COLOR_NORMAL.toArgb()
-            StoreStatus.HARD -> COLOR_HARD.toArgb()
-            StoreStatus.FULL -> COLOR_FULL.toArgb()
+            StoreStatus.SPARE -> ColorSpare.toArgb()
+            StoreStatus.NORMAL -> ColorNormal.toArgb()
+            StoreStatus.HARD -> ColorHard.toArgb()
+            StoreStatus.FULL -> ColorFull.toArgb()
         }
         canvas.drawCircle(center, center, innerRadius, paint)
 

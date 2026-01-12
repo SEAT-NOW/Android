@@ -1466,9 +1466,13 @@ fun TableStepperItem(
 
 // [1] 상단 검색바 (홈/검색 공통 사용)
 @Composable
-fun TopSearchBar(modifier: Modifier = Modifier) {
+fun HomeSearchBar(
+    activeHeadCount: Int?,
+    onClearFilter: () -> Unit
+) {
+
     Surface(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
             .shadow(4.dp, RoundedCornerShape(8.dp)),
@@ -1479,17 +1483,72 @@ fun TopSearchBar(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 16.dp)
         ) {
+            // 1. 왼쪽: 돋보기 아이콘 (항상 고정)
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "검색",
-                tint = PointRed
+                tint = PointRed,
+                modifier = Modifier.size(24.dp)
             )
+
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "장소, 지역, 대학명 검색",
-                style = MaterialTheme.typography.bodyMedium,
-                color = SubGray
-            )
+
+            // 2. 중앙: 칩 또는 힌트 텍스트 (weight 1f로 공간 차지)
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (activeHeadCount != null) {
+                    // [필터 상태] : 노란색 칩 표시 ("4명 자리") & 힌트 텍스트 숨김
+                    Surface(
+                        color = ColorSearchTag,
+                        shape = RoundedCornerShape(8.dp), // 둥근 모서리
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = "${activeHeadCount}명 자리",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                color = SubBlack
+                            )
+                        }
+                    }
+                } else {
+                    // [기본 상태] : 힌트 텍스트 표시
+                    Text(
+//                        text = "장소, 지역, 대학명 검색",
+                        text = "N명 자리찾기를 시작하세요!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray
+                    )
+                }
+            }
+
+            // 3. 오른쪽: X 버튼 (필터가 있을 때만 맨 오른쪽에 표시)
+            if (activeHeadCount != null) {
+                // 터치 영역 확보를 위해 Box 사용 권장
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable(onClick = onClearFilter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 사진처럼 회색 동그라미 배경의 X 아이콘을 원하시면 수정 가능,
+                    // 여기선 깔끔한 아이콘으로 구현
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "필터 삭제",
+                        tint = SubGray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -1622,13 +1681,6 @@ fun UserMapContent(
             }
 
         }
-
-        // 2. 상단 검색바 (상단 고정)
-//        TopSearchBar(
-//            modifier = Modifier
-//                .align(Alignment.TopCenter)
-//                .padding(top = 50.dp, start = 16.dp, end = 16.dp)
-//        )
 
         // 3. 현 지도에서 검색 버튼 (검색바 아래)
         SearchHereButton(

@@ -9,83 +9,77 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.PointRed
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.user.home.UserHomeScreen
 import com.gmg.seatnow.presentation.user.seatsearch.SeatSearchScreen
 
 @Composable
 fun UserMainScreen() {
-    // [수정] 키보드 상태 감지 (MainActivity 설정이 되어야 정상 작동)
-    val density = LocalDensity.current
-    val ime = WindowInsets.ime
-    val isKeyboardOpen by remember {
-        derivedStateOf { ime.getBottom(density) > 0 }
-    }
-
     var currentTab by remember { mutableStateOf(UserTab.HOME) }
 
-    // [수정] mutableLongStateOf -> mutableStateOf (에러 방지)
-    var seatSearchResetKey by remember { mutableStateOf(0L) }
+    // [핵심] 홈 탭으로 전달할 필터 데이터 (null이면 필터 없음)
+    var searchFilterHeadCount by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         containerColor = White,
+        contentWindowInsets = WindowInsets.systemBars,
         bottomBar = {
-            // 키보드가 열려있으면 바텀바를 아예 그리지 않음 (숨김)
-            if (!isKeyboardOpen) {
-                UserBottomNavigation(
-                    currentTab = currentTab,
-                    onTabSelected = { tab ->
-                        if (tab == UserTab.SEAT_SEARCH) {
-                            seatSearchResetKey = System.currentTimeMillis()
-                        }
-                        currentTab = tab
-                    }
-                )
-            }
+            UserBottomNavigation(
+                currentTab = currentTab,
+                onTabSelected = { tab ->
+                    // 탭 변경 시 단순 이동만 처리
+                    currentTab = tab
+                }
+            )
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                .padding(innerPadding) // 바텀바가 사라지면 padding.bottom은 0이 됨
+                .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // [1] 지도 화면
+            // [1] 지도/홈 화면 (항상 메모리에 유지하여 지도 재로딩 방지)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(if (currentTab == UserTab.HOME) 1f else -1f)
-                    .graphicsLayer {
-                        alpha = if (currentTab == UserTab.HOME) 1f else 0f
-                    }
+                    .graphicsLayer { alpha = if (currentTab == UserTab.HOME) 1f else 0f }
             ) {
-                UserHomeScreen()
+                UserHomeScreen(
+                    initialHeadCount = searchFilterHeadCount,
+                    onFilterCleared = { searchFilterHeadCount = null }
+                )
             }
 
-            // [2] 자리 찾기 화면
+            // [2] 자리 찾기 (필터 입력) 화면
             if (currentTab == UserTab.SEAT_SEARCH) {
                 Box(
                     modifier = Modifier
@@ -93,7 +87,14 @@ fun UserMainScreen() {
                         .zIndex(2f)
                         .background(White)
                 ) {
-                    SeatSearchScreen(resetKey = seatSearchResetKey)
+                    SeatSearchScreen(
+                        onSearchConfirmed = { headCount ->
+                            // 1. 필터 값 설정
+                            searchFilterHeadCount = headCount
+                            // 2. 홈 탭으로 이동 (지도가 보이도록)
+                            currentTab = UserTab.HOME
+                        }
+                    )
                 }
             }
         }
@@ -107,13 +108,16 @@ fun UserBottomNavigation(
     onTabSelected: (UserTab) -> Unit
 ) {
     Surface(
-        modifier = Modifier.height(64.dp),
+        modifier = Modifier.fillMaxWidth(),
         color = White,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(64.dp),          // 높이는 여기서 지정
             verticalAlignment = Alignment.CenterVertically
         ) {
             UserTab.values().forEach { tab ->
