@@ -7,6 +7,6 @@ class RequestAuthCodeUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
     suspend operator fun invoke(target: String): Result<Unit> {
-        return repository.requestAuthCode(target)
+        return repository.requestEmailAuthCode(target)
     }
 }

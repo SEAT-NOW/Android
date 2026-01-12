@@ -10,8 +10,10 @@ interface AuthRepository {
     suspend fun loginOwner(email: String, password: String) : Result<Unit>
 
     // OwnerSignUpScreen_Step1
-    suspend fun requestAuthCode(target: String): Result<Unit>
-    suspend fun verifyAuthCode(target: String, code: String): Result<Unit>
+    suspend fun requestPhoneAuthCode(phoneNumber: String): Result<Unit>
+    suspend fun requestEmailAuthCode(email: String): Result<Unit>
+    suspend fun verifyPhoneAuthCode(phoneNumber: String, code: String): Result<Unit>
+    suspend fun verifyEmailAuthCode(email: String, code: String): Result<Unit>
 
     // OwnerSignUpScreen_Step2
     suspend fun verifyBusinessNumber(number: String): Result<Unit>

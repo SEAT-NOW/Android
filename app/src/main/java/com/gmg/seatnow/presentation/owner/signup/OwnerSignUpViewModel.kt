@@ -22,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class OwnerSignUpViewModel @Inject constructor(
     // [Auth UseCases]
-    private val requestAuthCodeUseCase: RequestAuthCodeUseCase, // 이메일/폰 공용
+    private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase, // 이메일/폰 공용
+    private val requestEmailAuthCodeUseCase: RequestAuthCodeUseCase,
+    private val verifyPhoneAuthCodeUseCase: VerifyPhoneAuthCodeUseCase,
     private val verifyAuthCodeUseCase: VerifyAuthCodeUseCase,   // 이메일/폰 공용
     private val verifyBusinessNumberUseCase: VerifyBusinessNumberUseCase,
 
@@ -201,7 +203,7 @@ class OwnerSignUpViewModel @Inject constructor(
         if (email.isBlank() || _uiState.value.emailError != null) return
         viewModelScope.launch {
             // [UseCase 적용] 이메일 인증 요청
-            requestAuthCodeUseCase(email)
+            requestEmailAuthCodeUseCase(email)
                 .onSuccess {
                     startEmailTimer()
                     _uiState.update { it.copy(isEmailCodeSent = true, authCode = "", isEmailVerificationAttempted = false, emaiilVerifedError = null) }
@@ -228,31 +230,55 @@ class OwnerSignUpViewModel @Inject constructor(
 
     private fun requestPhoneCode() {
         val phone = _uiState.value.phone
+        // 하이픈이 섞여있어도 UseCase 혹은 로직에서 제거한다고 가정 (여기선 길이만 체크)
         if (phone.length < 10) return
+
         viewModelScope.launch {
-            // [UseCase 적용] 휴대폰 번호도 동일한 UseCase 사용
-            requestAuthCodeUseCase(phone)
+            // [변경] 분리된 UseCase 호출
+            requestPhoneAuthCodeUseCase(phone)
                 .onSuccess {
                     startPhoneTimer()
-                    _uiState.update { it.copy(isPhoneCodeSent = true, phoneAuthCode = "", isPhoneVerificationAttempted = false, phoneVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isPhoneCodeSent = true,
+                            phoneAuthCode = "",
+                            isPhoneVerificationAttempted = false,
+                            phoneVerifedError = null
+                        )
+                    }
                 }
-                .onFailure { exception -> _uiState.update { it.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다.")
+                    }
+                }
         }
     }
 
+    // [핸드폰 검증 로직]
     private fun verifyPhoneCode() {
         val phone = _uiState.value.phone
         val code = _uiState.value.phoneAuthCode
         _uiState.update { it.copy(isPhoneVerificationAttempted = true) }
-        stopPhoneTimer()
+        stopPhoneTimer() // 타이머 멈춤
         viewModelScope.launch {
-            // [UseCase 적용]
-            verifyAuthCodeUseCase(phone, code)
+            // [변경] 핸드폰 전용 UseCase 호출 (실제 API)
+            verifyPhoneAuthCodeUseCase(phone, code)
                 .onSuccess {
-                    _uiState.update { it.copy(isPhoneVerified = true, phoneTimerText = null, phoneVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isPhoneVerified = true,
+                            phoneTimerText = null,
+                            phoneVerifedError = null
+                        )
+                    }
                     checkNextButtonEnabled()
                 }
-                .onFailure { exception -> _uiState.update { it.copy(phoneVerifedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(phoneVerifedError = exception.message ?: "인증 번호가 일치하지 않습니다.")
+                    }
+                }
         }
     }
 

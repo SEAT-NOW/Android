@@ -2,8 +2,13 @@ package com.gmg.seatnow.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequest
+import com.gmg.seatnow.data.model.request.SmsVerificationRequest
+import com.gmg.seatnow.data.model.response.ErrorResponse
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
+import com.google.gson.Gson
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
@@ -12,7 +17,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class AuthRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val authService: AuthService
 ) : AuthRepository {
 
     override suspend fun loginKakao(): Result<String> = suspendCoroutine { continuation ->
@@ -57,7 +63,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     // ★ [추가] 인증번호 전송 구현 (Mock)
-    override suspend fun requestAuthCode(target: String): Result<Unit> {
+    override suspend fun requestEmailAuthCode(target: String): Result<Unit> {
         delay(1000) // API 호출 흉내
         Log.d("AuthRepo", "인증번호 요청: $target")
 
@@ -68,8 +74,47 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun requestPhoneAuthCode(phoneNumber: String): Result<Unit> {
+        return try {
+            val request = SmsVerificationRequest(phoneNumber = phoneNumber)
+            val response = authService.sendSmsVerification(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(Unit)
+            } else {
+                // 실패 시 에러 메시지 파싱
+                val errorMessage = response.body()?.message
+                    ?: response.errorBody()?.string()
+                    ?: "인증번호 발송에 실패했습니다."
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun verifyPhoneAuthCode(phoneNumber: String, code: String): Result<Unit> {
+        return try {
+            val request = SmsVerificationConfirmRequest(phoneNumber, code)
+            val response = authService.verifySmsCode(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 200 OK
+                Result.success(Unit)
+            } else {
+                // 400 Bad Request 등 에러 처리
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
     // ★ [추가] 인증번호 검증 구현 (Mock)
-    override suspend fun verifyAuthCode(target: String, code: String): Result<Unit> {
+    override suspend fun verifyEmailAuthCode(target: String, code: String): Result<Unit> {
         delay(500) // API 호출 흉내
         Log.d("AuthRepo", "인증번호 검증 시도: $target / $code")
 
@@ -122,5 +167,14 @@ class AuthRepositoryImpl @Inject constructor(
         delay(1000)
         Log.d("AuthRepo", "회원탈퇴 성공")
         return Result.success(Unit)
+    }
+
+    private fun parseErrorMessage(errorBody: String?): String {
+        return try {
+            val errorResponse = Gson().fromJson(errorBody, ErrorResponse::class.java)
+            errorResponse.message ?: errorResponse.detail ?: "알 수 없는 오류가 발생했습니다."
+        } catch (e: Exception) {
+            "서버 통신 오류가 발생했습니다."
+        }
     }
 }
