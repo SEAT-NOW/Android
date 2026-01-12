@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +36,7 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
@@ -58,9 +61,24 @@ import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
+import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.util.MapUtils.createMarkerBitmap
+import com.naver.maps.geometry.LatLng
+import com.naver.maps.map.CameraUpdate
+import com.naver.maps.map.LocationSource
+import com.naver.maps.map.compose.CameraPositionState
+import com.naver.maps.map.compose.ExperimentalNaverMapApi
+import com.naver.maps.map.compose.LocationTrackingMode
+import com.naver.maps.map.compose.MapEffect
+import com.naver.maps.map.compose.MapProperties
+import com.naver.maps.map.compose.MapUiSettings
+import com.naver.maps.map.compose.Marker
+import com.naver.maps.map.compose.MarkerState
+import com.naver.maps.map.compose.NaverMap
+import com.naver.maps.map.overlay.OverlayImage
 
 // ★ 병합된 통합 텍스트 필드
 @Composable
@@ -1119,7 +1137,7 @@ fun SeatNowMenuItem(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), // 스타일 통일
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium), // 스타일 통일
             color = textColor
         )
 
@@ -1443,5 +1461,243 @@ fun TableStepperItem(
                 )
             }
         }
+    }
+}
+
+// [1] 상단 검색바 (홈/검색 공통 사용)
+@Composable
+fun HomeSearchBar(
+    activeHeadCount: Int?,
+    onClearFilter: () -> Unit
+) {
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .shadow(4.dp, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
+        color = White
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        ) {
+            // 1. 왼쪽: 돋보기 아이콘 (항상 고정)
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "검색",
+                tint = PointRed,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // 2. 중앙: 칩 또는 힌트 텍스트 (weight 1f로 공간 차지)
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (activeHeadCount != null) {
+                    // [필터 상태] : 노란색 칩 표시 ("4명 자리") & 힌트 텍스트 숨김
+                    Surface(
+                        color = ColorSearchTag,
+                        shape = RoundedCornerShape(8.dp), // 둥근 모서리
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = "${activeHeadCount}명 자리",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                color = SubBlack
+                            )
+                        }
+                    }
+                } else {
+                    // [기본 상태] : 힌트 텍스트 표시
+                    Text(
+//                        text = "장소, 지역, 대학명 검색",
+                        text = "N명 자리찾기를 시작하세요!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray
+                    )
+                }
+            }
+
+            // 3. 오른쪽: X 버튼 (필터가 있을 때만 맨 오른쪽에 표시)
+            if (activeHeadCount != null) {
+                // 터치 영역 확보를 위해 Box 사용 권장
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable(onClick = onClearFilter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // 사진처럼 회색 동그라미 배경의 X 아이콘을 원하시면 수정 가능,
+                    // 여기선 깔끔한 아이콘으로 구현
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "필터 삭제",
+                        tint = SubGray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// [2] 현 지도에서 검색 버튼
+@Composable
+fun SearchHereButton(
+    modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(36.dp),
+        shape = RoundedCornerShape(50),
+        color = White,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = PointRed,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "검색 중...",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PointRed
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    tint = PointRed,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "현 지도에서 검색",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PointRed
+                )
+            }
+        }
+    }
+}
+
+// [3] 현재 위치 버튼
+@Composable
+fun CurrentLocationButton(
+    modifier: Modifier = Modifier,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val iconColor = if (isSelected) PointRed else SubDarkGray
+
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .shadow(4.dp, CircleShape)
+            .clip(CircleShape)
+            .background(White)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_current),
+            contentDescription = "현재 위치",
+            tint = iconColor
+        )
+    }
+}
+
+/**
+ * [통합 지도 컴포넌트]
+ * 지도 + 마커 + 상단 검색바 + 재검색 버튼 + 현재 위치 버튼이 모두 포함됨.
+ * 홈 화면과 검색 화면에서 공통으로 사용.
+ */
+@OptIn(ExperimentalNaverMapApi::class)
+@Composable
+fun UserMapContent(
+    cameraPositionState: CameraPositionState,
+    locationSource: LocationSource,
+    storeList: List<Store>,
+    trackingMode: LocationTrackingMode,
+    isLoading: Boolean = false,
+    onSearchHereClick: () -> Unit,
+    onCurrentLocationClick: () -> Unit,
+    onMapGestured: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 1. 네이버 지도 (Base)
+        NaverMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            locationSource = locationSource,
+            uiSettings = MapUiSettings(
+                isLocationButtonEnabled = false,
+                isZoomControlEnabled = false
+            ),
+            properties = MapProperties(
+                locationTrackingMode = trackingMode
+            )
+        ) {
+            storeList.forEachIndexed { index, store ->
+                if (index < 10) {
+                    val markerIcon = createMarkerBitmap(index + 1, store.status)
+
+                    Marker(
+                        state = MarkerState(position = LatLng(store.latitude, store.longitude)),
+                        captionText = store.name,
+                        captionOffset = 5.dp,
+                        icon = OverlayImage.fromBitmap(markerIcon),
+                        onClick = { true }
+                    )
+                }
+            }
+
+            MapEffect(Unit) { naverMap ->
+                naverMap.addOnCameraChangeListener { reason, _ ->
+                    if (reason == CameraUpdate.REASON_GESTURE) {
+                        onMapGestured()
+                    }
+                }
+            }
+
+        }
+
+        // 3. 현 지도에서 검색 버튼 (검색바 아래)
+        SearchHereButton(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 20.dp),
+            isLoading = isLoading,
+            onClick = onSearchHereClick
+        )
+
+        // 4. 현재 위치 버튼 (우측 하단)
+        CurrentLocationButton(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 32.dp),
+            isSelected = trackingMode == LocationTrackingMode.Follow,
+            onClick = onCurrentLocationClick
+        )
     }
 }

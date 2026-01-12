@@ -26,3 +26,9 @@ val White = Color(0xFFFFFFFF)          // 기본 흰색 (Main Background)
 val KakaoYellow = Color(0xFFFEE500)    // 카카오 로그인용 (이미지 참고)
 val KakaoYellowPressed = Color(0xFFE3D130) // 카카오 버튼 눌림
 
+val ColorSpare = Color(0xFF4CAD65) // 한적 (초록색 계열 추천) 또는 #E5C649
+val ColorNormal = Color(0xFFE5C649) // 보통 (노랑)
+val ColorHard = Color(0xFFCC585A)   // 혼잡 (빨강)
+val ColorFull = Color(0xFFA99E9E)   // 만석 (회색)
+
+val ColorSearchTag = Color(0xFFFFE047)

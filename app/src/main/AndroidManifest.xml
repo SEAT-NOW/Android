@@ -5,6 +5,8 @@
     
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".SeatNowApplication"
@@ -37,7 +39,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:host="oauth" android:scheme="kakao54be1fae0136e1d12dc327aae184d6ce" />
+                <data android:host="oauth" android:scheme="kakao${KAKAO_APP_KEY}" />
             </intent-filter>
         </activity>
     </application>

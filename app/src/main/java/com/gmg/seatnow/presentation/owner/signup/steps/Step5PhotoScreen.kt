@@ -31,7 +31,7 @@ fun Step5PhotoScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "음식, 실내, 외부 사진으로 가게를 소개해주세요 (선택)",
             style = MaterialTheme.typography.bodySmall,

@@ -11,11 +11,12 @@ import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
-import com.gmg.seatnow.presentation.owner.store.mypage.AccountInfoScreen // 👈 Import 확인
+import com.gmg.seatnow.presentation.owner.store.mypage.AccountInfoScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
+import com.gmg.seatnow.presentation.user.UserMainScreen
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -57,9 +58,10 @@ fun SeatNowNavGraph(
             )
         }
 
-        // 3. 사용자 메인 (임시)
+        // 3. 사용자 메인 (지도 화면)
         composable("user_main") {
-            androidx.compose.material3.Text("사용자 메인 화면 (지도)")
+            // ★ [수정됨] 임시 텍스트 제거하고 실제 화면 연결
+            UserMainScreen()
         }
 
         // 4. 사장님 로그인
@@ -101,16 +103,14 @@ fun SeatNowNavGraph(
                         popUpTo("store_main") { inclusive = true }
                     }
                 },
-                // ✅ 추가됨: 계정 정보 화면으로 이동
                 onNavigateToAccountInfo = {
                     navController.navigate("account_info")
                 }
             )
         }
 
-        // 7. 계정 정보 수정 (AccountInfo) - ✅ 신규 추가
+        // 7. 계정 정보 수정 (AccountInfo)
         composable("account_info") {
-            // ✅ 기존 StoreMainViewModel 대신 MyPageViewModel 사용
             val viewModel = hiltViewModel<MyPageViewModel>()
 
             LaunchedEffect(true) {
@@ -126,7 +126,6 @@ fun SeatNowNavGraph(
 
             AccountInfoScreen(
                 onBackClick = { navController.popBackStack() },
-                // ✅ MyPageViewModel의 Action 호출
                 onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
                 onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
             )
@@ -144,6 +143,4 @@ fun SeatNowNavGraph(
             )
         }
     }
-
-
 }

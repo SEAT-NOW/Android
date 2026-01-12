@@ -3,6 +3,7 @@ package com.gmg.seatnow.presentation
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import com.gmg.seatnow.data.local.MockAuthManager // Import 필수
 import com.gmg.seatnow.presentation.nav.SeatNowNavGraph
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
@@ -13,6 +14,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+//        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         // 1. 매니저 생성 (Hilt 주입 대신 간단하게 생성)
         val mockAuthManager = MockAuthManager(applicationContext)
 
@@ -21,6 +24,7 @@ class MainActivity : ComponentActivity() {
         // 스플래시 내부에서 mockAuthManager.hasToken()을 검사해서 분기하는 게 정석이지만,
         // 여기서는 간단하게 "이미 로그인 돼있으면 store_main"으로 설정
         val startDest = if (mockAuthManager.hasToken()) "store_main" else "splash"
+
 
         setContent {
             SeatNowTheme {

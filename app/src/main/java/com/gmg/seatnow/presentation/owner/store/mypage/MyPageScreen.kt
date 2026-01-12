@@ -3,6 +3,7 @@ package com.gmg.seatnow.presentation.owner.store.mypage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,8 +63,8 @@ fun MyPageContent(
         ) {
             Text(
                 "마이페이지",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(bottom = 32.dp)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(bottom = 32.dp, top = 4.dp)
             )
 
             // 1. 계정 섹션
@@ -88,7 +89,7 @@ fun MyPageContent(
 fun SectionHeader(text: String) {
     Text(
         text,
-        fontSize = 13.sp,
+        fontSize = 18.sp,
         color = SubGray,
         modifier = Modifier.padding(bottom = 8.dp)
     )
