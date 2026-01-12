@@ -1,11 +1,17 @@
 package com.gmg.seatnow.presentation.owner.store
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -48,33 +54,10 @@ fun StoreMainScreen(
     Scaffold(
         containerColor = White,
         bottomBar = {
-            NavigationBar(
-                containerColor = White,
-                tonalElevation = 0.dp) {
-                StoreTab.values().forEach { tab ->
-                    val isSelected = uiState.currentTab == tab
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { onAction(StoreMainAction.ChangeTab(tab)) },
-                        label = {
-                            Text(
-                                tab.title,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) PointRed else SubGray
-                            )
-                        },
-                        icon = {
-                            Icon(
-                                painter = painterResource(id = tab.iconResId),
-                                contentDescription = null,
-                                tint = if (isSelected) PointRed else SubGray
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(indicatorColor = White)
-                    )
-                }
-            }
+            StoreBottomNavigation(
+                currentTab = uiState.currentTab,
+                onTabSelected = { tab -> onAction(StoreMainAction.ChangeTab(tab)) }
+            )
         }
     ) { innerPadding ->
         Box(
@@ -93,6 +76,76 @@ fun StoreMainScreen(
                         onNavigateToAccountInfo = onNavigateToAccountInfo,
                         onNavigateToLogin = onNavigateToLogin
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StoreBottomNavigation(
+    currentTab: StoreTab,
+    onTabSelected: (StoreTab) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = White,
+        tonalElevation = 0.dp,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(64.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StoreTab.values().forEach { tab ->
+                val isSelected = currentTab == tab
+                val contentColor = if (isSelected) PointRed else SubGray // 선택 안됨 색상: SubGray
+
+                val interactionSource = remember { MutableInteractionSource() }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = { onTabSelected(tab) }
+                        ),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 아이콘과 텍스트를 감싸는 Column에 Ripple 효과 적용
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.indication(
+                            interactionSource = interactionSource,
+                            indication = rememberRipple(
+                                bounded = false,
+                                radius = 30.dp,
+                                color = PointRed
+                            )
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = tab.iconResId),
+                            contentDescription = tab.title,
+                            tint = contentColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = tab.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = contentColor
+                        )
+                    }
                 }
             }
         }
