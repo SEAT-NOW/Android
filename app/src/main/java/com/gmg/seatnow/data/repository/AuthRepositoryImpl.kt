@@ -166,26 +166,55 @@ class AuthRepositoryImpl @Inject constructor(
 
     // 상호명 검색 Mock
     override suspend fun searchStore(query: String): Result<List<StoreSearchResult>> {
-        delay(300) // API 호출 흉내
         if (query.isBlank()) return Result.success(emptyList())
 
-        // 더미 데이터 생성
-        val mockList = listOf(
-            StoreSearchResult("용용선생 대학로점", "서울 종로구 대학로8가길 36 1층", 37.582, 127.001),
-            StoreSearchResult("용용선생 건대점", "서울 광진구 아차산로33길 25", 37.541, 127.067),
-            StoreSearchResult("용용선생 강남역점", "서울 강남구 강남대로96길 17", 37.498, 127.027)
-        )
-        // 검색어가 포함된 것만 필터링하는 척 하거나 그냥 리턴
-        return Result.success(mockList)
+        return try {
+            // API 호출 (기본 page=1, size=15 사용)
+            val response = authService.searchPlaces(query = query)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data ?: emptyList()
+
+                // DTO -> Domain Model 변환
+                val mappedList = data.map { dto ->
+                    StoreSearchResult(
+                        placeName = dto.name,
+                        addressName = dto.roadAddress,
+                        latitude = dto.lat,
+                        longitude = dto.lng
+                    )
+                }
+                Result.success(mappedList)
+            } else {
+                // 에러 파싱
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
     }
 
     // 주변 대학 찾기 Mock
     override suspend fun getNearbyUniversity(lat: Double, lng: Double): Result<List<String>> {
-        delay(800)
-        Log.d("AuthRepo", "대학 검색 요청: $lat, $lng")
-        val mockUniverSities = listOf("명지대학교", "연세대학교")
-        // 좌표에 따라 다른 대학 리턴 (Mock)
-        return Result.success(mockUniverSities)
+        return try {
+            // API 호출
+            val response = authService.getNearbyUniversities(lat = lat, lng = lng)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // data가 null이면 빈 리스트 반환
+                val univList = response.body()?.data ?: emptyList()
+                Result.success(univList)
+            } else {
+                // 에러 파싱
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
     }
 
     override suspend fun ownerLogout(): Result<Unit> {

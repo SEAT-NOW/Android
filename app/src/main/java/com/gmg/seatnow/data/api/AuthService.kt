@@ -6,9 +6,12 @@ import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
+import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface AuthService {
     // SMS 인증 코드 발송 API
@@ -40,4 +43,19 @@ interface AuthService {
     suspend fun verifyBusinessNumber(
         @Body request: BusinessVerificationConfirmRequestDTO
     ): Response<BaseResponse<Boolean>>
+
+    // 키워드 장소 검색 (상호명 검색)
+    @GET("/api/v1/places/search")
+    suspend fun searchPlaces(
+        @Query("query") query: String,
+        @Query("page") page: Int = 1,
+        @Query("size") size: Int = 15
+    ): Response<BaseResponse<List<PlaceSearchResponseDTO>>>
+
+    // 좌표 기반 주변 대학 조회
+    @GET("/api/v1/places/universities")
+    suspend fun getNearbyUniversities(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double
+    ): Response<BaseResponse<List<String>>>
 }
