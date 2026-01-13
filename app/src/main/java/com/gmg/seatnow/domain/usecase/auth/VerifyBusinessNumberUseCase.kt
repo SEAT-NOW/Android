@@ -6,5 +6,5 @@ import javax.inject.Inject
 class VerifyBusinessNumberUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend operator fun invoke(number: String) = repository.verifyBusinessNumber(number)
+    suspend operator fun invoke(businessNumber: String) = repository.verifyBusinessNumber(businessNumber)
 }

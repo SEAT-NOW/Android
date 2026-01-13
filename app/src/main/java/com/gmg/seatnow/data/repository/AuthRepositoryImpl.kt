@@ -3,8 +3,11 @@ package com.gmg.seatnow.data.repository
 import android.content.Context
 import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
-import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequest
-import com.gmg.seatnow.data.model.request.SmsVerificationRequest
+import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
+import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
+import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
+import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
@@ -63,20 +66,28 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     // ★ [추가] 인증번호 전송 구현 (Mock)
-    override suspend fun requestEmailAuthCode(target: String): Result<Unit> {
-        delay(1000) // API 호출 흉내
-        Log.d("AuthRepo", "인증번호 요청: $target")
+    override suspend fun requestEmailAuthCode(email: String): Result<Unit> {
+        return try {
+            val request = EmailVerificationRequestDTO(email = email)
+            val response = authService.sendEmailVerification(request)
 
-        return if (target.isNotBlank()) {
-            Result.success(Unit)
-        } else {
-            Result.failure(Exception("잘못된 입력입니다."))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(Unit)
+            } else {
+                val errorMessage = response.body()?.message
+                    ?: response.errorBody()?.string()
+                    ?: "인증번호 발송에 실패했습니다."
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
 
     override suspend fun requestPhoneAuthCode(phoneNumber: String): Result<Unit> {
         return try {
-            val request = SmsVerificationRequest(phoneNumber = phoneNumber)
+            val request = SmsVerificationRequestDTO(phoneNumber = phoneNumber)
             val response = authService.sendSmsVerification(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
@@ -94,9 +105,29 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    // ★ [추가] 인증번호 검증 구현 (Mock)
+    override suspend fun verifyEmailAuthCode(email: String, code: String): Result<Unit> {
+        return try {
+            val request = EmailVerificationConfirmRequestDTO(email, code)
+            val response = authService.verifyEmailCode(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 200 OK
+                Result.success(Unit)
+            } else {
+                // 400 Bad Request 등 에러 처리
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
     override suspend fun verifyPhoneAuthCode(phoneNumber: String, code: String): Result<Unit> {
         return try {
-            val request = SmsVerificationConfirmRequest(phoneNumber, code)
+            val request = SmsVerificationConfirmRequestDTO(phoneNumber, code)
             val response = authService.verifySmsCode(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
@@ -113,24 +144,24 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    // ★ [추가] 인증번호 검증 구현 (Mock)
-    override suspend fun verifyEmailAuthCode(target: String, code: String): Result<Unit> {
-        delay(500) // API 호출 흉내
-        Log.d("AuthRepo", "인증번호 검증 시도: $target / $code")
-
-        return if (code == "000000") {
-            Result.success(Unit)
-        } else {
-            Result.failure(Exception("인증번호가 일치하지 않습니다."))
-        }
-    }
-
     // 사업자 번호 검증 Mock
-    override suspend fun verifyBusinessNumber(number: String): Result<Unit> {
-        delay(500)
-        // 예시: 10자리이고 1로 끝나면 성공이라고 가정
-        return if (number == "0000000000") Result.success(Unit)
-        else Result.failure(Exception("유효하지 않은 사업자 번호입니다."))
+    override suspend fun verifyBusinessNumber(businessNumber: String): Result<Unit> {
+        return try {
+            val request = BusinessVerificationConfirmRequestDTO(businessNumber)
+            val response = authService.verifyBusinessNumber(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 200 OK
+                Result.success(Unit)
+            } else {
+                // 400 Bad Request 등 에러 처리
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
     }
 
     // 상호명 검색 Mock

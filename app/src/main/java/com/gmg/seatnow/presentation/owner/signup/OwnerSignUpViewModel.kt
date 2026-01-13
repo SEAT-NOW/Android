@@ -23,9 +23,9 @@ import javax.inject.Inject
 class OwnerSignUpViewModel @Inject constructor(
     // [Auth UseCases]
     private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase, // 이메일/폰 공용
-    private val requestEmailAuthCodeUseCase: RequestAuthCodeUseCase,
+    private val requestEmailAuthCodeUseCase: RequestEmailAuthCodeUseCase,
     private val verifyPhoneAuthCodeUseCase: VerifyPhoneAuthCodeUseCase,
-    private val verifyAuthCodeUseCase: VerifyAuthCodeUseCase,   // 이메일/폰 공용
+    private val verifyEmailAuthCodeUseCase: VerifyEmailAuthCodeUseCase,   // 이메일/폰 공용
     private val verifyBusinessNumberUseCase: VerifyBusinessNumberUseCase,
 
     // [Store UseCases]
@@ -206,9 +206,16 @@ class OwnerSignUpViewModel @Inject constructor(
             requestEmailAuthCodeUseCase(email)
                 .onSuccess {
                     startEmailTimer()
-                    _uiState.update { it.copy(isEmailCodeSent = true, authCode = "", isEmailVerificationAttempted = false, emaiilVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isEmailCodeSent = true,
+                            authCode = "",
+                            isEmailVerificationAttempted = false,
+                            emailVerifiedError = null) }
                 }
-                .onFailure { exception -> _uiState.update { it.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
         }
     }
 
@@ -219,12 +226,18 @@ class OwnerSignUpViewModel @Inject constructor(
         stopEmailTimer()
         viewModelScope.launch {
             // [UseCase 적용] 인증번호 검증
-            verifyAuthCodeUseCase(email, code)
+            verifyEmailAuthCodeUseCase(email, code)
                 .onSuccess {
-                    _uiState.update { it.copy(isEmailVerified = true, emailTimerText = null) }
+                    _uiState.update {
+                        it.copy(
+                            isEmailVerified = true,
+                            emailTimerText = null,
+                            emailVerifiedError = null) }
                     checkNextButtonEnabled()
                 }
-                .onFailure { exception -> _uiState.update { it.copy(emaiilVerifedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(emailVerifiedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
         }
     }
 
@@ -243,7 +256,7 @@ class OwnerSignUpViewModel @Inject constructor(
                             isPhoneCodeSent = true,
                             phoneAuthCode = "",
                             isPhoneVerificationAttempted = false,
-                            phoneVerifedError = null
+                            phoneVerifiedError = null
                         )
                     }
                 }
@@ -269,14 +282,14 @@ class OwnerSignUpViewModel @Inject constructor(
                         it.copy(
                             isPhoneVerified = true,
                             phoneTimerText = null,
-                            phoneVerifedError = null
+                            phoneVerifiedError = null
                         )
                     }
                     checkNextButtonEnabled()
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        it.copy(phoneVerifedError = exception.message ?: "인증 번호가 일치하지 않습니다.")
+                        it.copy(phoneVerifiedError = exception.message ?: "인증 번호가 일치하지 않습니다.")
                     }
                 }
         }
@@ -391,6 +404,8 @@ class OwnerSignUpViewModel @Inject constructor(
                 .onFailure { exception -> _uiState.update { it.copy(businessNumberError = exception.message ?: "인증 실패") } }
         }
     }
+
+
 
     private fun selectStore(store: StoreSearchResult) {
         _uiState.update {
@@ -713,7 +728,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
+        val currentStep: SignUpStep = SignUpStep.STEP_2_BUSINESS, //THIS
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1
@@ -728,7 +743,7 @@ class OwnerSignUpViewModel @Inject constructor(
         val emailError: String? = null,
         val isEmailCodeSent: Boolean = false,
         val isEmailVerified: Boolean = false,
-        val emaiilVerifedError: String? = null,
+        val emailVerifiedError: String? = null,
         val isEmailVerificationAttempted: Boolean = false,
         val emailTimerText: String? = null,
         val isEmailTimerExpired: Boolean = false,
@@ -743,7 +758,7 @@ class OwnerSignUpViewModel @Inject constructor(
         val isPhoneCodeSent: Boolean = false,
         val isPhoneVerified: Boolean = false,
         val isPhoneVerificationAttempted: Boolean = false,
-        val phoneVerifedError: String? = null,
+        val phoneVerifiedError: String? = null,
         val phoneTimerText: String? = null,
         val isPhoneTimerExpired: Boolean = false,
         val phoneAuthCode: String = "",
