@@ -3,6 +3,15 @@ package com.gmg.seatnow.presentation.owner.signup
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.data.model.request.AccountDTO
+import com.gmg.seatnow.data.model.request.BusinessDTO
+import com.gmg.seatnow.data.model.request.LayoutDTO
+import com.gmg.seatnow.data.model.request.OperatingHoursDTO
+import com.gmg.seatnow.data.model.request.OperationDTO
+import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
+import com.gmg.seatnow.data.model.request.RegularHolidayDTO
+import com.gmg.seatnow.data.model.request.TableInfoDTO
+import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
 import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
@@ -38,7 +47,8 @@ class OwnerSignUpViewModel @Inject constructor(
     private val formatTimerUseCase: FormatTimerUseCase,
     private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
 
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val signUpOwnerUseCase: SignUpOwnerUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OwnerSignUpUiState(
@@ -692,8 +702,167 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { it.copy(isNextButtonEnabled = isValid) }
     }
 
+    private fun executeSignUp() {
+        viewModelScope.launch {
+            val state = _uiState.value
+
+            // 1. UI State -> Request DTO 매핑
+            val requestDto = mapStateToDto(state)
+
+            // 2. 사업자 등록증 준비
+            val licenseUri = if(state.licenseImageUrl != null) Uri.parse(state.licenseImageUrl) else null
+
+            // 3. [수정] 가게 사진 리스트 재정렬 (대표 사진을 무조건 0번으로!)
+            val rawList = state.storePhotoList
+            val repUri = state.representativePhotoUri
+
+            val sortedStoreImages = if (repUri != null && rawList.contains(repUri)) {
+                // 대표 사진이 있으면: [대표 사진] + [나머지 사진들] 순서로 재조립
+                val otherImages = rawList.filter { it != repUri }
+                listOf(repUri) + otherImages
+            } else {
+                // 대표 사진이 없으면: 그냥 원래 순서대로
+                rawList
+            }
+
+            // 4. API 호출 (재정렬된 sortedStoreImages 전송)
+            signUpOwnerUseCase(requestDto, licenseUri, sortedStoreImages)
+                .onSuccess {
+                    _uiState.update { it.copy(currentStep = SignUpStep.STEP_6_COMPLETE) }
+                }
+                .onFailure { e ->
+                    _event.emit(SignUpEvent.ShowToast("회원가입 실패: ${e.message}"))
+                }
+        }
+    }
+
+    // [Helper] 매핑 함수
+    private fun mapStateToDto(state: OwnerSignUpUiState): OwnerSignUpRequestDTO {
+        // Account 매핑 (동일)
+        val account = AccountDTO(
+            email = state.email,
+            password = state.password,
+            phoneNumber = state.phone
+        )
+
+        // Business 매핑
+        val univList = if (state.nearbyUniv.contains("/")) {
+            state.nearbyUniv.split("/").map { it.trim() }
+        } else {
+            if (state.nearbyUniv.isNotBlank()) listOf(state.nearbyUniv) else emptyList()
+        }
+
+        val business = BusinessDTO(
+            representativeName = state.repName,
+            businessNumber = state.businessNumber,
+            storeName = state.storeName,
+            address = state.mainAddress,
+            neighborhood = extractNeighborhood(state.mainAddress) ?: "정보 없음",
+            latitude = state.storeSearchResults.find { it.placeName == state.storeName }?.latitude ?: 0.0,
+            longitude = state.storeSearchResults.find { it.placeName == state.storeName }?.longitude ?: 0.0,
+            universityNames = univList,
+            storePhone = state.storeContact
+        )
+
+        // Layout 매핑 (동일)
+        val layout = state.spaceList.map { space ->
+            LayoutDTO(
+                name = space.name.ifBlank { "기본 홀" },
+                tables = space.tableList.map { table ->
+                    TableInfoDTO(
+                        tableType = table.personCount.toIntOrNull() ?: 0,
+                        tableCount = table.tableCount.toIntOrNull() ?: 0
+                    )
+                }
+            )
+        }
+
+        // ★ [핵심 수정] Operation (정기 휴무일) 매핑 로직
+        // regularHolidayType -> 0: 매주(Weekly), 1: 매월 특정 주(Monthly)
+        val regularHolidays = if (state.regularHolidayType == 0) {
+            // [Case 0] 매주 선택 시 -> weekInfo를 무조건 0으로 설정
+            state.weeklyHolidayDays.map { dayIdx ->
+                RegularHolidayDTO(
+                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
+                    weekInfo = 0 // 0 = Every Week
+                )
+            }
+        } else {
+            // [Case 1] 특정 주 선택 시 -> 선택된 주차(weeks)와 요일(days)의 조합(Cartesian Product)
+            // 예: weeks=[2, 10], days=[MON] -> (MON, 2), (MON, 10)
+            state.monthlyHolidayWeeks.flatMap { week ->
+                state.monthlyHolidayDays.map { day ->
+                    RegularHolidayDTO(
+                        dayOfWeek = mapIndexToDayOfWeek(day),
+                        weekInfo = week // 1~5 or 10(Last Week)
+                    )
+                }
+            }
+        }
+
+        // 임시 휴무일 매핑 (동일)
+        val tempHolidays = if (state.isTempHolidayEnabled && state.tempHolidayStart.isNotBlank()) {
+            listOf(
+                TemporaryHolidayDTO(
+                    startDate = state.tempHolidayStart.replace("/", "-"), // ★ 여기서 replace 추가!
+                    endDate = state.tempHolidayEnd.replace("/", "-")      // ★ 여기도 추가!
+                )
+            )
+        } else {
+            emptyList()
+        }
+
+        // 운영 시간 매핑 (동일)
+        val hours = state.operatingSchedules.flatMap { schedule ->
+            schedule.selectedDays.map { dayIdx ->
+                OperatingHoursDTO(
+                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
+                    startTime = "${schedule.startHour.toString().padStart(2,'0')}:${schedule.startMin.toString().padStart(2,'0')}",
+                    endTime = "${schedule.endHour.toString().padStart(2,'0')}:${schedule.endMin.toString().padStart(2,'0')}"
+                )
+            }
+        }
+
+        return OwnerSignUpRequestDTO(
+            account = account,
+            business = business,
+            layout = layout,
+            operation = OperationDTO(
+                regularHolidays = regularHolidays, // 수정된 리스트 전달
+                temporaryHolidays = tempHolidays,
+                hours = hours
+            )
+        )
+    }
+
+    // [Review] 주소에서 '동' 추출하는 간단한 헬퍼 함수 (선택 사항)
+    private fun extractNeighborhood(address: String): String? {
+        // "서울 강남구 역삼동 123-4" -> "역삼동" 추출 시도
+        val split = address.split(" ")
+        return split.find { it.endsWith("동") || it.endsWith("읍") || it.endsWith("면") }
+    }
+
+    private fun mapIndexToDayOfWeek(index: Int): String {
+        return when (index) {
+            0 -> "SUNDAY"
+            1 -> "MONDAY"
+            2 -> "TUESDAY"
+            3 -> "WEDNESDAY"
+            4 -> "THURSDAY"
+            5 -> "FRIDAY"
+            6 -> "SATURDAY"
+            else -> "MONDAY"
+        }
+    }
+
     private fun handleNextStep() {
         val currentStep = _uiState.value.currentStep
+
+        if (currentStep == SignUpStep.STEP_5_PHOTO) {
+            executeSignUp()
+            return
+        }
+
         val nextOrdinal = currentStep.ordinal + 1
         if (nextOrdinal < SignUpStep.entries.size) {
             _uiState.update { it.copy(currentStep = SignUpStep.entries[nextOrdinal]) }
@@ -728,7 +897,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_2_BUSINESS, //THIS
+        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC, //THIS
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1

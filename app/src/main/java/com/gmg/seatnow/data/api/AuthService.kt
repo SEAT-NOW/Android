@@ -6,11 +6,16 @@ import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
+import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Query
 
 interface AuthService {
@@ -58,4 +63,13 @@ interface AuthService {
         @Query("lat") lat: Double,
         @Query("lng") lng: Double
     ): Response<BaseResponse<List<String>>>
+
+    // 회원가입 완료
+    @Multipart
+    @POST("/api/v1/stores/owner/signup") // ★ 실제 엔드포인트 확인 필요
+    suspend fun signUpOwner(
+        @Part("signupData") request: RequestBody, // JSON 데이터
+        @Part licenseImage: MultipartBody.Part?, // 사업자 등록증
+        @Part storeImages: List<MultipartBody.Part> // 가게 사진들
+    ): Response<BaseResponse<OwnerSignUpResponse>>// 성공 여부 반환
 }

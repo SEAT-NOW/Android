@@ -1,11 +1,13 @@
 package com.gmg.seatnow.data.repository
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
@@ -15,6 +17,12 @@ import com.google.gson.Gson
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -214,6 +222,60 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    override suspend fun signUpOwner(
+        requestDto: OwnerSignUpRequestDTO,
+        licenseUri: Uri?,
+        storeImageUris: List<Uri>
+    ): Result<Unit> {
+        return try {
+            val jsonString = Gson().toJson(requestDto)
+            val requestBody = jsonString.toRequestBody("application/json".toMediaTypeOrNull())
+
+            val licensePart = licenseUri?.let { uri ->
+                if (uri.toString().startsWith("http")) null
+                else prepareFilePart("licenseImage", uri)
+            }
+            val imageParts = storeImageUris.mapNotNull { uri ->
+                if (uri.toString().startsWith("http")) null
+                else prepareFilePart("storeImages", uri)
+            }
+
+            val response = authService.signUpOwner(requestBody, licensePart, imageParts)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // 리턴 타입을 MultipartBody.Part? (Nullable)로 변경
+    private fun prepareFilePart(partName: String, fileUri: Uri): MultipartBody.Part? {
+        return try {
+            val file = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
+
+            val inputStream = context.contentResolver.openInputStream(fileUri)
+                ?: return null // 스트림을 못 열면 null 반환
+
+            inputStream.use { input ->
+                FileOutputStream(file).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+            MultipartBody.Part.createFormData(partName, file.name, requestFile)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null // 에러 발생 시 null 반환 (앱 크래시 방지)
         }
     }
 
