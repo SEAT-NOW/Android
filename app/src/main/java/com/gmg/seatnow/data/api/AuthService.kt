@@ -3,9 +3,11 @@ package com.gmg.seatnow.data.api
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
+import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import okhttp3.MultipartBody
@@ -72,4 +74,10 @@ interface AuthService {
         @Part licenseImage: MultipartBody.Part?, // 사업자 등록증
         @Part storeImages: List<MultipartBody.Part> // 가게 사진들
     ): Response<BaseResponse<OwnerSignUpResponse>>// 성공 여부 반환
+
+    // 사장님 로그인
+    @POST("/auth/login/owner")
+    suspend fun loginOwner(
+        @Body request: OwnerLoginRequestDTO
+    ): Response<BaseResponse<OwnerLoginResponseDTO>>
 }

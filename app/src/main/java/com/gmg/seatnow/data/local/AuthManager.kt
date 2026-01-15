@@ -2,12 +2,17 @@ package com.gmg.seatnow.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * 토큰 저장 및 로그인 상태를 관리하는 Mocking Class
  * 실제 앱에서는 EncryptedSharedPreferences나 DataStore를 사용해야 합니다.
  */
-class MockAuthManager(context: Context) {
+@Singleton
+class AuthManager @Inject constructor(
+    @ApplicationContext private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("mock_auth_prefs", Context.MODE_PRIVATE)
 
     companion object {
@@ -28,7 +33,12 @@ class MockAuthManager(context: Context) {
     fun hasToken(): Boolean {
         return !prefs.getString(KEY_ACCESS_TOKEN, null).isNullOrEmpty()
     }
-    
+
+    // API 호출 시 토큰 가져오기
+    fun getToken(): String? {
+        return prefs.getString(KEY_ACCESS_TOKEN, null)
+    }
+
     // 테스트용 가짜 토큰 발급
     fun generateMockToken(): String = "mock_token_${System.currentTimeMillis()}"
 }

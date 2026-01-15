@@ -6,7 +6,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.gmg.seatnow.data.local.MockAuthManager
+import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun SeatNowNavGraph(
-    mockAuthManager: MockAuthManager,
+    authManager: AuthManager,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -70,8 +70,8 @@ fun SeatNowNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToOwnerMain = {
                     // 로그인 성공: 토큰 저장 -> 메인 이동
-                    val fakeToken = mockAuthManager.generateMockToken()
-                    mockAuthManager.saveToken(fakeToken)
+                    val fakeToken = authManager.generateMockToken()
+                    authManager.saveToken(fakeToken)
 
                     navController.navigate("store_main") {
                         popUpTo("login") { inclusive = true }
@@ -98,7 +98,7 @@ fun SeatNowNavGraph(
             StoreMainRoute(
                 onNavigateToLogin = {
                     // 로그아웃 시 토큰 삭제 및 이동
-                    mockAuthManager.clearToken()
+                    authManager.clearToken()
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }
@@ -116,7 +116,7 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     if (event is MyPageViewModel.MyPageEvent.NavigateToLogin) {
-                        mockAuthManager.clearToken()
+                        authManager.clearToken()
                         navController.navigate("login") {
                             popUpTo("store_main") { inclusive = true }
                         }
@@ -135,7 +135,7 @@ fun SeatNowNavGraph(
             OwnerWithdrawScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToLogin = {
-                    mockAuthManager.clearToken()
+                    authManager.clearToken()
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }

@@ -12,7 +12,6 @@ import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.RegularHolidayDTO
 import com.gmg.seatnow.data.model.request.TableInfoDTO
 import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
-import com.gmg.seatnow.data.repository.ImageRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.SpaceItem
@@ -47,7 +46,6 @@ class OwnerSignUpViewModel @Inject constructor(
     private val formatTimerUseCase: FormatTimerUseCase,
     private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
 
-    private val imageRepository: ImageRepository,
     private val signUpOwnerUseCase: SignUpOwnerUseCase
 ) : ViewModel() {
 
@@ -443,17 +441,14 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun uploadLicenseImage(uri: Uri, fileName: String) {
-        _uiState.update { it.copy(licenseFileName = fileName) }
-        viewModelScope.launch {
-            imageRepository.uploadImage(uri)
-                .onSuccess { imageUrl ->
-                    _uiState.update { it.copy(licenseImageUrl = imageUrl, licenseFileName = fileName) }
-                    checkNextButtonEnabled()
-                }
-                .onFailure {
-                    _uiState.update { it.copy(licenseFileName = "업로드 실패: 다시 선택해주세요") }
-                }
+        // 로딩이나 리포지토리 호출 로직 제거 -> 즉시 상태 업데이트
+        _uiState.update {
+            it.copy(
+                licenseImageUrl = uri.toString(), // 미리보기용 Uri 저장
+                licenseFileName = fileName
+            )
         }
+        checkNextButtonEnabled()
     }
 
     // --- Step 3 Implementation ---

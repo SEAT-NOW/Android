@@ -4,9 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
@@ -29,6 +31,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class AuthRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val authManager: AuthManager,
     private val authService: AuthService
 ) : AuthRepository {
 
@@ -56,20 +59,36 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun loginOwner(email: String, password: String): Result<Unit> {
-        // API 호출 흉내 (1초 지연)
-        delay(1000)
+        return try {
+            // 1. 요청 객체 생성
+            val request = OwnerLoginRequestDTO(email, password)
 
-        Log.d("AuthRepo", "입력된 이메일: [$email], 비밀번호: [$password]")
-        // Mocking 로직: 여기에 정의
-        val safeEmail = email.trim()
-        val safePassword = password.trim()
+            // 2. API 호출
+            val response = authService.loginOwner(request)
 
-        return if (safeEmail == "test@gmail.com" && safePassword == "asdf!1234") {
-            Log.d("AuthRepo", "로그인 성공!")
-            Result.success(Unit)
-        } else {
-            Log.e("AuthRepo", "로그인 실패 - 불일치")
-            Result.failure(Exception("아이디 또는 비밀번호를 확인해주세요."))
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 3. 토큰 저장 (핵심!)
+                val tokenData = response.body()?.data
+                tokenData?.let {
+                    // "Bearer " 접두사가 없다면 붙여서 저장하는 것이 일반적입니다.
+                    // 서버가 이미 붙여준다면 그대로 저장하세요.
+                    val accessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
+
+                    authManager.saveToken(accessToken)
+                    // Refresh Token 저장 로직도 MockAuthManager에 있다면 여기서 수행
+                }
+
+                Log.d("AuthRepo", "로그인 성공: 토큰 저장 완료")
+                Result.success(Unit)
+            } else {
+                // 4. 실패 처리
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Log.e("AuthRepo", "로그인 실패: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
         }
     }
 

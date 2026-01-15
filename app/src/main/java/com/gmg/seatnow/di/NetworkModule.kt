@@ -40,11 +40,4 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-
-    // ★ 이 코드가 있어야 Repository에서 AuthService를 쓸 수 있습니다.
-    @Provides
-    @Singleton
-    fun provideAuthService(retrofit: Retrofit): AuthService {
-        return retrofit.create(AuthService::class.java)
-    }
 }
