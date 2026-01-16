@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.domain.model.TableItem
+import com.gmg.seatnow.domain.usecase.store.GetSeatStatusUseCase
 import com.gmg.seatnow.domain.usecase.store.UpdateSeatUsageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -17,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SeatManagementViewModel @Inject constructor(
-    private val updateSeatUsageUseCase: UpdateSeatUsageUseCase
+    private val updateSeatUsageUseCase: UpdateSeatUsageUseCase,
+    private val getSeatStatusUseCase: GetSeatStatusUseCase
 ) : ViewModel() {
     enum class SeatDisplayMode {
         EMPTY,      // 빈 좌석 보기
@@ -33,7 +35,8 @@ class SeatManagementViewModel @Inject constructor(
         val currentUsedSeats: Int = 0,
         val displayMode: SeatDisplayMode = SeatDisplayMode.EMPTY,
         val isSaving: Boolean = false,
-        val isEditMode: Boolean = false
+        val isEditMode: Boolean = false,
+        val isLoading: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(SeatManagementUiState())
@@ -47,7 +50,7 @@ class SeatManagementViewModel @Inject constructor(
     private var _allRawTables: List<TableItem> = emptyList()
 
     init {
-        loadMockData()
+        loadSeatStatus()
     }
 
     fun onAction(action: SeatManagementAction) {
@@ -97,66 +100,54 @@ class SeatManagementViewModel @Inject constructor(
         }
     }
 
-    private fun loadMockData() {
-        // ★ [요청사항 반영] 초기값(currentCount)은 모두 0으로 설정
-        val floor1Tables = listOf(
-            TableItem("1F_4", "4인 테이블", 4, 2, 0),
-            TableItem("1F_2", "2인 테이블", 2, 4, 0)
-        )
-        val floor2Tables = listOf(
-            TableItem("2F_4", "4인 테이블", 4, 4, 0),
-            TableItem("2F_2", "2인 테이블", 2, 2, 0)
-        )
+    private fun loadSeatStatus() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) } // 로딩 표시용 플래그가 있다면 추가
 
-        _allRawTables = floor1Tables + floor2Tables
+            getSeatStatusUseCase()
+                .onSuccess { data ->
+                    // 1. 카테고리(층) 설정
+                    // 2. 전체 테이블 데이터 저장
+                    _allRawTables = data.allTables
 
-        val categories = listOf(
-            FloorCategory("ALL", "전체"),
-            FloorCategory("1F", "1층"),
-            FloorCategory("2F", "2층")
-        )
-
-        _uiState.update {
-            it.copy(
-                categories = categories,
-                selectedCategoryId = "ALL"
-            )
+                    _uiState.update {
+                        it.copy(
+                            categories = data.categories,
+                            selectedCategoryId = "ALL", // 기본 전체 선택
+                            isLoading = false
+                        )
+                    }
+                    // 3. 화면 갱신
+                    updateDisplayItems()
+                }
+                .onFailure { e ->
+                    // 에러 처리 (토스트 등)
+                    _uiState.update { it.copy(isLoading = false) }
+                    // _event.emit(ShowToast(e.message))
+                }
         }
-        updateDisplayItems() // 초기 데이터 로드 후 화면 갱신
     }
 
     // ★ [핵심 로직] 현재 선택된 카테고리에 맞춰 데이터를 가공하는 함수
     private fun updateDisplayItems() {
-        val currentCategory = _uiState.value.selectedCategoryId
+        val state = _uiState.value
 
-        val itemsToShow = if (currentCategory == "ALL") {
-            // [1] '전체' 탭일 경우: 같은 라벨(이름)을 가진 테이블끼리 합칩니다 (Aggregate).
+        // 필터링: floorId를 기준으로 필터링해야 함
+        val filteredItems = if (state.selectedCategoryId == "ALL") {
             _allRawTables
-                .groupBy { it.label } // 이름으로 그룹핑
-                .map { (label, tables) ->
-                    TableItem(
-                        id = "MERGED_$label", // 합쳐진 항목임을 식별하기 위한 ID
-                        label = label,
-                        capacityPerTable = tables.first().capacityPerTable,
-                        maxTableCount = tables.sumOf { it.maxTableCount }, // 총 보유량 합산
-                        currentCount = tables.sumOf { it.currentCount }    // 현재 사용량 합산
-                    )
-                }
-                .sortedByDescending { it.capacityPerTable } // 인원수 많은 순 정렬 (4인 -> 2인)
         } else {
-            // [2] 층별 탭일 경우: ID 접두사(1F_, 2F_)를 보고 필터링
-            _allRawTables.filter { it.id.startsWith("${currentCategory}_") }
+            _allRawTables.filter { it.floorId == state.selectedCategoryId } // ★ floorId 필드 사용
         }
 
-        // 전체 통계 계산 (원본 데이터 기준)
-        val totalCapacity = _allRawTables.sumOf { it.maxTableCount * it.capacityPerTable }
-        val currentUsed = _allRawTables.sumOf { it.currentCount * it.capacityPerTable }
+        // 통계 계산
+        val totalCapacity = filteredItems.sumOf { it.capacityPerTable * it.maxTableCount }
+        val usedSeats = filteredItems.sumOf { it.capacityPerTable * it.currentCount }
 
         _uiState.update {
             it.copy(
-                displayItems = itemsToShow,
+                displayItems = filteredItems,
                 totalSeatCapacity = totalCapacity,
-                currentUsedSeats = currentUsed
+                currentUsedSeats = usedSeats
             )
         }
     }

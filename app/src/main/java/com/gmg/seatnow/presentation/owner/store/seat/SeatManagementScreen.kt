@@ -165,8 +165,22 @@ fun SeatManagementContent(
 fun SeatManagementScreenPreview() {
     // 더미 데이터 생성
     val mockItems = listOf(
-        TableItem("1", "4인 테이블", 4, 5, 2), // 5개 중 2개 사용
-        TableItem("2", "2인 테이블", 2, 3, 1)  // 3개 중 1개 사용
+        TableItem(
+            id = "1",
+            floorId = "1F", // ★ [수정] floorId 추가
+            label = "4인 테이블",
+            capacityPerTable = 4,
+            maxTableCount = 5,
+            currentCount = 2
+        ),
+        TableItem(
+            id = "2",
+            floorId = "2F", // ★ [수정] floorId 추가
+            label = "2인 테이블",
+            capacityPerTable = 2,
+            maxTableCount = 3,
+            currentCount = 1
+        )
     )
     val mockCategories = listOf(
         FloorCategory("ALL", "전체"),

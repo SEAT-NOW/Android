@@ -71,8 +71,9 @@ class AuthRepositoryImpl @Inject constructor(
                     val accessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
                     // Refresh Token은 보통 Bearer 안 붙지만, 서버 스펙에 따라 다름. 일단 그대로 저장.
                     val refreshToken = it.refreshToken
+                    val storeId = it.storeId
 
-                    authManager.saveTokens(accessToken, refreshToken) // ★ 둘 다 저장
+                    authManager.saveLoginData(accessToken, refreshToken, storeId) // ★ 둘 다 저장
                 }
                 Result.success(Unit)
             } else {
@@ -324,10 +325,27 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun ownerLogout(): Result<Unit> {
-        delay(500)
-        authManager.clearTokens()
-        Log.d("AuthRepo", "로그아웃 성공")
-        return Result.success(Unit)
+        return try {
+            // 1. 서버에 로그아웃 요청 (Refresh Token 삭제 요청)
+            val response = authService.logout()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Log.d("AuthRepo", "서버 로그아웃 성공")
+                Result.success(Unit)
+            } else {
+                // 실패했더라도 로컬 로그아웃은 진행해야 함
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Log.e("AuthRepo", "서버 로그아웃 실패 (하지만 로컬 데이터는 삭제함): $errorMsg")
+                Result.success(Unit) // 로컬 처리는 되었으므로 Success 처리 (선택 사항)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // 네트워크 에러가 나도 앱 내에서는 로그아웃 처리
+            Result.success(Unit)
+        } finally {
+            // ★ [핵심] 성공이든 실패든 앱 내부 저장소의 토큰은 무조건 삭제
+            authManager.clearTokens()
+        }
     }
 
     override suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> {

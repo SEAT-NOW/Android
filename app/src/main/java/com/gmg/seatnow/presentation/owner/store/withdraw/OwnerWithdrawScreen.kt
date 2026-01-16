@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,6 +75,7 @@ fun OwnerWithdrawContent(
         bottomBar = {
             WithdrawBottomBar(
                 isEnabled = uiState.isButtonEnabled,
+                errorMessage = uiState.errorMessage,
                 onClick = { onAction(WithdrawAction.OnWithdrawClick) }
             )
         }
@@ -218,13 +220,32 @@ fun OwnerWithdrawContent(
 }
 
 @Composable
-fun WithdrawBottomBar(isEnabled: Boolean, onClick: () -> Unit) {
-    Box(
+fun WithdrawBottomBar(
+    isEnabled: Boolean,
+    errorMessage: String?,
+    onClick: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp)
-            .imePadding()
+            .imePadding() // 키보드 패딩 적용
     ) {
+        // [에러 메시지 영역]
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.labelSmall.copy(color = Color.Red, fontWeight = FontWeight.Bold),
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally) // 가운데 정렬 (선택사항)
+                    .padding(bottom = 6.dp)
+            )
+        } else {
+            // 에러 없을 때 높이 맞춤용 Spacer (36dp는 에러 메시지가 차지할 대략적인 공간)
+            // 에러 메시지 폰트 사이즈 + 패딩 등을 고려하여 높이 설정
+            Spacer(modifier = Modifier.height(24.dp)) // 요청하신 예시는 36dp였으나, 24dp 정도가 적당해 보여 조정 가능
+        }
+
+        // [버튼]
         Button(
             onClick = onClick,
             enabled = isEnabled,

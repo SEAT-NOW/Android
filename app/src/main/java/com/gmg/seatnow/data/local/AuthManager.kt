@@ -15,9 +15,18 @@ class AuthManager @Inject constructor(
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token" // [신규] Refresh Token 키
+        private const val KEY_STORE_ID = "store_id" // API조회를 위한 store Id
     }
 
     // 토큰 저장 (로그인 성공 시 둘 다 저장)
+    fun saveLoginData(accessToken: String, refreshToken: String, storeId: Long) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .putLong(KEY_STORE_ID, storeId)
+            .apply()
+    }
+
     fun saveTokens(accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
@@ -34,6 +43,7 @@ class AuthManager @Inject constructor(
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
+            .remove(KEY_STORE_ID) // ★ 삭제
             .apply()
     }
 
@@ -45,6 +55,11 @@ class AuthManager @Inject constructor(
     // Refresh Token 가져오기
     fun getRefreshToken(): String? {
         return prefs.getString(KEY_REFRESH_TOKEN, null)
+    }
+
+    // Store Id 가져오기
+    fun getStoreId(): Long {
+        return prefs.getLong(KEY_STORE_ID, -1L)
     }
 
     // 토큰이 둘 다 있어야 로그인된 것으로 간주

@@ -11,6 +11,7 @@ import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
+import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -21,6 +22,7 @@ import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface AuthService {
@@ -95,4 +97,14 @@ interface AuthService {
     suspend fun withdrawOwner(
         @Body request: OwnerWithdrawRequestDTO
     ): Response<BaseResponse<Unit>>
+
+    // 사장님 로그아웃
+    @POST("/auth/logout")
+    suspend fun logout(): Response<BaseResponse<Unit>> // data가 {} 빈 객체이므로 Unit 또는 Any 처리
+
+    // 사장님 좌석조회
+    @GET("/api/v1/stores/{storeId}/seats")
+    suspend fun getSeatStatus(
+        @Path("storeId") storeId: Long
+    ): Response<BaseResponse<SeatStatusResponseDTO>> // 방금 만든 DTO 사용
 }

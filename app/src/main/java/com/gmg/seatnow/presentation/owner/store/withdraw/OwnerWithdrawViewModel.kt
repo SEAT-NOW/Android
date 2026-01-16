@@ -18,7 +18,8 @@ class OwnerWithdrawViewModel @Inject constructor(
         val isConfirmed: Boolean = false,
         val businessNumber: String = "", // [신규] 사업자 번호
         val password: String = "",       // [신규] 비밀번호
-        val isLoading: Boolean = false
+        val isLoading: Boolean = false,
+        val errorMessage: String? = null
     ) {
         // [신규] 버튼 활성화 조건: 동의함 && 사업자번호 있음 && 비밀번호 있음 && 로딩 아님
         val isButtonEnabled: Boolean
@@ -46,10 +47,10 @@ class OwnerWithdrawViewModel @Inject constructor(
             is WithdrawAction.OnBusinessNumberChange -> {
                 // 숫자만 입력받도록 필터링 (선택 사항)
                 val filtered = action.number.filter { it.isDigit() }
-                _uiState.update { it.copy(businessNumber = filtered) }
+                _uiState.update { it.copy(businessNumber = filtered, errorMessage = null) }
             }
             is WithdrawAction.OnPasswordChange -> {
-                _uiState.update { it.copy(password = action.password) }
+                _uiState.update { it.copy(password = action.password, errorMessage = null) }
             }
             is WithdrawAction.OnWithdrawClick -> withdraw()
             is WithdrawAction.OnBackClick -> {
@@ -75,9 +76,10 @@ class OwnerWithdrawViewModel @Inject constructor(
                     _event.emit(WithdrawEvent.NavigateToLogin)
                 }
                 .onFailure { error ->
-                    // 실패 시 에러 처리 (예: 토스트 메시지)
-                    // 필요하다면 UiState에 errorMessage 필드를 추가해서 UI에 띄울 수 있음
-                    // 예: _event.emit(WithdrawEvent.ShowToast(error.message ?: "탈퇴 실패"))
+                    // ★ [추가] 실패 시 에러 메시지 설정
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: "회원탈퇴에 실패했습니다.")
+                    }
                 }
 
             // 로딩 종료
