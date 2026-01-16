@@ -5,6 +5,7 @@ import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
+import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
@@ -20,6 +21,7 @@ import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
@@ -107,4 +109,10 @@ interface AuthService {
     suspend fun getSeatStatus(
         @Path("storeId") storeId: Long
     ): Response<BaseResponse<SeatStatusResponseDTO>> // 방금 만든 DTO 사용
+
+    // 사장님 좌석 실시간 업데이트
+    @PATCH("/api/v1/stores/seats")
+    suspend fun updateSeatStatus(
+        @Body request: SeatUpdateRequestDTO
+    ): Response<BaseResponse<SeatStatusResponseDTO>>
 }

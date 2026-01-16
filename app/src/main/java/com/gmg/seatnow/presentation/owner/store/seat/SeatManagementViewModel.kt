@@ -74,28 +74,45 @@ class SeatManagementViewModel @Inject constructor(
     }
 
     private fun saveSeatData() {
-        // 1. 로딩 시작
         _uiState.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            // 2. UseCase 호출 (현재 원본 데이터인 _allRawTables를 서버로 전송)
-            // 참고: displayItems는 필터링된 리스트일 수 있으므로 전체 데이터를 보내는 것이 안전합니다.
-            // API 스펙에 따라 _allRawTables 혹은 현재 수정된 항목들만 보낼 수도 있습니다.
-            val result = updateSeatUsageUseCase(_allRawTables)
+            val currentCategory = _uiState.value.selectedCategoryId
+            val results = mutableListOf<Result<Unit>>()
 
-            // 3. 결과 처리
-            result.onSuccess {
-                // 저장 성공: 로딩 해제, 수정 모드 종료, 성공 메시지
-                _uiState.update { state ->
-                    state.copy(isSaving = false, isEditMode = false)
+            if (currentCategory == "ALL") {
+                // [CASE 1] 전체 탭인 경우 -> 존재하는 모든 층을 찾아서 '따로따로' 보냄
+                // 1. 존재하는 층 ID 목록 추출 (distinct)
+                val allFloorIds = _allRawTables.map { it.floorId }.distinct()
+
+                // 2. 각 층별로 필터링하여 API 호출 (병렬 처리 가능하지만 안전하게 순차 처리도 OK)
+                allFloorIds.forEach { floorId ->
+                    val floorItems = _allRawTables.filter { it.floorId == floorId }
+                    // 층별 API 호출
+                    val result = updateSeatUsageUseCase(floorItems)
+                    results.add(result)
                 }
+
+            } else {
+                // [CASE 2] 특정 층(예: 1F) 탭인 경우 -> 해당 층 데이터만 보냄
+                val floorItems = _allRawTables.filter { it.floorId == currentCategory }
+                val result = updateSeatUsageUseCase(floorItems)
+                results.add(result)
+            }
+
+            // 결과 처리 (하나라도 실패하면 실패로 간주)
+            val isAllSuccess = results.all { it.isSuccess }
+
+            _uiState.update { it.copy(isSaving = false) }
+
+            if (isAllSuccess) {
+                _uiState.update { it.copy(isEditMode = false) } // 수정 모드 종료
                 _event.emit(SeatManagementEvent.ShowToast("저장되었습니다."))
-            }.onFailure { exception ->
-                // 저장 실패: 로딩만 해제하고 에러 메시지 (수정 모드 유지)
-                _uiState.update { state ->
-                    state.copy(isSaving = false)
-                }
-                _event.emit(SeatManagementEvent.ShowToast("저장에 실패했습니다. 다시 시도해주세요."))
+                // 필요하다면 최신 데이터 다시 조회
+                loadSeatStatus()
+            } else {
+                // 실패한 건에 대한 처리가 필요하면 여기서
+                _event.emit(SeatManagementEvent.ShowToast("일부 데이터 저장에 실패했습니다."))
             }
         }
     }
