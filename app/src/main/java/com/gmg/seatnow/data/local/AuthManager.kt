@@ -6,39 +6,49 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 토큰 저장 및 로그인 상태를 관리하는 Mocking Class
- * 실제 앱에서는 EncryptedSharedPreferences나 DataStore를 사용해야 합니다.
- */
 @Singleton
 class AuthManager @Inject constructor(
-    @ApplicationContext private val context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("mock_auth_prefs", Context.MODE_PRIVATE)
+    @ApplicationContext private val context: Context
+) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_ACCESS_TOKEN = "access_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token" // [신규] Refresh Token 키
     }
 
-    // 토큰 저장 (로그인 성공 시 호출)
-    fun saveToken(token: String) {
-        prefs.edit().putString(KEY_ACCESS_TOKEN, token).apply()
+    // 토큰 저장 (로그인 성공 시 둘 다 저장)
+    fun saveTokens(accessToken: String, refreshToken: String) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .apply()
     }
 
-    // 토큰 삭제 (로그아웃/탈퇴 시 호출)
-    fun clearToken() {
-        prefs.edit().remove(KEY_ACCESS_TOKEN).apply()
+    // Access Token만 갱신 (재발급 시)
+    fun saveAccessToken(accessToken: String) {
+        prefs.edit().putString(KEY_ACCESS_TOKEN, accessToken).apply()
     }
 
-    // 토큰 존재 여부 확인 (자동 로그인 판단용)
-    fun hasToken(): Boolean {
-        return !prefs.getString(KEY_ACCESS_TOKEN, null).isNullOrEmpty()
+    fun clearTokens() {
+        prefs.edit()
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
+            .apply()
     }
 
-    // API 호출 시 토큰 가져오기
-    fun getToken(): String? {
+    // Access Token 가져오기
+    fun getAccessToken(): String? {
         return prefs.getString(KEY_ACCESS_TOKEN, null)
     }
 
-    // 테스트용 가짜 토큰 발급
-    fun generateMockToken(): String = "mock_token_${System.currentTimeMillis()}"
+    // Refresh Token 가져오기
+    fun getRefreshToken(): String? {
+        return prefs.getString(KEY_REFRESH_TOKEN, null)
+    }
+
+    // 토큰이 둘 다 있어야 로그인된 것으로 간주
+    fun hasToken(): Boolean {
+        return !getAccessToken().isNullOrEmpty() && !getRefreshToken().isNullOrEmpty()
+    }
 }

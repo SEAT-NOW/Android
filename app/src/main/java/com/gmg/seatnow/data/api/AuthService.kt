@@ -4,6 +4,7 @@ import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
+import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
@@ -15,6 +16,8 @@ import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.HTTP
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
@@ -80,4 +83,16 @@ interface AuthService {
     suspend fun loginOwner(
         @Body request: OwnerLoginRequestDTO
     ): Response<BaseResponse<OwnerLoginResponseDTO>>
+
+    // 토큰 재발급
+    @POST("/api/v1/auth/reissue") // v1 경로 확인 필요 (스웨거에는 /auth/reissue로 되어있는데 보통 /api/v1 붙음)
+    suspend fun reissueToken(
+        @Header("RefreshToken") refreshToken: String
+    ): Response<BaseResponse<OwnerLoginResponseDTO>>
+
+    // 사장님 회원탈퇴
+    @HTTP(method = "DELETE", path = "/api/v1/stores/owner", hasBody = true)
+    suspend fun withdrawOwner(
+        @Body request: OwnerWithdrawRequestDTO
+    ): Response<BaseResponse<Unit>>
 }

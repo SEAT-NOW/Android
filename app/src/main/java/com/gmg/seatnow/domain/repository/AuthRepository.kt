@@ -32,7 +32,8 @@ interface AuthRepository {
     ): Result<Unit>
 
     // OwnerStore
+    suspend fun reissueToken(): Result<Unit> // 토큰 재발급
     suspend fun ownerLogout(): Result<Unit> // 로그아웃
-    suspend fun ownerWithdraw(): Result<Unit> // 회원탈퇴
+    suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> // 회원탈퇴
 
 }

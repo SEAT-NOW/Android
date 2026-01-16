@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.store.withdraw // ✅ 패키지 수정됨
+package com.gmg.seatnow.presentation.owner.store.withdraw
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,8 +16,14 @@ class OwnerWithdrawViewModel @Inject constructor(
     // 1. UI State
     data class WithdrawUiState(
         val isConfirmed: Boolean = false,
+        val businessNumber: String = "", // [신규] 사업자 번호
+        val password: String = "",       // [신규] 비밀번호
         val isLoading: Boolean = false
-    )
+    ) {
+        // [신규] 버튼 활성화 조건: 동의함 && 사업자번호 있음 && 비밀번호 있음 && 로딩 아님
+        val isButtonEnabled: Boolean
+            get() = isConfirmed && businessNumber.isNotBlank() && password.isNotBlank() && !isLoading
+    }
 
     private val _uiState = MutableStateFlow(WithdrawUiState())
     val uiState = _uiState.asStateFlow()
@@ -37,6 +43,14 @@ class OwnerWithdrawViewModel @Inject constructor(
             is WithdrawAction.OnToggleConfirm -> {
                 _uiState.update { it.copy(isConfirmed = !it.isConfirmed) }
             }
+            is WithdrawAction.OnBusinessNumberChange -> {
+                // 숫자만 입력받도록 필터링 (선택 사항)
+                val filtered = action.number.filter { it.isDigit() }
+                _uiState.update { it.copy(businessNumber = filtered) }
+            }
+            is WithdrawAction.OnPasswordChange -> {
+                _uiState.update { it.copy(password = action.password) }
+            }
             is WithdrawAction.OnWithdrawClick -> withdraw()
             is WithdrawAction.OnBackClick -> {
                 viewModelScope.launch { _event.emit(WithdrawEvent.PopBackStack) }
@@ -45,11 +59,28 @@ class OwnerWithdrawViewModel @Inject constructor(
     }
 
     private fun withdraw() {
+        val currentState = _uiState.value // 현재 상태 스냅샷
+
+        // 로딩 시작
+        _uiState.update { it.copy(isLoading = true) }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            withdrawUseCase()
-                .onSuccess { _event.emit(WithdrawEvent.NavigateToLogin) }
-                .onFailure { /* 에러 처리 */ }
+            // [API 호출] 상태에 저장된 사업자번호와 비밀번호 전달
+            withdrawUseCase(
+                businessNumber = currentState.businessNumber,
+                password = currentState.password
+            )
+                .onSuccess {
+                    // 성공 시 로그인 화면으로 이동
+                    _event.emit(WithdrawEvent.NavigateToLogin)
+                }
+                .onFailure { error ->
+                    // 실패 시 에러 처리 (예: 토스트 메시지)
+                    // 필요하다면 UiState에 errorMessage 필드를 추가해서 UI에 띄울 수 있음
+                    // 예: _event.emit(WithdrawEvent.ShowToast(error.message ?: "탈퇴 실패"))
+                }
+
+            // 로딩 종료
             _uiState.update { it.copy(isLoading = false) }
         }
     }
@@ -58,6 +89,8 @@ class OwnerWithdrawViewModel @Inject constructor(
 // Action
 sealed interface WithdrawAction {
     data object OnToggleConfirm : WithdrawAction
+    data class OnBusinessNumberChange(val number: String) : WithdrawAction
+    data class OnPasswordChange(val password: String) : WithdrawAction
     data object OnWithdrawClick : WithdrawAction
     data object OnBackClick : WithdrawAction
 }

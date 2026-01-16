@@ -1,6 +1,5 @@
 package com.gmg.seatnow.di
 
-import com.gmg.seatnow.data.api.AuthService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,6 +10,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.gmg.seatnow.data.local.AuthManager
+import com.gmg.seatnow.data.api.AuthInterceptor
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -19,12 +20,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        authManager: AuthManager
+    ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
+        val authInterceptor = AuthInterceptor(authManager)
+
         return OkHttpClient.Builder()
             .addInterceptor(logging)
+            .addInterceptor(authInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

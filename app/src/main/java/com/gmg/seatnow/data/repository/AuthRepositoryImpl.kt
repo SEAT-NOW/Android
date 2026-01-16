@@ -10,6 +10,7 @@ import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
+import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
@@ -60,31 +61,55 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun loginOwner(email: String, password: String): Result<Unit> {
         return try {
-            // 1. 요청 객체 생성
             val request = OwnerLoginRequestDTO(email, password)
-
-            // 2. API 호출
             val response = authService.loginOwner(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
-                // 3. 토큰 저장 (핵심!)
-                val tokenData = response.body()?.data
-                tokenData?.let {
-                    // "Bearer " 접두사가 없다면 붙여서 저장하는 것이 일반적입니다.
-                    // 서버가 이미 붙여준다면 그대로 저장하세요.
+                val data = response.body()?.data
+                data?.let {
+                    // Bearer 접두사 처리
                     val accessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
+                    // Refresh Token은 보통 Bearer 안 붙지만, 서버 스펙에 따라 다름. 일단 그대로 저장.
+                    val refreshToken = it.refreshToken
 
-                    authManager.saveToken(accessToken)
-                    // Refresh Token 저장 로직도 MockAuthManager에 있다면 여기서 수행
+                    authManager.saveTokens(accessToken, refreshToken) // ★ 둘 다 저장
                 }
-
-                Log.d("AuthRepo", "로그인 성공: 토큰 저장 완료")
                 Result.success(Unit)
             } else {
                 // 4. 실패 처리
                 val errorMsg = parseErrorMessage(response.errorBody()?.string())
                 Log.e("AuthRepo", "로그인 실패: $errorMsg")
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun reissueToken(): Result<Unit> {
+        val refreshToken = authManager.getRefreshToken() ?: return Result.failure(Exception("Refresh Token 없음"))
+
+        return try {
+            // 헤더에 RefreshToken 실어서 요청
+            val response = authService.reissueToken(refreshToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                data?.let {
+                    // 새 토큰들 저장
+                    val newAccessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
+                    val newRefreshToken = it.refreshToken
+
+                    authManager.saveTokens(newAccessToken, newRefreshToken)
+                }
+                Log.d("AuthRepo", "토큰 재발급 성공")
+                Result.success(Unit)
+            } else {
+                // 재발급 실패 (Refresh Token 만료 등) -> 로그아웃 처리
+                authManager.clearTokens()
+                Log.e("AuthRepo", "토큰 재발급 실패: ${response.code()}")
+                Result.failure(Exception("토큰 만료"))
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -300,14 +325,44 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun ownerLogout(): Result<Unit> {
         delay(500)
+        authManager.clearTokens()
         Log.d("AuthRepo", "로그아웃 성공")
         return Result.success(Unit)
     }
 
-    override suspend fun ownerWithdraw(): Result<Unit> {
-        delay(1000)
-        Log.d("AuthRepo", "회원탈퇴 성공")
-        return Result.success(Unit)
+    override suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> {
+        return try {
+            // 1. API 요청 DTO 생성
+            // API 명세서 예시에 하이픈(-)이 포함되어 있으므로 포맷팅 (선택사항, 백엔드 로직에 따라 다름)
+            // 여기서는 UI에서 넘어온 값(숫자만 있는 값이라 가정)에 하이픈을 넣어줍니다.
+            val formattedBusinessNum = if (businessNumber.length == 10 && !businessNumber.contains("-")) {
+                "${businessNumber.substring(0, 3)}-${businessNumber.substring(3, 5)}-${businessNumber.substring(5)}"
+            } else {
+                businessNumber
+            }
+
+            val request = OwnerWithdrawRequestDTO(
+                businessNumber = formattedBusinessNum,
+                password = password
+            )
+
+            // 2. API 호출
+            val response = authService.withdrawOwner(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 3. 성공 시 내부 토큰 삭제
+                authManager.clearTokens()
+                Log.d("AuthRepo", "회원탈퇴 성공: 토큰 삭제 완료")
+                Result.success(Unit)
+            } else {
+                // 4. 실패 시 에러 파싱 (4004 비밀번호 불일치 등)
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
     }
 
     private fun parseErrorMessage(errorBody: String?): String {
