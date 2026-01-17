@@ -4,26 +4,44 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.gmg.seatnow.presentation.theme.*
 import com.naver.maps.map.compose.*
-import com.gmg.seatnow.presentation.user.UserMainScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.presentation.component.HomeSearchBar
 import com.gmg.seatnow.presentation.component.SearchHereButton
 import com.gmg.seatnow.presentation.component.UserMapContent
+import com.gmg.seatnow.presentation.theme.PointRed
+import com.gmg.seatnow.presentation.theme.SubBlack
+import com.gmg.seatnow.presentation.theme.SubGray
+import com.gmg.seatnow.presentation.theme.SubPaleGray
+import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.util.MapLogicHandler
 
 @OptIn(ExperimentalNaverMapApi::class)
@@ -33,6 +51,8 @@ fun UserHomeScreen(
     onFilterCleared: () -> Unit,   // 필터 해제 콜백
     viewModel: UserHomeViewModel = hiltViewModel()
 ) {
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -70,10 +90,16 @@ fun UserHomeScreen(
 
     // [1. 초기 진입 로직] 권한 체크 후 바로 내 위치로 이동 (Focus)
     LaunchedEffect(Unit) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
             refreshCurrentLocation()
         } else {
-            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+            // 권한이 없으면 바로 런처를 실행하지 않고, 안내 다이얼로그를 띄움
+            showPermissionDialog = true
         }
     }
 
@@ -133,5 +159,84 @@ fun UserHomeScreen(
                 }
             )
         }
+        if (showPermissionDialog) {
+            LocationPermissionDialog(
+                onDismiss = {
+                    showPermissionDialog = false
+                    // 거절 시 그냥 닫거나, 기본 위치(서울시청 등)로 로딩하는 로직 추가 가능
+                },
+                onConfirm = {
+                    showPermissionDialog = false
+                    // 안내를 확인하고 '허용'을 눌렀을 때, 비로소 시스템 권한 요청 실행
+                    permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun LocationPermissionDialog(
+    onDismiss: () -> Unit, // '다음에 하기' 클릭 시
+    onConfirm: () -> Unit  // '권한 허용' 클릭 시
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = White,
+        tonalElevation = 0.dp,
+        title = {
+            Text(
+                text = "위치 정보 이용 안내",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = SubBlack
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // 구분선
+                HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 안내 문구
+                Text(
+                    text = "내 주변의 가게와 실시간 빈 좌석 정보를\n찾기 위해 위치 권한 허용이 필요합니다.\n\n앱 설정에서 위치 권한을 허용해 주세요.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SubGray,
+                    textAlign = TextAlign.Start, // 왼쪽 정렬 혹은 Center
+                    lineHeight = 22.sp
+                )
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                // 1. 다음에 하기 (선택 사항)
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = "다음에 하기",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = SubGray
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // 2. 권한 허용 (메인 액션)
+                Button(
+                    onClick = onConfirm,
+                    colors = ButtonDefaults.buttonColors(containerColor = PointRed),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "권한 허용",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = White
+                    )
+                }
+            }
+        }
+    )
 }

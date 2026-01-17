@@ -15,4 +15,5 @@ plugins {
     // 5. 👇 [이게 빠져서 에러난 것] Serialization (Kotlin 버전과 똑같이 1.9.22로 맞춤)
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
 
+
 }

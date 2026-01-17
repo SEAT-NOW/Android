@@ -1,13 +1,13 @@
 [versions]
 # Gradle & Kotlin
-agp = "8.2.0"
+agp = "8.5.0"
 kotlin = "1.9.22"
 
 # Android Core
-coreKtx = "1.12.0"
-lifecycleRuntimeKtx = "2.7.0"
-activityCompose = "1.8.2"
-composeBom = "2024.02.00"
+coreKtx = "1.13.1"           # 기존 1.12.0 -> 1.13.1 (SDK 35 공식 지원 버전)
+lifecycleRuntimeKtx = "2.8.4" # 기존 2.7.0 -> 2.8.4 (안정성 향상)
+activityCompose = "1.9.1"    # 기존 1.8.2 -> 1.9.1 (SDK 35의 Edge-to-Edge 강제 적용 대응 필수)
+composeBom = "2024.06.00"
 splashScreen = "1.0.1"  # 추가됨
 
 # Architecture & Network
