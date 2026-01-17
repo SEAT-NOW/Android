@@ -30,7 +30,7 @@ class SeatManagementViewModel @Inject constructor(
     data class SeatManagementUiState(
         val categories: List<FloorCategory> = emptyList(),
         val selectedCategoryId: String = "ALL",
-        val displayItems: List<TableItem> = emptyList(), // 현재 화면에 보여줄 리스트
+        val groupedDisplayItems: Map<String, List<TableItem>> = emptyMap(),
         val totalSeatCapacity: Int = 0,
         val currentUsedSeats: Int = 0,
         val displayMode: SeatDisplayMode = SeatDisplayMode.EMPTY,
@@ -46,7 +46,6 @@ class SeatManagementViewModel @Inject constructor(
     val event: SharedFlow<SeatManagementEvent> = _event.asSharedFlow()
 
     // ★ [핵심] 원본 데이터 소스 (Source of Truth)
-    // 층별 구분을 위해 실제 데이터는 여기서 관리하고, UI에는 가공해서 뿌립니다.
     private var _allRawTables: List<TableItem> = emptyList()
 
     init {
@@ -66,7 +65,9 @@ class SeatManagementViewModel @Inject constructor(
             }
             // ★ [추가] 업데이트 버튼 클릭 시 -> 수정 모드 진입
             is SeatManagementAction.OnUpdateClick -> {
+                // 그냥 현재 상태에서 수정 모드만 켭니다. (ALL 탭이면 ALL 탭인 채로 수정 모드 진입)
                 _uiState.update { it.copy(isEditMode = true) }
+                updateDisplayItems() // 화면 갱신 (이때 전체 합계 섹션이 사라짐)
             }
             // ★ [수정] 저장 버튼 클릭 시 -> API 호출 후 조회 모드로 복귀
             is SeatManagementAction.OnSaveClick -> saveSeatData()
@@ -77,41 +78,26 @@ class SeatManagementViewModel @Inject constructor(
         _uiState.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            val currentCategory = _uiState.value.selectedCategoryId
-            val results = mutableListOf<Result<Unit>>()
+            val allFloorIds = _allRawTables.map { it.floorId }.distinct()
+            var isAllSuccess = true
 
-            if (currentCategory == "ALL") {
-                // [CASE 1] 전체 탭인 경우 -> 존재하는 모든 층을 찾아서 '따로따로' 보냄
-                // 1. 존재하는 층 ID 목록 추출 (distinct)
-                val allFloorIds = _allRawTables.map { it.floorId }.distinct()
-
-                // 2. 각 층별로 필터링하여 API 호출 (병렬 처리 가능하지만 안전하게 순차 처리도 OK)
-                allFloorIds.forEach { floorId ->
-                    val floorItems = _allRawTables.filter { it.floorId == floorId }
-                    // 층별 API 호출
-                    val result = updateSeatUsageUseCase(floorItems)
-                    results.add(result)
-                }
-
-            } else {
-                // [CASE 2] 특정 층(예: 1F) 탭인 경우 -> 해당 층 데이터만 보냄
-                val floorItems = _allRawTables.filter { it.floorId == currentCategory }
+            // 순차 처리 (await)
+            for (floorId in allFloorIds) {
+                val floorItems = _allRawTables.filter { it.floorId == floorId }
                 val result = updateSeatUsageUseCase(floorItems)
-                results.add(result)
-            }
 
-            // 결과 처리 (하나라도 실패하면 실패로 간주)
-            val isAllSuccess = results.all { it.isSuccess }
+                if (result.isFailure) {
+                    isAllSuccess = false
+                }
+            }
 
             _uiState.update { it.copy(isSaving = false) }
 
             if (isAllSuccess) {
-                _uiState.update { it.copy(isEditMode = false) } // 수정 모드 종료
+                _uiState.update { it.copy(isEditMode = false) }
+                updateDisplayItems()
                 _event.emit(SeatManagementEvent.ShowToast("저장되었습니다."))
-                // 필요하다면 최신 데이터 다시 조회
-                loadSeatStatus()
             } else {
-                // 실패한 건에 대한 처리가 필요하면 여기서
                 _event.emit(SeatManagementEvent.ShowToast("일부 데이터 저장에 실패했습니다."))
             }
         }
@@ -148,66 +134,75 @@ class SeatManagementViewModel @Inject constructor(
     // ★ [핵심 로직] 현재 선택된 카테고리에 맞춰 데이터를 가공하는 함수
     private fun updateDisplayItems() {
         val state = _uiState.value
+        val resultMap = mutableMapOf<String, List<TableItem>>() // 순서 유지를 위해 LinkedHashMap 사용됨
 
-        // 필터링: floorId를 기준으로 필터링해야 함
-        val filteredItems = if (state.selectedCategoryId == "ALL") {
-            _allRawTables
+        if (state.selectedCategoryId == "ALL") {
+            // [ALL 탭 로직]
+
+            // 1. 전체 합계 섹션 생성 (수정 모드가 아닐 때만 보여줌!)
+            if (!state.isEditMode) {
+                val mergedList = _allRawTables
+                    .groupBy { it.label }
+                    .map { (label, items) ->
+                        TableItem(
+                            id = "MERGED_$label",
+                            floorId = "ALL",
+                            label = label,
+                            capacityPerTable = items.first().capacityPerTable,
+                            maxTableCount = items.sumOf { it.maxTableCount },
+                            currentCount = items.sumOf { it.currentCount }
+                        )
+                    }
+                    .sortedBy { it.capacityPerTable }
+
+                if (mergedList.isNotEmpty()) {
+                    resultMap["전체"] = mergedList
+                }
+            }
+
+            // 2. 층별 섹션 생성 (항상 보여줌, 카테고리 순서대로)
+            // 'ALL' 카테고리를 제외한 나머지 카테고리 순회
+            val floorCategories = state.categories.filter { it.id != "ALL" }
+
+            floorCategories.forEach { category ->
+                val floorItems = _allRawTables.filter { it.floorId == category.id }
+                if (floorItems.isNotEmpty()) {
+                    resultMap[category.name] = floorItems
+                }
+            }
+
         } else {
-            _allRawTables.filter { it.floorId == state.selectedCategoryId } // ★ floorId 필드 사용
+            // [개별 층 탭 로직] 해당 층 데이터만 보여줌 (섹션 제목 없음 혹은 층 이름)
+            val categoryName = state.categories.find { it.id == state.selectedCategoryId }?.name ?: ""
+            val floorItems = _allRawTables.filter { it.floorId == state.selectedCategoryId }
+            resultMap[categoryName] = floorItems
         }
 
-        // 통계 계산
-        val totalCapacity = filteredItems.sumOf { it.capacityPerTable * it.maxTableCount }
-        val usedSeats = filteredItems.sumOf { it.capacityPerTable * it.currentCount }
+        // 전체 통계 (상단 요약용)
+        val totalCapacity = _allRawTables.sumOf { it.capacityPerTable * it.maxTableCount }
+        val usedSeats = _allRawTables.sumOf { it.capacityPerTable * it.currentCount }
 
         _uiState.update {
             it.copy(
-                displayItems = filteredItems,
+                groupedDisplayItems = resultMap, // Map으로 업데이트
                 totalSeatCapacity = totalCapacity,
                 currentUsedSeats = usedSeats
             )
         }
     }
 
-    // ★ [핵심 로직] 테이블 증감 처리 (합쳐진 아이템 처리 포함)
     private fun processTableUpdate(itemId: String, delta: Int) {
-        // 원본 리스트를 복사해서 수정 준비
+        // 수정 모드에서는 "ALL" 탭이 진입 불가이므로, MERGED 아이템 처리는 불필요하지만
+        // 안전을 위해 일반 로직만 유지합니다.
         val newRawList = _allRawTables.toMutableList()
+        val index = newRawList.indexOfFirst { it.id == itemId }
 
-        if (itemId.startsWith("MERGED_")) {
-            // [CASE A] 합쳐진 아이템(ALL 탭)에서 클릭했을 때
-            val targetLabel = itemId.removePrefix("MERGED_")
-
-            // 해당 라벨을 가진 실제 테이블들을 찾음
-            val targets = newRawList.filter { it.label == targetLabel }
-
-            if (delta > 0) {
-                // 증가(+): 여유가 있는 첫 번째 테이블을 찾아 증가시킴
-                val itemToUpdate = targets.firstOrNull { it.currentCount < it.maxTableCount }
-                itemToUpdate?.let { item ->
-                    val index = newRawList.indexOf(item)
-                    newRawList[index] = item.copy(currentCount = item.currentCount + 1)
-                }
-            } else {
-                // 감소(-): 사용 중인 첫 번째 테이블을 찾아 감소시킴
-                val itemToUpdate = targets.lastOrNull { it.currentCount > 0 }
-                itemToUpdate?.let { item ->
-                    val index = newRawList.indexOf(item)
-                    newRawList[index] = item.copy(currentCount = item.currentCount - 1)
-                }
-            }
-
-        } else {
-            // [CASE B] 개별 층(1F, 2F)에서 클릭했을 때 (기존 로직)
-            val index = newRawList.indexOfFirst { it.id == itemId }
-            if (index != -1) {
-                val item = newRawList[index]
-                val newCount = (item.currentCount + delta).coerceIn(0, item.maxTableCount)
-                newRawList[index] = item.copy(currentCount = newCount)
-            }
+        if (index != -1) {
+            val item = newRawList[index]
+            val newCount = (item.currentCount + delta).coerceIn(0, item.maxTableCount)
+            newRawList[index] = item.copy(currentCount = newCount)
         }
 
-        // 변경사항 저장 및 UI 갱신
         _allRawTables = newRawList
         updateDisplayItems()
     }
