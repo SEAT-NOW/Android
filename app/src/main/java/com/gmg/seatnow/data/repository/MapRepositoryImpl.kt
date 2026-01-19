@@ -12,13 +12,14 @@ class MapRepositoryImpl @Inject constructor(
     private val userApiService: UserApiService
 ) : MapRepository {
 
-    override fun getStores(minPerson: Int, centerLat: Double, centerLng: Double): Flow<List<Store>> = flow {
+    override fun getStores(minPerson: Int, centerLat: Double, centerLng: Double, radius: Double): Flow<List<Store>> = flow {
         try {
             // API 호출 (minPerson이 0이면 전체, N이면 필터링)
             val response = userApiService.getStoresOnMap(
                 lat = centerLat,
                 lng = centerLng,
-                headCount = minPerson
+                headCount = minPerson,
+                radius = radius
             )
 
             if (response.isSuccessful && response.body()?.success == true) {

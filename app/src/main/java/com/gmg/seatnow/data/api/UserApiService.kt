@@ -15,6 +15,6 @@ interface UserApiService {
         @Query("lat") lat: Double,
         @Query("lng") lng: Double,
         @Query("headCount") headCount: Int = 0,
-        @Query("radius") radius: Double = 2.0 // 기본 반경 2km
+        @Query("radius") radius: Double
     ): Response<BaseResponse<List<StoreMapResponseDTO>>>
 }

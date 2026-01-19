@@ -430,7 +430,7 @@ class OwnerSignUpViewModel @Inject constructor(
             // [UseCase 적용]
             getNearbyUniversityUseCase(store.latitude, store.longitude)
                 .onSuccess { univList ->
-                    val resultText = if (univList.isEmpty()) "근처 대학 없음" else univList.joinToString(" / ")
+                    val resultText = if (univList.isEmpty()) "비대학가" else univList.joinToString(" / ")
                     _uiState.update { it.copy(nearbyUniv = resultText, isNearbyUnivEnabled = false) }
                     checkNextButtonEnabled()
                 }

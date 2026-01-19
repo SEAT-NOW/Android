@@ -134,6 +134,7 @@ fun SignUpFormScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(White)
+                    .navigationBarsPadding()
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Button(
@@ -208,6 +209,7 @@ fun SignUpFormScreen(
         }
     }
 }
+
 @Preview(showBackground = true, name = "Step 1 UI")
 @Composable
 fun PreviewOwnerSignUpStep1Content() {

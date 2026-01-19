@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.pow
 
 @HiltViewModel
 class UserHomeViewModel @Inject constructor(
@@ -39,17 +40,16 @@ class UserHomeViewModel @Inject constructor(
     }
 
     // 지도 데이터 가져오기 (필터 상태에 따라 분기)
-    fun fetchStoresInCurrentMap(lat: Double, lng: Double) {
+    fun fetchStoresInCurrentMap(lat: Double, lng: Double, radius: Double) {
         viewModelScope.launch {
             _isLoading.value = true
             val count = _activeHeadCount.value
 
             val flow = if (count != null) {
-                // 필터가 있으면 인원수 검색 UseCase 사용
-                getStoresByHeadCountUseCase(headCount = count, lat = lat, lng = lng)
+                // UseCase 호출 시 radius 전달
+                getStoresByHeadCountUseCase(headCount = count, lat = lat, lng = lng, radius = radius)
             } else {
-                // 없으면 일반 검색 UseCase 사용
-                getStoresUseCase(lat, lng)
+                getStoresUseCase(lat, lng, radius)
             }
 
             flow.catch { e ->

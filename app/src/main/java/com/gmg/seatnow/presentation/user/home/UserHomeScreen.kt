@@ -43,6 +43,7 @@ import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.SubPaleGray
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.util.MapLogicHandler
+import com.naver.maps.map.NaverMap
 
 @OptIn(ExperimentalNaverMapApi::class)
 @Composable
@@ -66,6 +67,27 @@ fun UserHomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val activeFilter by viewModel.activeHeadCount.collectAsState()
 
+    //현재 지도의 중심에서 모서리까지의 거리(반경) 구하기
+    fun getCurrentRadius(): Double {
+        val bounds = cameraPositionState.contentBounds
+        return if (bounds != null) {
+            val center = cameraPositionState.position.target
+            val northEast = bounds.northEast
+            val results = FloatArray(1)
+
+            // 중심점 ~ 우상단 모서리 거리 계산
+            android.location.Location.distanceBetween(
+                center.latitude, center.longitude,
+                northEast.latitude, northEast.longitude,
+                results
+            )
+            // m -> km 변환
+            results[0] / 1000.0
+        } else {
+            2.0 // 로딩 전이라 영역을 못 가져오면 기본 1km
+        }
+    }
+
     fun refreshCurrentLocation() {
         MapLogicHandler.moveCameraToCurrentLocation(
             context = context,
@@ -73,7 +95,7 @@ fun UserHomeScreen(
             coroutineScope = coroutineScope,
             onLocationFound = { lat, lng ->
                 // 위치 찾으면 API 호출 및 트래킹 모드 변경
-                viewModel.fetchStoresInCurrentMap(lat, lng)
+                viewModel.fetchStoresInCurrentMap(lat, lng, getCurrentRadius())
                 trackingMode = LocationTrackingMode.Follow
             }
         )
@@ -144,7 +166,11 @@ fun UserHomeScreen(
                     onFilterCleared() // 상위(Main) 상태 초기화 알림 (선택적)
                     // 필터 해제 후 현재 위치로 재검색
                     val target = cameraPositionState.position.target
-                    viewModel.fetchStoresInCurrentMap(target.latitude, target.longitude)
+                    viewModel.fetchStoresInCurrentMap(
+                        target.latitude,
+                        target.longitude,
+                        getCurrentRadius() // 여기도 계산된 반경 전달
+                    )
                 }
             )
 
@@ -154,8 +180,14 @@ fun UserHomeScreen(
             SearchHereButton(
                 isLoading = isLoading,
                 onClick = {
-                    val target = cameraPositionState.position.target
-                    viewModel.fetchStoresInCurrentMap(target.latitude, target.longitude)
+                    // 1. 현재 카메라의 중심 좌표
+                    val center = cameraPositionState.position.target
+
+                    viewModel.fetchStoresInCurrentMap(
+                        lat = center.latitude,
+                        lng = center.longitude,
+                        radius = getCurrentRadius()
+                    )
                 }
             )
         }
