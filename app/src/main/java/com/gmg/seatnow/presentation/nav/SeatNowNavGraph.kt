@@ -6,7 +6,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.gmg.seatnow.data.local.MockAuthManager
 import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
@@ -21,7 +20,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun SeatNowNavGraph(
-    mockAuthManager: MockAuthManager,
+    // [변경 1] AuthManager 파라미터 삭제 (UI는 데이터 관리를 몰라야 함)
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -36,8 +35,9 @@ fun SeatNowNavGraph(
                         popUpTo("splash") { inclusive = true }
                     }
                 },
-                onNavigateToUserMain = {
-                    navController.navigate("user_main") {
+                // ★ [수정] 사장님 메인 화면으로 이동하도록 연결
+                onNavigateToOwnerMain = {
+                    navController.navigate("store_main") { // "store_main"이 사장님 메인 라우트
                         popUpTo("splash") { inclusive = true }
                     }
                 }
@@ -60,7 +60,6 @@ fun SeatNowNavGraph(
 
         // 3. 사용자 메인 (지도 화면)
         composable("user_main") {
-            // ★ [수정됨] 임시 텍스트 제거하고 실제 화면 연결
             UserMainScreen()
         }
 
@@ -69,10 +68,9 @@ fun SeatNowNavGraph(
             OwnerLoginScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToOwnerMain = {
-                    // 로그인 성공: 토큰 저장 -> 메인 이동
-                    val fakeToken = mockAuthManager.generateMockToken()
-                    mockAuthManager.saveToken(fakeToken)
-
+                    // [변경 2] 토큰 저장 로직 삭제!
+                    // (이미 ViewModel -> Repository에서 진짜 토큰을 저장했음)
+                    // 여기서는 순수하게 화면 이동만 수행
                     navController.navigate("store_main") {
                         popUpTo("login") { inclusive = true }
                     }
@@ -95,10 +93,11 @@ fun SeatNowNavGraph(
 
         // 6. 사장님 메인 (StoreMain)
         composable("store_main") {
+            // StoreMainViewModel에서 로그아웃 처리를 하고 이벤트를 보내주면 더 좋음.
+            // 여기서는 콜백으로 처리한다고 가정
             StoreMainRoute(
                 onNavigateToLogin = {
-                    // 로그아웃 시 토큰 삭제 및 이동
-                    mockAuthManager.clearToken()
+                    // [변경 3] 토큰 삭제 로직 삭제 (Repository가 수행함)
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }
@@ -116,7 +115,7 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     if (event is MyPageViewModel.MyPageEvent.NavigateToLogin) {
-                        mockAuthManager.clearToken()
+                        // [변경 4] 여기도 토큰 삭제 삭제
                         navController.navigate("login") {
                             popUpTo("store_main") { inclusive = true }
                         }
@@ -126,7 +125,7 @@ fun SeatNowNavGraph(
 
             AccountInfoScreen(
                 onBackClick = { navController.popBackStack() },
-                onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
+                onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) }, // VM이 Repo.logout 호출
                 onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
             )
         }
@@ -135,7 +134,7 @@ fun SeatNowNavGraph(
             OwnerWithdrawScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToLogin = {
-                    mockAuthManager.clearToken()
+                    // [변경 5] 토큰 삭제 삭제
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }

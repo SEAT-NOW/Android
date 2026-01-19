@@ -2,7 +2,7 @@ package com.gmg.seatnow.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.local.TokenManager
+import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: AuthManager
 ) : ViewModel() {
 
     private val _event = MutableSharedFlow<LoginEvent>()

@@ -6,5 +6,7 @@ import javax.inject.Inject
 class OwnerWithdrawUseCase @Inject constructor(
     private val repository: AuthRepository
 ) {
-    suspend operator fun invoke(): Result<Unit> = repository.ownerWithdraw()
+    suspend operator fun invoke(businessNumber: String, password: String): Result<Unit> {
+        return repository.ownerWithdraw(businessNumber, password)
+    }
 }

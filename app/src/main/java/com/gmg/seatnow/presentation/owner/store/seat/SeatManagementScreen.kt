@@ -18,7 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.gmg.seatnow.domain.model.*
+import com.gmg.seatnow.domain.model.FloorCategory
+import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.component.FloorFilterRow
 import com.gmg.seatnow.presentation.component.SeatHeaderSection
 import com.gmg.seatnow.presentation.component.SeatStatusSummary
@@ -27,7 +28,6 @@ import com.gmg.seatnow.presentation.component.TableViewItem
 import com.gmg.seatnow.presentation.theme.*
 import kotlinx.coroutines.flow.collectLatest
 
-// 1. Stateful Screen (ViewModel 연결, 실제 앱에서 사용)
 @Composable
 fun SeatManagementScreen(
     viewModel: SeatManagementViewModel = hiltViewModel()
@@ -35,7 +35,6 @@ fun SeatManagementScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // ★ [추가] ViewModel 이벤트 구독 (저장 성공/실패 토스트)
     LaunchedEffect(key1 = true) {
         viewModel.event.collectLatest { event ->
             when(event) {
@@ -46,13 +45,9 @@ fun SeatManagementScreen(
         }
     }
 
-    SeatManagementContent(
-        uiState = uiState,
-        onAction = viewModel::onAction
-    )
+    SeatManagementContent(uiState = uiState, onAction = viewModel::onAction)
 }
 
-// 2. Stateless Content (순수 UI 로직, Preview 가능)
 @Composable
 fun SeatManagementContent(
     uiState: SeatManagementViewModel.SeatManagementUiState,
@@ -61,7 +56,7 @@ fun SeatManagementContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(White) // 배경색 명시
+            .background(White)
     ) {
         Column(
             modifier = Modifier
@@ -70,75 +65,87 @@ fun SeatManagementContent(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 1. 헤더 (실시간 좌석 관리 + 토글 스위치)
+            // 1. 헤더
             SeatHeaderSection(
                 currentMode = uiState.displayMode,
-                onModeChange = { mode ->
-                    onAction(SeatManagementAction.ToggleDisplayMode(mode))
-                }
+                onModeChange = { mode -> onAction(SeatManagementAction.ToggleDisplayMode(mode)) }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 2. 층별 필터 (Chips)
+            // 2. 층별 필터
+            // 수정 모드여도 '전체' 탭을 유지하고 싶다면 그냥 uiState.categories 사용
+            // 하지만 사진 4처럼 "업데이트 중엔 전체 탭을 눌러도 전체 합계는 안 보이게" 처리됨
             FloorFilterRow(
                 categories = uiState.categories,
                 selectedId = uiState.selectedCategoryId,
-                onSelect = { id ->
-                    onAction(SeatManagementAction.SelectCategory(id))
-                }
+                onSelect = { id -> onAction(SeatManagementAction.SelectCategory(id)) }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
+                thickness = 2.dp,
+                color = SubLightGray
+            )
 
-            // 3. 통계 요약 (이용 좌석 수 / 전체 좌석 수)
-            // 참고: ViewModel 로직 수정에 따라 emptySeats 대신 uiState.currentUsedSeats 등을 사용했을 수 있음
-            // 여기서는 원본 코드 로직(emptySeats)을 유지하되, 필요시 수정하세요.
+            // 3. 통계 요약
             SeatStatusSummary(
                 mode = uiState.displayMode,
                 totalSeats = uiState.totalSeatCapacity,
                 usedSeats = uiState.currentUsedSeats
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 24.dp),
-                thickness = 1.dp,
-                color = SubLightGray
-            )
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. 테이블 리스트 (Stepper)
+            // 4. 테이블 리스트 (섹션 포함)
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.weight(1f) // 남은 공간 차지
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp) // 섹션 간 간격 조절
             ) {
-                items(uiState.displayItems) { item ->
-                    if (uiState.isEditMode) {
-                        // 수정 모드 (사진 2): Stepper (+, - 버튼)
-                        TableStepperItem(
-                            item = item,
-                            onIncrement = { onAction(SeatManagementAction.IncrementTableCount(item.id)) },
-                            onDecrement = { onAction(SeatManagementAction.DecrementTableCount(item.id)) }
+                // Map 순회 (섹션 제목, 아이템 리스트)
+                uiState.groupedDisplayItems.forEach { (sectionTitle, items) ->
+
+                    // (1) 섹션 헤더 ("전체", "1층" 등)
+                    item {
+                        Text(
+                            text = sectionTitle,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = SubGray,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                         )
-                    } else {
-                        // 조회 모드 (사진 1): 단순 텍스트 ("2개")
-                        TableViewItem(item = item)
+                    }
+
+                    // (2) 해당 섹션의 아이템들
+                    items(items) { item ->
+                        // 수정 모드이면서 + "전체" 섹션이 아닌 경우에만 Stepper 표시
+                        // (ViewModel에서 이미 EditMode일 때 "전체" 섹션을 뺐으므로 isEditMode만 체크하면 됨)
+                        if (uiState.isEditMode) {
+                            TableStepperItem(
+                                item = item,
+                                onIncrement = { onAction(SeatManagementAction.IncrementTableCount(item.id)) },
+                                onDecrement = { onAction(SeatManagementAction.DecrementTableCount(item.id)) }
+                            )
+                        } else {
+                            TableViewItem(item = item)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp)) // 아이템 간 간격
+                    }
+
+                    // 섹션 구분선 (마지막 섹션 제외하고 넣고 싶다면 인덱스 체크 필요)
+                    item {
+                        HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
                     }
                 }
-                // 하단 버튼에 가려지지 않게 여백 추가
+
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
 
-        // 5. 하단 저장 버튼 (Floating처럼 하단 고정)
+        // 5. 하단 버튼
         Button(
             onClick = {
-                if (uiState.isEditMode) {
-                    // 수정 모드일 땐 '저장' 액션 -> 조회 모드로 변경됨
-                    onAction(SeatManagementAction.OnSaveClick)
-                } else {
-                    // 조회 모드일 땐 '업데이트' 액션 -> 수정 모드로 변경됨
-                    onAction(SeatManagementAction.OnUpdateClick)
-                }
+                if (uiState.isEditMode) onAction(SeatManagementAction.OnSaveClick)
+                else onAction(SeatManagementAction.OnUpdateClick)
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -159,33 +166,86 @@ fun SeatManagementContent(
     }
 }
 
-// 3. Preview (미리보기용 더미 데이터 구성)
-@Preview(showBackground = true, heightDp = 800)
+@Preview(name = "1. 조회 모드 (전체 섹션 있음)", showBackground = true, heightDp = 800)
 @Composable
-fun SeatManagementScreenPreview() {
-    // 더미 데이터 생성
-    val mockItems = listOf(
-        TableItem("1", "4인 테이블", 4, 5, 2), // 5개 중 2개 사용
-        TableItem("2", "2인 테이블", 2, 3, 1)  // 3개 중 1개 사용
+fun SeatManagementScreenViewModePreview() {
+    // 1. 더미 데이터 생성
+    val item1F = TableItem(
+        id = "1", floorId = "1F", label = "4인 테이블",
+        capacityPerTable = 4, maxTableCount = 5, currentCount = 2
     )
+    val item2F = TableItem(
+        id = "2", floorId = "2F", label = "2인 테이블",
+        capacityPerTable = 2, maxTableCount = 3, currentCount = 1
+    )
+    // 합쳐진 데이터 (조회용)
+    val mergedItem = TableItem(
+        id = "MERGED_4인", floorId = "ALL", label = "4인 테이블 (합계)",
+        capacityPerTable = 4, maxTableCount = 10, currentCount = 4
+    )
+
     val mockCategories = listOf(
         FloorCategory("ALL", "전체"),
         FloorCategory("1F", "1층"),
         FloorCategory("2F", "2층")
     )
 
+    // 2. 조회 모드용 Map 구성 ("전체" 섹션 포함)
+    val viewModeMap = mapOf(
+        "전체" to listOf(mergedItem),
+        "1층" to listOf(item1F),
+        "2층" to listOf(item2F)
+    )
+
     val mockState = SeatManagementViewModel.SeatManagementUiState(
         categories = mockCategories,
         selectedCategoryId = "ALL",
-        displayItems = mockItems,
-        totalSeatCapacity = 26, // (4*5) + (2*3)
-        currentUsedSeats = 10   // (4*2) + (2*1)
+        groupedDisplayItems = viewModeMap, // ★ Map으로 전달
+        totalSeatCapacity = 26,
+        currentUsedSeats = 10,
+        isEditMode = false // 조회 모드
     )
 
     SeatNowTheme {
-        SeatManagementContent(
-            uiState = mockState,
-            onAction = {}
-        )
+        SeatManagementContent(uiState = mockState, onAction = {})
+    }
+}
+
+@Preview(name = "2. 업데이트 모드 (전체 섹션 제거됨)", showBackground = true, heightDp = 800)
+@Composable
+fun SeatManagementScreenEditModePreview() {
+    // 1. 더미 데이터 (위와 동일)
+    val item1F = TableItem(
+        id = "1", floorId = "1F", label = "4인 테이블",
+        capacityPerTable = 4, maxTableCount = 5, currentCount = 2
+    )
+    val item2F = TableItem(
+        id = "2", floorId = "2F", label = "2인 테이블",
+        capacityPerTable = 2, maxTableCount = 3, currentCount = 1
+    )
+
+    val mockCategories = listOf(
+        FloorCategory("ALL", "전체"),
+        FloorCategory("1F", "1층"),
+        FloorCategory("2F", "2층")
+    )
+
+    // 2. 수정 모드용 Map 구성 (★ "전체" 키가 빠짐!)
+    val editModeMap = mapOf(
+        "1층" to listOf(item1F),
+        "2층" to listOf(item2F)
+    )
+
+    val mockState = SeatManagementViewModel.SeatManagementUiState(
+        categories = mockCategories,
+        selectedCategoryId = "ALL", // ★ 탭은 여전히 "전체" 유지
+        groupedDisplayItems = editModeMap, // ★ 데이터엔 "전체" 섹션이 없음
+        totalSeatCapacity = 26,
+        currentUsedSeats = 10,
+        isEditMode = true // 수정 모드 (Stepper 표시)
+    )
+
+    SeatNowTheme {
+        SeatManagementContent(uiState = mockState, onAction = {})
     }
 }

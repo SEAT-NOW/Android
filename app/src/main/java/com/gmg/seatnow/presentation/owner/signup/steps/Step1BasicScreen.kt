@@ -95,7 +95,7 @@ fun Step1BasicScreen(
             placeholder = "인증번호 입력",
             buttonText = "확인",
             timerText = uiState.emailTimerText,
-            errorText = uiState.emaiilVerifedError,
+            errorText = uiState.emailVerifiedError,
             isEnabled = uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted,
             isButtonEnabled = (uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted)
                     && !uiState.isEmailTimerExpired
@@ -161,7 +161,7 @@ fun Step1BasicScreen(
             buttonText = "확인",
             timerText = uiState.phoneTimerText,
             keyboardType = KeyboardType.Number,
-            errorText = uiState.phoneVerifedError,
+            errorText = uiState.phoneVerifiedError,
             isEnabled = uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted,
             isButtonEnabled = (uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted)
                     && !uiState.isPhoneTimerExpired

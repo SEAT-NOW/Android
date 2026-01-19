@@ -20,13 +20,13 @@ import com.gmg.seatnow.presentation.theme.SeatNowTheme
 fun SplashScreen(
     viewModel: SplashViewModel = hiltViewModel(), // Hilt 주입은 여기서만!
     onNavigateToLogin: () -> Unit,
-    onNavigateToUserMain: () -> Unit
+    onNavigateToOwnerMain: () -> Unit
 ) {
     LaunchedEffect(true) {
         viewModel.event.collect { event ->
             when (event) {
                 is SplashViewModel.SplashEvent.NavigateToLogin -> onNavigateToLogin()
-                is SplashViewModel.SplashEvent.NavigateToUserMain -> onNavigateToUserMain()
+                is SplashViewModel.SplashEvent.NavigateToOwnerMain -> onNavigateToOwnerMain()
             }
         }
     }

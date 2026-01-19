@@ -3,7 +3,15 @@ package com.gmg.seatnow.presentation.owner.signup
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.repository.ImageRepository
+import com.gmg.seatnow.data.model.request.AccountDTO
+import com.gmg.seatnow.data.model.request.BusinessDTO
+import com.gmg.seatnow.data.model.request.LayoutDTO
+import com.gmg.seatnow.data.model.request.OperatingHoursDTO
+import com.gmg.seatnow.data.model.request.OperationDTO
+import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
+import com.gmg.seatnow.data.model.request.RegularHolidayDTO
+import com.gmg.seatnow.data.model.request.TableInfoDTO
+import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.SpaceItem
@@ -22,8 +30,10 @@ import javax.inject.Inject
 @HiltViewModel
 class OwnerSignUpViewModel @Inject constructor(
     // [Auth UseCases]
-    private val requestAuthCodeUseCase: RequestAuthCodeUseCase, // 이메일/폰 공용
-    private val verifyAuthCodeUseCase: VerifyAuthCodeUseCase,   // 이메일/폰 공용
+    private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase, // 이메일/폰 공용
+    private val requestEmailAuthCodeUseCase: RequestEmailAuthCodeUseCase,
+    private val verifyPhoneAuthCodeUseCase: VerifyPhoneAuthCodeUseCase,
+    private val verifyEmailAuthCodeUseCase: VerifyEmailAuthCodeUseCase,   // 이메일/폰 공용
     private val verifyBusinessNumberUseCase: VerifyBusinessNumberUseCase,
 
     // [Store UseCases]
@@ -36,7 +46,7 @@ class OwnerSignUpViewModel @Inject constructor(
     private val formatTimerUseCase: FormatTimerUseCase,
     private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
 
-    private val imageRepository: ImageRepository
+    private val signUpOwnerUseCase: SignUpOwnerUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OwnerSignUpUiState(
@@ -201,12 +211,19 @@ class OwnerSignUpViewModel @Inject constructor(
         if (email.isBlank() || _uiState.value.emailError != null) return
         viewModelScope.launch {
             // [UseCase 적용] 이메일 인증 요청
-            requestAuthCodeUseCase(email)
+            requestEmailAuthCodeUseCase(email)
                 .onSuccess {
                     startEmailTimer()
-                    _uiState.update { it.copy(isEmailCodeSent = true, authCode = "", isEmailVerificationAttempted = false, emaiilVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isEmailCodeSent = true,
+                            authCode = "",
+                            isEmailVerificationAttempted = false,
+                            emailVerifiedError = null) }
                 }
-                .onFailure { exception -> _uiState.update { it.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
         }
     }
 
@@ -217,42 +234,72 @@ class OwnerSignUpViewModel @Inject constructor(
         stopEmailTimer()
         viewModelScope.launch {
             // [UseCase 적용] 인증번호 검증
-            verifyAuthCodeUseCase(email, code)
+            verifyEmailAuthCodeUseCase(email, code)
                 .onSuccess {
-                    _uiState.update { it.copy(isEmailVerified = true, emailTimerText = null) }
+                    _uiState.update {
+                        it.copy(
+                            isEmailVerified = true,
+                            emailTimerText = null,
+                            emailVerifiedError = null) }
                     checkNextButtonEnabled()
                 }
-                .onFailure { exception -> _uiState.update { it.copy(emaiilVerifedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(emailVerifiedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
         }
     }
 
     private fun requestPhoneCode() {
         val phone = _uiState.value.phone
+        // 하이픈이 섞여있어도 UseCase 혹은 로직에서 제거한다고 가정 (여기선 길이만 체크)
         if (phone.length < 10) return
+
         viewModelScope.launch {
-            // [UseCase 적용] 휴대폰 번호도 동일한 UseCase 사용
-            requestAuthCodeUseCase(phone)
+            // [변경] 분리된 UseCase 호출
+            requestPhoneAuthCodeUseCase(phone)
                 .onSuccess {
                     startPhoneTimer()
-                    _uiState.update { it.copy(isPhoneCodeSent = true, phoneAuthCode = "", isPhoneVerificationAttempted = false, phoneVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isPhoneCodeSent = true,
+                            phoneAuthCode = "",
+                            isPhoneVerificationAttempted = false,
+                            phoneVerifiedError = null
+                        )
+                    }
                 }
-                .onFailure { exception -> _uiState.update { it.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다.")
+                    }
+                }
         }
     }
 
+    // [핸드폰 검증 로직]
     private fun verifyPhoneCode() {
         val phone = _uiState.value.phone
         val code = _uiState.value.phoneAuthCode
         _uiState.update { it.copy(isPhoneVerificationAttempted = true) }
-        stopPhoneTimer()
+        stopPhoneTimer() // 타이머 멈춤
         viewModelScope.launch {
-            // [UseCase 적용]
-            verifyAuthCodeUseCase(phone, code)
+            // [변경] 핸드폰 전용 UseCase 호출 (실제 API)
+            verifyPhoneAuthCodeUseCase(phone, code)
                 .onSuccess {
-                    _uiState.update { it.copy(isPhoneVerified = true, phoneTimerText = null, phoneVerifedError = null) }
+                    _uiState.update {
+                        it.copy(
+                            isPhoneVerified = true,
+                            phoneTimerText = null,
+                            phoneVerifiedError = null
+                        )
+                    }
                     checkNextButtonEnabled()
                 }
-                .onFailure { exception -> _uiState.update { it.copy(phoneVerifedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
+                .onFailure { exception ->
+                    _uiState.update {
+                        it.copy(phoneVerifiedError = exception.message ?: "인증 번호가 일치하지 않습니다.")
+                    }
+                }
         }
     }
 
@@ -366,6 +413,8 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
+
+
     private fun selectStore(store: StoreSearchResult) {
         _uiState.update {
             it.copy(
@@ -381,7 +430,7 @@ class OwnerSignUpViewModel @Inject constructor(
             // [UseCase 적용]
             getNearbyUniversityUseCase(store.latitude, store.longitude)
                 .onSuccess { univList ->
-                    val resultText = if (univList.isEmpty()) "근처 대학 없음" else univList.joinToString(" / ")
+                    val resultText = if (univList.isEmpty()) "비대학가" else univList.joinToString(" / ")
                     _uiState.update { it.copy(nearbyUniv = resultText, isNearbyUnivEnabled = false) }
                     checkNextButtonEnabled()
                 }
@@ -392,17 +441,14 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun uploadLicenseImage(uri: Uri, fileName: String) {
-        _uiState.update { it.copy(licenseFileName = fileName) }
-        viewModelScope.launch {
-            imageRepository.uploadImage(uri)
-                .onSuccess { imageUrl ->
-                    _uiState.update { it.copy(licenseImageUrl = imageUrl, licenseFileName = fileName) }
-                    checkNextButtonEnabled()
-                }
-                .onFailure {
-                    _uiState.update { it.copy(licenseFileName = "업로드 실패: 다시 선택해주세요") }
-                }
+        // 로딩이나 리포지토리 호출 로직 제거 -> 즉시 상태 업데이트
+        _uiState.update {
+            it.copy(
+                licenseImageUrl = uri.toString(), // 미리보기용 Uri 저장
+                licenseFileName = fileName
+            )
         }
+        checkNextButtonEnabled()
     }
 
     // --- Step 3 Implementation ---
@@ -651,8 +697,167 @@ class OwnerSignUpViewModel @Inject constructor(
         _uiState.update { it.copy(isNextButtonEnabled = isValid) }
     }
 
+    private fun executeSignUp() {
+        viewModelScope.launch {
+            val state = _uiState.value
+
+            // 1. UI State -> Request DTO 매핑
+            val requestDto = mapStateToDto(state)
+
+            // 2. 사업자 등록증 준비
+            val licenseUri = if(state.licenseImageUrl != null) Uri.parse(state.licenseImageUrl) else null
+
+            // 3. [수정] 가게 사진 리스트 재정렬 (대표 사진을 무조건 0번으로!)
+            val rawList = state.storePhotoList
+            val repUri = state.representativePhotoUri
+
+            val sortedStoreImages = if (repUri != null && rawList.contains(repUri)) {
+                // 대표 사진이 있으면: [대표 사진] + [나머지 사진들] 순서로 재조립
+                val otherImages = rawList.filter { it != repUri }
+                listOf(repUri) + otherImages
+            } else {
+                // 대표 사진이 없으면: 그냥 원래 순서대로
+                rawList
+            }
+
+            // 4. API 호출 (재정렬된 sortedStoreImages 전송)
+            signUpOwnerUseCase(requestDto, licenseUri, sortedStoreImages)
+                .onSuccess {
+                    _uiState.update { it.copy(currentStep = SignUpStep.STEP_6_COMPLETE) }
+                }
+                .onFailure { e ->
+                    _event.emit(SignUpEvent.ShowToast("회원가입 실패: ${e.message}"))
+                }
+        }
+    }
+
+    // [Helper] 매핑 함수
+    private fun mapStateToDto(state: OwnerSignUpUiState): OwnerSignUpRequestDTO {
+        // Account 매핑 (동일)
+        val account = AccountDTO(
+            email = state.email,
+            password = state.password,
+            phoneNumber = state.phone
+        )
+
+        // Business 매핑
+        val univList = if (state.nearbyUniv.contains("/")) {
+            state.nearbyUniv.split("/").map { it.trim() }
+        } else {
+            if (state.nearbyUniv.isNotBlank()) listOf(state.nearbyUniv) else emptyList()
+        }
+
+        val business = BusinessDTO(
+            representativeName = state.repName,
+            businessNumber = state.businessNumber,
+            storeName = state.storeName,
+            address = state.mainAddress,
+            neighborhood = extractNeighborhood(state.mainAddress) ?: "정보 없음",
+            latitude = state.storeSearchResults.find { it.placeName == state.storeName }?.latitude ?: 0.0,
+            longitude = state.storeSearchResults.find { it.placeName == state.storeName }?.longitude ?: 0.0,
+            universityNames = univList,
+            storePhone = state.storeContact
+        )
+
+        // Layout 매핑 (동일)
+        val layout = state.spaceList.map { space ->
+            LayoutDTO(
+                name = space.name.ifBlank { "기본 홀" },
+                tables = space.tableList.map { table ->
+                    TableInfoDTO(
+                        tableType = table.personCount.toIntOrNull() ?: 0,
+                        tableCount = table.tableCount.toIntOrNull() ?: 0
+                    )
+                }
+            )
+        }
+
+        // ★ [핵심 수정] Operation (정기 휴무일) 매핑 로직
+        // regularHolidayType -> 0: 매주(Weekly), 1: 매월 특정 주(Monthly)
+        val regularHolidays = if (state.regularHolidayType == 0) {
+            // [Case 0] 매주 선택 시 -> weekInfo를 무조건 0으로 설정
+            state.weeklyHolidayDays.map { dayIdx ->
+                RegularHolidayDTO(
+                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
+                    weekInfo = 0 // 0 = Every Week
+                )
+            }
+        } else {
+            // [Case 1] 특정 주 선택 시 -> 선택된 주차(weeks)와 요일(days)의 조합(Cartesian Product)
+            // 예: weeks=[2, 10], days=[MON] -> (MON, 2), (MON, 10)
+            state.monthlyHolidayWeeks.flatMap { week ->
+                state.monthlyHolidayDays.map { day ->
+                    RegularHolidayDTO(
+                        dayOfWeek = mapIndexToDayOfWeek(day),
+                        weekInfo = week // 1~5 or 10(Last Week)
+                    )
+                }
+            }
+        }
+
+        // 임시 휴무일 매핑 (동일)
+        val tempHolidays = if (state.isTempHolidayEnabled && state.tempHolidayStart.isNotBlank()) {
+            listOf(
+                TemporaryHolidayDTO(
+                    startDate = state.tempHolidayStart.replace("/", "-"), // ★ 여기서 replace 추가!
+                    endDate = state.tempHolidayEnd.replace("/", "-")      // ★ 여기도 추가!
+                )
+            )
+        } else {
+            emptyList()
+        }
+
+        // 운영 시간 매핑 (동일)
+        val hours = state.operatingSchedules.flatMap { schedule ->
+            schedule.selectedDays.map { dayIdx ->
+                OperatingHoursDTO(
+                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
+                    startTime = "${schedule.startHour.toString().padStart(2,'0')}:${schedule.startMin.toString().padStart(2,'0')}",
+                    endTime = "${schedule.endHour.toString().padStart(2,'0')}:${schedule.endMin.toString().padStart(2,'0')}"
+                )
+            }
+        }
+
+        return OwnerSignUpRequestDTO(
+            account = account,
+            business = business,
+            layout = layout,
+            operation = OperationDTO(
+                regularHolidays = regularHolidays, // 수정된 리스트 전달
+                temporaryHolidays = tempHolidays,
+                hours = hours
+            )
+        )
+    }
+
+    // [Review] 주소에서 '동' 추출하는 간단한 헬퍼 함수 (선택 사항)
+    private fun extractNeighborhood(address: String): String? {
+        // "서울 강남구 역삼동 123-4" -> "역삼동" 추출 시도
+        val split = address.split(" ")
+        return split.find { it.endsWith("동") || it.endsWith("읍") || it.endsWith("면") }
+    }
+
+    private fun mapIndexToDayOfWeek(index: Int): String {
+        return when (index) {
+            0 -> "SUNDAY"
+            1 -> "MONDAY"
+            2 -> "TUESDAY"
+            3 -> "WEDNESDAY"
+            4 -> "THURSDAY"
+            5 -> "FRIDAY"
+            6 -> "SATURDAY"
+            else -> "MONDAY"
+        }
+    }
+
     private fun handleNextStep() {
         val currentStep = _uiState.value.currentStep
+
+        if (currentStep == SignUpStep.STEP_5_PHOTO) {
+            executeSignUp()
+            return
+        }
+
         val nextOrdinal = currentStep.ordinal + 1
         if (nextOrdinal < SignUpStep.entries.size) {
             _uiState.update { it.copy(currentStep = SignUpStep.entries[nextOrdinal]) }
@@ -687,7 +892,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC,
+        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC, //THIS
         val isNextButtonEnabled: Boolean = false,
 
         //STEP1
@@ -702,7 +907,7 @@ class OwnerSignUpViewModel @Inject constructor(
         val emailError: String? = null,
         val isEmailCodeSent: Boolean = false,
         val isEmailVerified: Boolean = false,
-        val emaiilVerifedError: String? = null,
+        val emailVerifiedError: String? = null,
         val isEmailVerificationAttempted: Boolean = false,
         val emailTimerText: String? = null,
         val isEmailTimerExpired: Boolean = false,
@@ -717,7 +922,7 @@ class OwnerSignUpViewModel @Inject constructor(
         val isPhoneCodeSent: Boolean = false,
         val isPhoneVerified: Boolean = false,
         val isPhoneVerificationAttempted: Boolean = false,
-        val phoneVerifedError: String? = null,
+        val phoneVerifiedError: String? = null,
         val phoneTimerText: String? = null,
         val isPhoneTimerExpired: Boolean = false,
         val phoneAuthCode: String = "",
