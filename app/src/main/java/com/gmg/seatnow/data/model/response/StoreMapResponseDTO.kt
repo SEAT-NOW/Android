@@ -8,5 +8,10 @@ data class StoreMapResponseDTO(
     @SerializedName("latitude") val latitude: Double,
     @SerializedName("longitude") val longitude: Double,
     @SerializedName("statusTag") val statusTag: String?, // "CROWDED", "SPACIOUS" 등
-    @SerializedName("availableSeatCount") val availableSeatCount: Int
+    @SerializedName("availableSeatCount") val availableSeatCount: Int,
+    @SerializedName("neighborhood") val neighborhood: String? = "",
+    @SerializedName("images") val images: List<String>? = emptyList(),
+    @SerializedName("distance") val distance: String? = "",
+    @SerializedName("operationStatus") val operationStatus: String? = ""
+
 )

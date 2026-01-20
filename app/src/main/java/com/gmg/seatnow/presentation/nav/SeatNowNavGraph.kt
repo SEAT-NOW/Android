@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,7 +17,11 @@ import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
 import com.gmg.seatnow.presentation.user.UserMainScreen
+import com.gmg.seatnow.presentation.user.term.UserTermsScreen
+import com.gmg.seatnow.presentation.user.term.UserTermsViewModel
 import kotlinx.coroutines.flow.collectLatest
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun SeatNowNavGraph(
@@ -54,6 +59,29 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToOwnerLogin = {
                     navController.navigate("owner_login")
+                },
+                onNavigateToTerms = { isGuest ->
+                    navController.navigate("user_terms/$isGuest")
+                }
+            )
+        }
+
+        //2-1 사용자 약관 동의 화면
+        composable(
+            route = "user_terms/{isGuest}",
+            arguments = listOf(navArgument("isGuest") { type = NavType.BoolType })
+        ) { backStackEntry ->
+            val isGuest = backStackEntry.arguments?.getBoolean("isGuest") ?: false
+            val viewModel = hiltViewModel<UserTermsViewModel>()
+
+            UserTermsScreen(
+                onNavigateToBack = { navController.popBackStack() },
+                onNavigateToMain = {
+                    // ★ 뷰모델에 어떤 로그인인지 알려주고 저장
+                    viewModel.saveTermsAgreement(isGuest)
+                    navController.navigate("user_main") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 }
             )
         }

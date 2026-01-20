@@ -1681,23 +1681,135 @@ fun UserMapContent(
             }
 
         }
+    }
+}
 
-        // 3. 현 지도에서 검색 버튼 (검색바 아래)
-        SearchHereButton(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
-            isLoading = isLoading,
-            onClick = onSearchHereClick
-        )
+@Composable
+fun StoreListItem(
+    index: Int,
+    store: Store,
+    onItemClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onItemClick)
+            .padding(vertical = 16.dp, horizontal = 24.dp) // 좌우 여백 확보
+    ) {
+        // 1. 상단 정보 (이름 + 상태 태그)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 가게 이름 (순위가 있다면 "1. 가게이름" 형식이겠지만 여기선 이름만)
+            Text(
+                text = "${index}. ${store.name}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
+                color = SubBlack
+            )
 
-        // 4. 현재 위치 버튼 (우측 하단)
-        CurrentLocationButton(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 32.dp),
-            isSelected = trackingMode == LocationTrackingMode.Follow,
-            onClick = onCurrentLocationClick
-        )
+            // 상태 태그 이미지 (만석, 혼잡, 보통, 여유)
+            val tagResId = when (store.status) {
+                com.gmg.seatnow.domain.model.StoreStatus.FULL -> R.drawable.tag_full
+                com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
+                com.gmg.seatnow.domain.model.StoreStatus.NORMAL -> R.drawable.tag_normal
+                else -> R.drawable.tag_spare
+            }
+
+            Image(
+                painter = painterResource(id = tagResId),
+                contentDescription = store.status.name,
+                modifier = Modifier.height(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 2. 중간 정보 (영업상태 • 동네 • 거리)
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 영업 상태
+            Text(
+                text = store.operationStatus,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = SubBlack
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // 구분점
+            Icon(
+                painter = painterResource(R.drawable.ic_itempin), // 작은 점 아이콘
+                contentDescription = null,
+                tint = SubGray,
+                modifier = Modifier.size(10.dp)
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // 동네
+            Text(
+                text = store.neighborhood,
+                style = MaterialTheme.typography.bodySmall,
+                color = SubGray
+            )
+
+            // 거리 (값이 있을 때만 표시)
+            if (store.distance.isNotBlank()) {
+                Text(
+                    text = "  ${store.distance}", // 띄어쓰기 포함
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PointRed // 거리는 포인트 컬러 (스크린샷 참고) 혹은 SubGray
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Icon(
+                painter = painterResource(R.drawable.btn_calling), // 전화기 아이콘
+                contentDescription = "전화 걸기",
+                tint = SubGray,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable { /* 전화 걸기 로직 */ }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. 하단 대표 사진 리스트 (가로 스크롤)
+        if (store.images.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(store.images) { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "가게 사진",
+                        modifier = Modifier
+                            .size(100.dp) // 정사각형 크기 (스크린샷 비율 참고)
+                            .background(SubPaleGray), // 로딩 중 배경
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        } else {
+            // 사진이 없을 경우 안내 문구 or 빈 박스 (선택 사항)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .background(SubPaleGray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("등록된 사진이 없습니다.", style = MaterialTheme.typography.bodySmall, color = SubGray)
+            }
+        }
     }
 }

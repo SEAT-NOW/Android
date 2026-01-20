@@ -73,12 +73,25 @@ class SeatSearchViewModel @Inject constructor(
     }
 
     // 검색 실행 (UseCase 호출)
-    fun searchStores(lat: Double, lng: Double, radius: Double = 1.0) {
+    fun searchStores(
+        lat: Double,
+        lng: Double,
+        radius: Double = 1.0,
+        userLat: Double? = null, // 추가됨
+        userLng: Double? = null  // 추가됨
+    ) {
         val count = _uiState.value.headCount.toIntOrNull() ?: 1
 
         viewModelScope.launch {
-            // 변경된 UseCase 서명에 맞춰 radius 전달
-            getStoresByHeadCountUseCase(headCount = count, lat = lat, lng = lng, radius = radius)
+            // ★ [수정] UseCase에 내 위치 정보 전달
+            getStoresByHeadCountUseCase(
+                headCount = count,
+                lat = lat,
+                lng = lng,
+                radius = radius,
+                userLat = userLat, // 전달
+                userLng = userLng  // 전달
+            )
                 .onStart {
                     _uiState.value = _uiState.value.copy(
                         isLoading = true,

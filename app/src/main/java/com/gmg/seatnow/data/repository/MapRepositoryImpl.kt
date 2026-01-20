@@ -6,15 +6,23 @@ import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.repository.MapRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import android.location.Location
 import javax.inject.Inject
 
 class MapRepositoryImpl @Inject constructor(
     private val userApiService: UserApiService
 ) : MapRepository {
 
-    override fun getStores(minPerson: Int, centerLat: Double, centerLng: Double, radius: Double): Flow<List<Store>> = flow {
+    override fun getStores(
+        minPerson: Int,
+        centerLat: Double,
+        centerLng: Double,
+        radius: Double,
+        userLat: Double?, // 추가됨
+        userLng: Double?  // 추가됨
+    ): Flow<List<Store>> = flow {
         try {
-            // API 호출 (minPerson이 0이면 전체, N이면 필터링)
+            // 1. 서버에는 "지도 중심" 좌표를 보냄 (검색용)
             val response = userApiService.getStoresOnMap(
                 lat = centerLat,
                 lng = centerLng,
@@ -25,36 +33,59 @@ class MapRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data ?: emptyList()
 
-                // DTO -> Domain Model 변환 (필요한 정보만 매핑)
                 val stores = data.map { dto ->
+                    // ★ 2. 거리 직접 계산 로직
+                    val calculatedDistance = calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
+
                     Store(
                         id = dto.storeId,
                         name = dto.storeName,
                         latitude = dto.latitude,
                         longitude = dto.longitude,
-                        // 서버의 String 상태값("CROWDED") -> 앱 내부 Enum으로 변환
-                        status = mapStatus(dto.statusTag)
+                        status = mapStatus(dto.statusTag),
+                        neighborhood = dto.neighborhood ?: "정보 없음",
+                        images = dto.images ?: emptyList(),
+                        distance = calculatedDistance, // ★ 서버 값 대신 계산된 값 사용
+                        operationStatus = dto.operationStatus ?: "영업 정보 없음"
                     )
                 }
                 emit(stores)
             } else {
-                // 실패 시 빈 리스트 반환 (혹은 에러 처리)
                 emit(emptyList())
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emit(emptyList()) // 에러 발생 시 안전하게 빈 리스트
+            emit(emptyList())
+        }
+    }
+
+    // [Helper] 거리 계산 함수
+    private fun calculateDistance(userLat: Double?, userLng: Double?, storeLat: Double, storeLng: Double): String {
+        // GPS 정보가 없으면 "0.0km" 반환 (요청사항)
+        if (userLat == null || userLng == null) return "0.0km"
+
+        val results = FloatArray(1)
+        Location.distanceBetween(userLat, userLng, storeLat, storeLng, results)
+        val distanceInMeters = results[0]
+
+        return if (distanceInMeters >= 1000) {
+            String.format("%.1fkm", distanceInMeters / 1000) // 1km 이상
+        } else {
+            "${distanceInMeters.toInt()}m" // 1km 미만
         }
     }
 
     // [Helper] 서버 상태값 -> 앱 내부 Enum 변환
     private fun mapStatus(tag: String?): StoreStatus {
-        return when (tag) {
-            "SPACIOUS" -> StoreStatus.SPARE  // 여유
-            "NORMAL" -> StoreStatus.NORMAL      // 보통
-            "CROWDED" -> StoreStatus.HARD    // 혼잡
-            "FULL" -> StoreStatus.FULL          // 만석
-            else -> StoreStatus.NORMAL          // 기본값
+        if (tag.isNullOrBlank()) return StoreStatus.NORMAL
+
+        // ★ 로그에 찍힌 "FREE"를 처리하도록 수정
+        return when (tag.uppercase().trim()) {
+            "FREE", "SPACIOUS", "여유" -> StoreStatus.SPARE   // "FREE"가 오면 '여유'로 매핑
+            "NORMAL", "보통" -> StoreStatus.NORMAL
+            "CROWDED", "혼잡" -> StoreStatus.HARD
+            "FULL", "만석" -> StoreStatus.FULL
+            else -> StoreStatus.NORMAL // 그 외 값은 보통으로 처리
         }
     }
 }

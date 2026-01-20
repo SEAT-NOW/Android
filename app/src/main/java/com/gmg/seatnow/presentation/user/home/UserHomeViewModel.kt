@@ -40,16 +40,22 @@ class UserHomeViewModel @Inject constructor(
     }
 
     // 지도 데이터 가져오기 (필터 상태에 따라 분기)
-    fun fetchStoresInCurrentMap(lat: Double, lng: Double, radius: Double) {
+    fun fetchStoresInCurrentMap(
+        lat: Double,
+        lng: Double,
+        radius: Double,
+        userLat: Double? = null,
+        userLng: Double? = null
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
             val count = _activeHeadCount.value
 
             val flow = if (count != null) {
-                // UseCase 호출 시 radius 전달
-                getStoresByHeadCountUseCase(headCount = count, lat = lat, lng = lng, radius = radius)
+                // UseCase에 내 위치 전달
+                getStoresByHeadCountUseCase(count, lat, lng, radius, userLat, userLng)
             } else {
-                getStoresUseCase(lat, lng, radius)
+                getStoresUseCase(lat, lng, radius, userLat, userLng)
             }
 
             flow.catch { e ->
