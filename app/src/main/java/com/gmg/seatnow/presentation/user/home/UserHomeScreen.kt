@@ -41,6 +41,8 @@ fun UserHomeScreen(
 ) {
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
 
+    var selectedStoreId by remember { mutableStateOf<Long?>(null) }
+
     var showPermissionDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -117,6 +119,13 @@ fun UserHomeScreen(
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             refreshCurrentLocation()
+        }
+    }
+
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            targetPeekHeight = 260.dp
+            selectedStoreId = null // 로딩되면 선택 해제
         }
     }
 
@@ -220,7 +229,11 @@ fun UserHomeScreen(
                             StoreListItem(
                                 index = index + 1,
                                 store = store,
-                                onItemClick = {}
+                                onItemClick = {
+                                    // 리스트 아이템 클릭 시 해당 가게 선택 (지도 핀도 같이 변함)
+                                    selectedStoreId = store.id
+                                    // 필요 시 시트를 내리거나 카메라 이동 로직 추가 가능
+                                }
                             )
                             HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
                         }
@@ -240,10 +253,19 @@ fun UserHomeScreen(
                 storeList = storeList,
                 trackingMode = trackingMode,
                 isLoading = false,
+
+                // ★ [연결] 선택된 ID와 클릭 이벤트 전달
+                selectedStoreId = selectedStoreId,
+                onStoreClick = { storeId ->
+                    selectedStoreId = storeId // 핀 클릭 시 선택
+                },
+                onMapClick = {
+                    selectedStoreId = null    // 지도 빈 곳 클릭 시 해제
+                },
+
                 onSearchHereClick = { },
                 onCurrentLocationClick = { refreshCurrentLocation() },
                 onMapGestured = {
-                    // 지도 만지면 접기
                     if (targetPeekHeight > 50.dp) {
                         trackingMode = LocationTrackingMode.NoFollow
                         targetPeekHeight = 50.dp
@@ -317,6 +339,31 @@ fun UserHomeScreen(
                     isSelected = trackingMode == LocationTrackingMode.Follow,
                     onClick = { refreshCurrentLocation() }
                 )
+            }
+
+            // 4. 선택된 가게 상세 카드
+            if (selectedStoreId != null) {
+                // 현재 화면에 떠있는 리스트(storeList)에서 몇 번째인지 찾습니다.
+                // 리스트의 순서(Rank)가 곧 핀의 번호이므로 이 방식이 가장 안전합니다.
+                val selectedIndex = storeList.indexOfFirst { it.id == selectedStoreId }
+
+                // 해당 가게 데이터 가져오기
+                val selectedStore = storeList.getOrNull(selectedIndex)
+
+                if (selectedStore != null && selectedIndex != -1) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 20.dp)
+                    ) {
+                        StoreDetailCard(
+                            index = selectedIndex + 1, // 0부터 시작하므로 +1 (1위, 2위...)
+                            store = selectedStore,
+                            onClose = { selectedStoreId = null },
+                            onItemClick = { /* 상세 이동 로직 */ }
+                        )
+                    }
+                }
             }
 
             if (showPermissionDialog) {

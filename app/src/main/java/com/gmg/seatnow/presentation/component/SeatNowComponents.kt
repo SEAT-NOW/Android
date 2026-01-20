@@ -1,8 +1,11 @@
 package com.gmg.seatnow.presentation.component
 
+import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -41,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +58,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import coil.compose.AsyncImage
 import com.commandiron.wheel_picker_compose.core.WheelPickerDefaults
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
@@ -62,9 +68,11 @@ import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.Store
+import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.util.MapUtils
 import com.gmg.seatnow.presentation.util.MapUtils.createMarkerBitmap
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
@@ -1627,29 +1635,30 @@ fun CurrentLocationButton(
     }
 }
 
-/**
- * [통합 지도 컴포넌트]
- * 지도 + 마커 + 상단 검색바 + 재검색 버튼 + 현재 위치 버튼이 모두 포함됨.
- * 홈 화면과 검색 화면에서 공통으로 사용.
- */
 @OptIn(ExperimentalNaverMapApi::class)
 @Composable
 fun UserMapContent(
+    // ... (파라미터 기존과 동일)
     cameraPositionState: CameraPositionState,
     locationSource: LocationSource,
     storeList: List<Store>,
     trackingMode: LocationTrackingMode,
     isLoading: Boolean = false,
+    selectedStoreId: Long? = null,
+    onStoreClick: (Long) -> Unit,
+    onMapClick: () -> Unit,
     onSearchHereClick: () -> Unit,
     onCurrentLocationClick: () -> Unit,
     onMapGestured: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. 네이버 지도 (Base)
         NaverMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             locationSource = locationSource,
+            onMapClick = { _, _ -> onMapClick() },
             uiSettings = MapUiSettings(
                 isLocationButtonEnabled = false,
                 isZoomControlEnabled = false
@@ -1660,18 +1669,50 @@ fun UserMapContent(
         ) {
             storeList.forEachIndexed { index, store ->
                 if (index < 10) {
-                    val markerIcon = createMarkerBitmap(index + 1, store.status)
+                    key(store.id) {
+                        val isSelected = (store.id == selectedStoreId)
 
-                    Marker(
-                        state = MarkerState(position = LatLng(store.latitude, store.longitude)),
-                        captionText = store.name,
-                        captionOffset = 5.dp,
-                        icon = OverlayImage.fromBitmap(markerIcon),
-                        onClick = { true }
-                    )
+                        // 1. 비트맵 생성 (둘 다 status 전달하여 색상 동기화)
+                        val markerIcon = if (isSelected) {
+                            // ★ [수정] status 전달 -> 선택된 핀도 색상 맞춤
+                            MapUtils.createSelectedMarkerBitmap(context, index + 1, store.status)
+                        } else {
+                            MapUtils.createMarkerBitmap(context, index + 1, store.status)
+                        }
+
+                        // 2. 크기 애니메이션
+                        val targetWidth = if (isSelected) 52.dp else 34.dp
+                        val targetHeight = if (isSelected) 65.dp else 34.dp // 비율 고려
+
+                        val animatedWidth by animateDpAsState(
+                            targetValue = targetWidth,
+                            label = "Width",
+                            animationSpec = tween(300)
+                        )
+                        val animatedHeight by animateDpAsState(
+                            targetValue = targetHeight,
+                            label = "Height",
+                            animationSpec = tween(300)
+                        )
+
+                        Marker(
+                            state = MarkerState(position = LatLng(store.latitude, store.longitude)),
+                            captionText = if (isSelected) "" else store.name,
+                            captionOffset = 5.dp,
+                            icon = OverlayImage.fromBitmap(markerIcon),
+                            width = animatedWidth,
+                            height = animatedHeight,
+                            zIndex = if (isSelected) 100 else 0,
+                            onClick = {
+                                onStoreClick(store.id)
+                                true
+                            }
+                        )
+                    }
                 }
             }
 
+            // ... (MapEffect 유지)
             MapEffect(Unit) { naverMap ->
                 naverMap.addOnCameraChangeListener { reason, _ ->
                     if (reason == CameraUpdate.REASON_GESTURE) {
@@ -1679,7 +1720,6 @@ fun UserMapContent(
                     }
                 }
             }
-
         }
     }
 }
@@ -1811,5 +1851,32 @@ fun StoreListItem(
                 Text("등록된 사진이 없습니다.", style = MaterialTheme.typography.bodySmall, color = SubGray)
             }
         }
+    }
+}
+
+@Composable
+fun StoreDetailCard(
+    index: Int,           // 순번 ("1. 가게이름" 표시용)
+    store: Store,         // 가게 데이터
+    onClose: () -> Unit,  // 카드 닫기 (필요 시 사용)
+    onItemClick: () -> Unit = {} // 상세 페이지 이동 등
+) {
+    // 1. 카드 외형 설정 (둥근 모서리, 흰색 배경, 그림자)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 20.dp) // 화면 가장자리 여백
+            .wrapContentHeight(), // 내용물 크기만큼만 높이 차지
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = White), // 배경색 흰색
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp) // 그림자 효과
+    ) {
+        // 2. 내용물은 기존 StoreListItem 재사용
+        // StoreListItem 내부의 padding이 카드 안쪽 여백 역할을 자연스럽게 해줍니다.
+        StoreListItem(
+            index = index,
+            store = store,
+            onItemClick = onItemClick
+        )
     }
 }
