@@ -12,6 +12,7 @@ interface UserApiService {
     // headCount: 0이면 전체 조회, 1 이상이면 필터링
     @GET("/api/v1/stores/search")
     suspend fun getStoresOnMap(
+        @Query("keyword") keyword: String? = null,
         @Query("lat") lat: Double,
         @Query("lng") lng: Double,
         @Query("headCount") headCount: Int = 0,

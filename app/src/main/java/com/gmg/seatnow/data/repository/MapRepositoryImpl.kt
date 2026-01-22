@@ -14,16 +14,18 @@ class MapRepositoryImpl @Inject constructor(
 ) : MapRepository {
 
     override fun getStores(
+        keyword: String?,
         minPerson: Int,
         centerLat: Double,
         centerLng: Double,
         radius: Double,
-        userLat: Double?, // 추가됨
-        userLng: Double?  // 추가됨
+        userLat: Double?,
+        userLng: Double?
     ): Flow<List<Store>> = flow {
         try {
             // 1. 서버에는 "지도 중심" 좌표를 보냄 (검색용)
             val response = userApiService.getStoresOnMap(
+                keyword = keyword,
                 lat = centerLat,
                 lng = centerLng,
                 headCount = minPerson,
@@ -88,4 +90,5 @@ class MapRepositoryImpl @Inject constructor(
             else -> StoreStatus.NORMAL // 그 외 값은 보통으로 처리
         }
     }
+
 }

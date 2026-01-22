@@ -31,4 +31,4 @@ val ColorNormal = Color(0xFFE5C649) // 보통 (노랑)
 val ColorHard = Color(0xFFCC585A)   // 혼잡 (빨강)
 val ColorFull = Color(0xFFA99E9E)   // 만석 (회색)
 
-val ColorSearchTag = Color(0xFFFFE047)
+val ColorSearchTag = Color(0xFFDFD7D7)

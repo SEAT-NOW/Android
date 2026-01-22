@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.component
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.drawable.shapes.Shape
 import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -1476,14 +1477,16 @@ fun TableStepperItem(
 @Composable
 fun HomeSearchBar(
     activeHeadCount: Int?,
-    onClearFilter: () -> Unit
+    onClearFilter: () -> Unit,
+    onSearchClick: () -> Unit
 ) {
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .shadow(4.dp, RoundedCornerShape(8.dp)),
+            .shadow(4.dp, RoundedCornerShape(8.dp))
+            .clickable(onClick = onSearchClick),
         shape = RoundedCornerShape(8.dp),
         color = White
     ) {
@@ -1734,7 +1737,7 @@ fun StoreListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onItemClick)
-            .padding(vertical = 16.dp, horizontal = 24.dp) // 좌우 여백 확보
+            .padding(vertical = 8.dp, horizontal = 24.dp)
     ) {
         // 1. 상단 정보 (이름 + 상태 태그)
         Row(
@@ -1742,7 +1745,6 @@ fun StoreListItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 가게 이름 (순위가 있다면 "1. 가게이름" 형식이겠지만 여기선 이름만)
             Text(
                 text = "${index}. ${store.name}",
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -1752,7 +1754,6 @@ fun StoreListItem(
                 color = SubBlack
             )
 
-            // 상태 태그 이미지 (만석, 혼잡, 보통, 여유)
             val tagResId = when (store.status) {
                 com.gmg.seatnow.domain.model.StoreStatus.FULL -> R.drawable.tag_full
                 com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
@@ -1770,113 +1771,319 @@ fun StoreListItem(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // 2. 중간 정보 (영업상태 • 동네 • 거리)
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 영업 상태
+        // 2. 중간 정보
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = store.operationStatus,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                 color = SubBlack
             )
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // 구분점
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "·",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = SubGray
+            )
+            Spacer(modifier = Modifier.width(3.dp))
             Icon(
-                painter = painterResource(R.drawable.ic_itempin), // 작은 점 아이콘
+                painter = painterResource(R.drawable.ic_itempin),
                 contentDescription = null,
                 tint = SubGray,
                 modifier = Modifier.size(10.dp)
             )
-
             Spacer(modifier = Modifier.width(6.dp))
-
-            // 동네
             Text(
                 text = store.neighborhood,
                 style = MaterialTheme.typography.bodySmall,
                 color = SubGray
             )
-
-            // 거리 (값이 있을 때만 표시)
             if (store.distance.isNotBlank()) {
                 Text(
-                    text = "  ${store.distance}", // 띄어쓰기 포함
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PointRed // 거리는 포인트 컬러 (스크린샷 참고) 혹은 SubGray
+                    text = "  ${store.distance}",
+                    style = Body1_Medium_10,
+                    color = SubLightGray
                 )
             }
-
             Spacer(modifier = Modifier.weight(1f))
-
             Icon(
-                painter = painterResource(R.drawable.btn_calling), // 전화기 아이콘
+                painter = painterResource(R.drawable.btn_calling),
                 contentDescription = "전화 걸기",
                 tint = SubGray,
-                modifier = Modifier
-                    .size(18.dp)
-                    .clickable { /* 전화 걸기 로직 */ }
+                modifier = Modifier.size(12.dp).clickable { }
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. 하단 대표 사진 리스트 (가로 스크롤)
-        if (store.images.isNotEmpty()) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(store.images) { imageUrl ->
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = "가게 사진",
-                        modifier = Modifier
-                            .size(100.dp) // 정사각형 크기 (스크린샷 비율 참고)
-                            .background(SubPaleGray), // 로딩 중 배경
-                        contentScale = ContentScale.Crop
-                    )
-                }
+        // 3. 하단 사진 (고정형 3장)
+        FixedThreeImagesRow(
+            images = store.images,
+            shape = RectangleShape,
+            spacing = 2.dp
+        )
+    }
+}
+
+@Composable
+fun StoreDetailContent(
+    index: Int,
+    store: Store,
+    onItemClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onItemClick)
+            .padding(vertical = 16.dp, horizontal = 24.dp)
+    ) {
+        // 1. 상단 사진 (고정형 3장) - 먼저 배치
+        FixedThreeImagesRow(images = store.images)
+
+        Spacer(modifier = Modifier.height(16.dp)) // 사진과 텍스트 사이 여백
+
+        // 2. 하단 정보 (이름 + 상태 태그)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${index}. ${store.name}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
+                color = SubBlack
+            )
+
+            val tagResId = when (store.status) {
+                com.gmg.seatnow.domain.model.StoreStatus.FULL -> R.drawable.tag_full
+                com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
+                com.gmg.seatnow.domain.model.StoreStatus.NORMAL -> R.drawable.tag_normal
+                else -> R.drawable.tag_spare
             }
-        } else {
-            // 사진이 없을 경우 안내 문구 or 빈 박스 (선택 사항)
-            Box(
+
+            Image(
+                painter = painterResource(id = tagResId),
+                contentDescription = store.status.name,
+                modifier = Modifier.height(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 3. 최하단 정보
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = store.operationStatus,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = SubBlack
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "·",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = SubGray
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_itempin),
+                contentDescription = null,
+                tint = SubGray,
+                modifier = Modifier.size(10.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = store.neighborhood,
+                style = MaterialTheme.typography.bodySmall,
+                color = SubGray
+            )
+            if (store.distance.isNotBlank()) {
+                Text(
+                    text = "  ${store.distance}",
+                    style = Body1_Medium_10,
+                    color = PointRed
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                painter = painterResource(R.drawable.btn_calling),
+                contentDescription = "전화 걸기",
+                tint = SubGray,
+                modifier = Modifier.size(18.dp).clickable { }
+            )
+        }
+    }
+}
+
+// ★ [수정됨] 상세 카드 컴포넌트
+@Composable
+fun StoreDetailCard(
+    index: Int,
+    store: Store,
+    onClose: () -> Unit,
+    onItemClick: () -> Unit = {}
+) {
+    // ★ 1. Surface 사용 + tonalElevation = 0.dp (핑크색 틴트 원천 차단)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 20.dp)
+            .wrapContentHeight(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White, // 완전한 흰색
+        tonalElevation = 0.dp, // 틴트 제거
+        shadowElevation = 10.dp // 그림자 유지
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onItemClick)
+        ) {
+            // 1. 상단 사진 (뚜껑)
+            FixedThreeImagesRow(
+                images = store.images,
+                shape = RectangleShape,
+                spacing = 2.dp,
+                modifier = Modifier.height(120.dp)
+            )
+
+            // 2. 하단 텍스트 정보
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
-                    .background(SubPaleGray),
-                contentAlignment = Alignment.Center
+                    // ★ 2. 상단 패딩 축소 (20dp -> 12dp)
+                    .padding(top = 12.dp, start = 16.dp, end = 16.dp, bottom = 20.dp)
             ) {
-                Text("등록된 사진이 없습니다.", style = MaterialTheme.typography.bodySmall, color = SubGray)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${index}. ${store.name}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = SubBlack
+                    )
+                    val tagResId = when (store.status) {
+                        StoreStatus.FULL -> R.drawable.tag_full
+                        StoreStatus.HARD -> R.drawable.tag_hard
+                        StoreStatus.NORMAL -> R.drawable.tag_normal
+                        else -> R.drawable.tag_spare
+                    }
+                    Image(
+                        painter = painterResource(id = tagResId),
+                        contentDescription = store.status.name,
+                        modifier = Modifier.height(24.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = store.operationStatus,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = SubBlack
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "·",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = SubGray
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_itempin),
+                        contentDescription = null,
+                        tint = SubGray,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = store.neighborhood,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray
+                    )
+                    if (store.distance.isNotBlank()) {
+                        // 거리 텍스트 (상세 카드에서도 동일하게 적용)
+                        Text(
+                            text = "  ${store.distance}",
+                            style = Body1_Medium_10,
+                            color = SubGray
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        painter = painterResource(R.drawable.btn_calling),
+                        contentDescription = "전화 걸기",
+                        tint = SubGray,
+                        modifier = Modifier.size(12.dp).clickable { }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun StoreDetailCard(
-    index: Int,           // 순번 ("1. 가게이름" 표시용)
-    store: Store,         // 가게 데이터
-    onClose: () -> Unit,  // 카드 닫기 (필요 시 사용)
-    onItemClick: () -> Unit = {} // 상세 페이지 이동 등
+fun FixedThreeImagesRow(
+    images: List<String>,
+    shape: androidx.compose.ui.graphics.Shape = RectangleShape, // 기본값: 뾰족하게
+    spacing: Dp = 8.dp,            // 기본값: 간격 8dp
+    modifier: Modifier = Modifier
 ) {
-    // 1. 카드 외형 설정 (둥근 모서리, 흰색 배경, 그림자)
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp) // 화면 가장자리 여백
-            .wrapContentHeight(), // 내용물 크기만큼만 높이 차지
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = White), // 배경색 흰색
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp) // 그림자 효과
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing)
     ) {
-        // 2. 내용물은 기존 StoreListItem 재사용
-        // StoreListItem 내부의 padding이 카드 안쪽 여백 역할을 자연스럽게 해줍니다.
-        StoreListItem(
-            index = index,
-            store = store,
-            onItemClick = onItemClick
-        )
+        for (i in 0 until 3) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(shape) // ★ shape 적용 (ListItem은 Rectangle, Detail은 CardClip)
+                    .background(SubPaleGray)
+            ) {
+                if (i < images.size) {
+                    AsyncImage(
+                        model = images[i],
+                        contentDescription = "가게 사진",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Preview(name = "Store Detail Card Preview", showBackground = true, backgroundColor = 0xFFEEEEEE)
+@Composable
+fun PreviewStoreDetailCard() {
+    // 더미 데이터 생성
+    val dummyStore = Store(
+        id = 1L,
+        name = "투썸플레이스 강남점",
+        latitude = 37.5,
+        longitude = 127.0,
+        status = StoreStatus.HARD,
+        neighborhood = "역삼동",
+        distance = "350m",
+        operationStatus = "영업중",
+        images = listOf("", "", "") // 빈 문자열로 이미지 로딩 실패 케이스(회색 박스) 확인
+    )
+
+    SeatNowTheme {
+        Box(modifier = Modifier.padding(20.dp)) {
+            StoreDetailCard(
+                index = 1,
+                store = dummyStore,
+                onClose = {}
+            )
+        }
     }
 }
