@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -20,12 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
@@ -51,34 +55,28 @@ fun UserHomeScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // 지도 상태 (Hoisting)
     val cameraPositionState = rememberCameraPositionState()
     val locationSource = rememberFusedLocationSource()
     var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
 
-    // 데이터 상태
     val storeList by viewModel.storeList.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val activeFilter by viewModel.activeHeadCount.collectAsState()
 
-    // 뒤로가기 핸들러
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
         viewModel.clearSearch()
     }
 
-    // ★ [핵심] Peek 높이 제어
-    // 검색 중이거나 핀이 선택되면 시트를 내리거나 숨김 (0dp or 50dp)
-    // 그 외엔 50dp, 로딩 시 260dp
-    var targetPeekHeight by remember { mutableStateOf(50.dp) }
+    // ★ [수정됨] 기본 높이 45dp로 변경
+    var targetPeekHeight by remember { mutableStateOf(45.dp) }
 
-    // 로딩 및 상태에 따른 시트 높이 자동 조절
-    LaunchedEffect(isLoading, isSearchActive, selectedStoreId) {
+    LaunchedEffect(isLoading, isSearchActive, selectedStoreId, storeList.size) {
         targetPeekHeight = when {
-            isSearchActive -> 0.dp // 검색 중엔 시트 숨김
-            selectedStoreId != null -> 50.dp // 핀 선택 시 최소 높이
-            isLoading -> 260.dp // 로딩 시 목록 보여줌
-            else -> 50.dp // 기본
+            isSearchActive -> 0.dp
+            selectedStoreId != null -> 45.dp // ★ [수정됨] 핀 선택 시에도 45dp
+            isLoading -> 260.dp
+            else -> 260.dp
         }
     }
 
@@ -96,7 +94,6 @@ fun UserHomeScreen(
     )
     val isSheetExpanded = scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded
 
-    // 반경 계산
     fun getCurrentRadius(): Double {
         val bounds = cameraPositionState.contentBounds
         return if (bounds != null) {
@@ -114,7 +111,6 @@ fun UserHomeScreen(
         }
     }
 
-    // 현재 위치 갱신 및 검색
     fun refreshCurrentLocation() {
         MapLogicHandler.moveCameraToCurrentLocation(
             context = context,
@@ -159,21 +155,25 @@ fun UserHomeScreen(
         }
     }
 
-    // =================================================================
-    // ★ [구조 변경] BottomSheetScaffold가 최상위를 감싸고,
-    // 지도(UserMapContent)는 항상 그 안에 존재해야 함 (Recomposition 방지)
-    // =================================================================
+    LaunchedEffect(selectedStoreId) {
+        if (selectedStoreId != null) {
+            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                scaffoldState.bottomSheetState.partialExpand()
+            }
+        }
+    }
+
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetContainerColor = White,
         sheetContentColor = SubBlack,
         sheetTonalElevation = 0.dp,
         sheetShadowElevation = 10.dp,
-        sheetPeekHeight = animatedPeekHeight, // 0dp가 되면 숨겨짐
+        sheetPeekHeight = animatedPeekHeight,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        sheetSwipeEnabled = !isSearchActive, // 검색 중엔 스와이프 막음
+        sheetSwipeEnabled = !isSearchActive && storeList.isNotEmpty(),
         sheetDragHandle = {
-            if (!isSearchActive) { // 검색 중엔 핸들 숨김
+            if (!isSearchActive) {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(48.dp).background(Color.Transparent)
                         .pointerInput(Unit) {
@@ -181,8 +181,10 @@ fun UserHomeScreen(
                                 change.consume()
                                 val threshold = 5f
                                 if (dragAmount < -threshold) {
-                                    if (scaffoldState.bottomSheetState.currentValue != SheetValue.Expanded) {
-                                        coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                                    if (storeList.isNotEmpty()) {
+                                        if (scaffoldState.bottomSheetState.currentValue != SheetValue.Expanded) {
+                                            coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                                        }
                                     }
                                 } else if (dragAmount > threshold) {
                                     if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
@@ -198,47 +200,29 @@ fun UserHomeScreen(
             }
         },
         sheetContent = {
-            Column(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f).background(White)
-            ) {
-                if (storeList.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(top = 50.dp), contentAlignment = Alignment.Center) {
-                        Text(if (isLoading) "검색 중입니다..." else "이 지역에 등록된 술집이 없습니다.", style = MaterialTheme.typography.bodyMedium, color = SubGray)
-                    }
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
-                        itemsIndexed(storeList) { index, store ->
-                            StoreListItem(
-                                index = index + 1,
-                                store = store,
-                                onItemClick = {
-                                    selectedStoreId = store.id
-                                    // 리스트 클릭 시에도 지도 이동 + Follow 끊기 적용
-                                    trackingMode = LocationTrackingMode.None
-                                    coroutineScope.launch {
-                                        cameraPositionState.animate(
-                                            update = CameraUpdate.scrollTo(LatLng(store.latitude, store.longitude)),
-                                            durationMs = 800
-                                        )
-                                    }
-                                }
-                            )
-                            HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
-                        }
+            HomeBottomSheetContent(
+                storeList = storeList,
+                isLoading = isLoading,
+                activeFilter = activeFilter,
+                onItemClick = { store ->
+                    selectedStoreId = store.id
+                    trackingMode = LocationTrackingMode.None
+                    coroutineScope.launch {
+                        cameraPositionState.animate(
+                            update = CameraUpdate.scrollTo(LatLng(store.latitude, store.longitude)),
+                            durationMs = 800
+                        )
                     }
                 }
-            }
+            )
         },
         containerColor = White
     ) { paddingValues ->
-        // ★ [핵심] 지도가 포함된 메인 컨텐츠 영역
         Box(modifier = Modifier.fillMaxSize()) {
-
-            // 1. 지도 (조건문 없이 항상 존재해야 함 -> 그래야 이동 애니메이션이 안 끊김)
             UserMapContent(
                 cameraPositionState = cameraPositionState,
                 locationSource = locationSource,
-                storeList = storeList, // 검색 중엔 빈 리스트를 넣고 싶으면 if문 처리 가능하지만, 보통 유지하는게 자연스러움
+                storeList = storeList,
                 trackingMode = trackingMode,
                 isLoading = false,
                 selectedStoreId = selectedStoreId,
@@ -254,34 +238,30 @@ fun UserHomeScreen(
                 onSearchHereClick = { },
                 onCurrentLocationClick = { refreshCurrentLocation() },
                 onMapGestured = {
-                    // 지도 움직임 감지
-                    if (targetPeekHeight > 50.dp && !isSearchActive) {
+                    // ★ [수정됨] 45dp로 변경 (제스처 시 내려가는 높이)
+                    if (targetPeekHeight > 45.dp && !isSearchActive) {
                         trackingMode = LocationTrackingMode.NoFollow
-                        // 시트 내리기
-                        if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                        if (storeList.isNotEmpty()) {
+                            targetPeekHeight = 45.dp
+                            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                            }
+                        } else {
+                            targetPeekHeight = 45.dp
                         }
                     } else {
                         trackingMode = LocationTrackingMode.NoFollow
                     }
-
-                    // 핀 선택 해제 (지도 드래그 시)
-                    if (selectedStoreId != null) {
-                        selectedStoreId = null
-                    }
+                    if (selectedStoreId != null) selectedStoreId = null
                 }
             )
 
-            // Dim 처리 (시트 확장 시)
-            if (isSheetExpanded && !isSearchActive) {
+            if (isSheetExpanded && !isSearchActive && storeList.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)))
             }
 
-            // 2. [검색 화면 오버레이] (isSearchActive일 때 지도 위에 덮어씌움)
             if (isSearchActive) {
                 val center = cameraPositionState.position.target
-
-                // 배경을 흰색으로 덮어서 지도 안보이게 처리 (원하면)
                 Box(modifier = Modifier.fillMaxSize().background(White)) {
                     UserSearchScreen(
                         onBackClick = {
@@ -289,17 +269,10 @@ fun UserHomeScreen(
                             viewModel.clearSearch()
                         },
                         onStoreClick = { store ->
-                            // 1. 화면 전환
                             isSearchActive = false
                             viewModel.clearSearch()
-
-                            // 2. ★ [핵심] 지도 추적 모드 해제 (이게 켜져 있으면 애니메이션 씹힘)
                             trackingMode = LocationTrackingMode.None
-
-                            // 3. 핀 선택 상태 활성화 (Ghost Item 문제 해결을 위해 ID 먼저 세팅)
                             selectedStoreId = store.id
-
-                            // 4. 지도 데이터 갱신 (해당 위치 중심)
                             viewModel.fetchStoresInCurrentMap(
                                 lat = store.latitude,
                                 lng = store.longitude,
@@ -307,10 +280,7 @@ fun UserHomeScreen(
                                 userLat = currentUserLocation?.latitude,
                                 userLng = currentUserLocation?.longitude
                             )
-
-                            // 5. 카메라 강제 이동
                             coroutineScope.launch {
-                                // 혹시 모를 이전 애니메이션 취소
                                 cameraPositionState.stop()
                                 cameraPositionState.animate(
                                     update = CameraUpdate.scrollTo(LatLng(store.latitude, store.longitude)),
@@ -326,14 +296,9 @@ fun UserHomeScreen(
                     )
                 }
             }
-            // 3. [일반 홈 UI] (검색 중이 아닐 때만 표시)
             else {
-                // 상단 UI (검색바 등)
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = 0.dp, start = 16.dp, end = 16.dp),
+                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 0.dp, start = 16.dp, end = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     HomeSearchBar(
@@ -371,23 +336,17 @@ fun UserHomeScreen(
                     }
                 }
 
-                // 현재 위치 버튼
                 if (!isSheetExpanded && selectedStoreId == null) {
                     CurrentLocationButton(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 80.dp),
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 80.dp),
                         isSelected = trackingMode == LocationTrackingMode.Follow,
                         onClick = { refreshCurrentLocation() }
                     )
                 }
 
-                // 선택된 가게 상세 카드
                 if (selectedStoreId != null) {
-                    // 현재 리스트에 있는 녀석인지 확인, 없으면 핀만 찍히고 카드는 로딩 후 뜸
                     val selectedIndex = storeList.indexOfFirst { it.id == selectedStoreId }
                     val selectedStore = storeList.getOrNull(selectedIndex)
-
                     if (selectedStore != null) {
                         Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 50.dp)) {
                             StoreDetailCard(
@@ -411,6 +370,83 @@ fun UserHomeScreen(
                 permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
             }
         )
+    }
+}
+
+// ★ [수정됨] 바텀시트 컨텐츠
+@Composable
+fun HomeBottomSheetContent(
+    storeList: List<Store>,
+    isLoading: Boolean,
+    activeFilter: Int?,
+    onItemClick: (Store) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (storeList.isNotEmpty()) Modifier.fillMaxHeight(0.8f)
+                else Modifier.height(260.dp)
+            )
+            .background(White)
+    ) {
+        if (storeList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 64.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    Text(
+                        text = "검색 중입니다...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray
+                    )
+                } else {
+                    val count = activeFilter
+                    if (count != null) {
+                        // [Case 1] N명 자리찾기 결과 없음 (이미지 포함)
+                        // ★ [수정됨] 여기에만 bottom padding 20dp 추가
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_emptylist),
+                                contentDescription = null,
+                                modifier = Modifier.size(100.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "지금은 '${count}명'이 앉을 수 있는 술집이 없어요",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SubGray
+                            )
+                        }
+                    } else {
+                        // [Case 2] 일반 지도 검색 결과 없음
+                        Text(
+                            text = "이 지역에 등록된 술집이 없습니다.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SubGray
+                        )
+                    }
+                }
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
+                itemsIndexed(storeList) { index, store ->
+                    StoreListItem(
+                        index = index + 1,
+                        store = store,
+                        onItemClick = { onItemClick(store) }
+                    )
+                    HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+                }
+            }
+        }
     }
 }
 
@@ -438,4 +474,31 @@ fun LocationPermissionDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
             }
         }
     )
+}
+
+// ★ [Preview]
+@Preview(showBackground = true, name = "결과 없음 (4명 필터)")
+@Composable
+fun PreviewHomeBottomSheetEmptyFilter() {
+    SeatNowTheme {
+        HomeBottomSheetContent(
+            storeList = emptyList(),
+            isLoading = false,
+            activeFilter = 4,
+            onItemClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "결과 없음 (일반)")
+@Composable
+fun PreviewHomeBottomSheetEmptyNormal() {
+    SeatNowTheme {
+        HomeBottomSheetContent(
+            storeList = emptyList(),
+            isLoading = false,
+            activeFilter = null,
+            onItemClick = {}
+        )
+    }
 }

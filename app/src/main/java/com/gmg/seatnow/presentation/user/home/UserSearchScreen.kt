@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -26,6 +27,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,8 +45,8 @@ fun UserSearchScreen(
     viewModel: UserHomeViewModel,
     currentLat: Double,
     currentLng: Double,
-    userLat: Double?,   // ★ [추가] 내 위치 (거리 계산용)
-    userLng: Double?    // ★ [추가] 내 위치 (거리 계산용)
+    userLat: Double?,
+    userLng: Double?
 ) {
     val query by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -56,7 +58,6 @@ fun UserSearchScreen(
         isLoading = isLoading,
         onBackClick = onBackClick,
         onQueryChange = { newQuery ->
-            // ★ 수정된 함수 호출 (내 위치 포함)
             viewModel.onSearchQueryChanged(newQuery, currentLat, currentLng, userLat, userLng)
         },
         onSearchAction = {
@@ -69,7 +70,7 @@ fun UserSearchScreen(
     )
 }
 
-// [2] Stateless: UI 구현 (요청사항 반영)
+// [2] Stateless: UI 구현
 @Composable
 fun UserSearchContent(
     query: String,
@@ -101,17 +102,15 @@ fun UserSearchContent(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // ★ 1. 통합 검색창 박스 (흰색 배경 + 회색 테두리)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp) // 높이 약간 키움
+                    .height(42.dp)
                     .background(White, RoundedCornerShape(8.dp))
-                    .border(1.dp, SubLightGray, RoundedCornerShape(8.dp)) // ★ 테두리 회색
-                    .padding(horizontal = 8.dp), // 내부 여백
+                    .border(1.dp, SubLightGray, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ★ 2. 뒤로가기 버튼 (검색창 내부로 이동)
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier.size(36.dp)
@@ -119,26 +118,21 @@ fun UserSearchContent(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "뒤로가기",
-                        tint = SubBlack, // 혹은 SubGray
+                        tint = SubBlack,
                         modifier = Modifier.size(24.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // ★ 3. 입력 필드
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight() // ★ 높이 꽉 채움 (정렬을 위해 필수)
+                        .fillMaxHeight()
                         .focusRequester(focusRequester),
-                    textStyle = TextStyle(
-                        fontSize = 16.sp,
-                        color = SubBlack,
-                        fontWeight = FontWeight.Medium
-                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = SubBlack),
                     singleLine = true,
                     cursorBrush = SolidColor(SubGray),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -148,10 +142,9 @@ fun UserSearchContent(
                             onSearchAction()
                         }
                     ),
-                    // ★ decorationBox를 이용한 완벽한 수직 중앙 정렬
                     decorationBox = { innerTextField ->
                         Box(
-                            contentAlignment = Alignment.CenterStart, // 내용물(텍스트/힌트)을 왼쪽 중앙에 배치
+                            contentAlignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxHeight()
                         ) {
                             if (query.isEmpty()) {
@@ -166,34 +159,49 @@ fun UserSearchContent(
                     }
                 )
 
-                // ★ 4. 우측 아이콘 처리
                 if (query.isNotEmpty()) {
-                    // ★ 지정해주신 X 버튼 코드 적용
                     Icon(
                         painter = painterResource(id = R.drawable.btn_search_cancel),
                         contentDescription = "삭제",
                         tint = SubGray,
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(16.dp)
                             .clickable { onClearQuery() }
                     )
                 } else {
-                    // ★ 돋보기 버튼 제거 (공백)
                     Spacer(modifier = Modifier.width(20.dp))
                 }
 
-                // 우측 끝 여백
                 Spacer(modifier = Modifier.width(8.dp))
             }
         }
 
-        // [검색 결과 리스트]
+        // [결과 리스트 영역]
         Box(modifier = Modifier.fillMaxSize()) {
+
+            // 1. 검색 결과가 없을 때 (검색어 O, 로딩 X, 결과 0개)
             if (searchResults.isEmpty() && query.isNotEmpty() && !isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("검색 결과가 없습니다.", style = MaterialTheme.typography.bodyMedium, color = SubGray)
+                Column(
+                    // ★ [핵심] 정중앙(0,0)보다 y축으로 -0.3f만큼 위로 올림
+                    modifier = Modifier.align(BiasAlignment(0f, -0.75f)),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "검색 결과가 없습니다.",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = SubDarkGray
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "장소, 지역, 대학명이 정확히 입력되었는지 확인해 주세요.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray,
+                        textAlign = TextAlign.Center
+                    )
                 }
-            } else {
+            }
+            // 2. 검색 결과가 있을 때
+            else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
                     items(searchResults) { store ->
                         SearchStoreListItem(
@@ -208,6 +216,7 @@ fun UserSearchContent(
                 }
             }
 
+            // 3. 로딩 중일 때
             if (isLoading && query.isNotEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = PointRed)
@@ -217,7 +226,6 @@ fun UserSearchContent(
     }
 }
 
-// [리스트 아이템]
 @Composable
 fun SearchStoreListItem(
     store: Store,
@@ -270,14 +278,15 @@ fun SearchStoreListItem(
     }
 }
 
-@Preview(showBackground = true, name = "검색 화면 (빈 값)")
+// [Preview] 빈 화면 테스트
+@Preview(showBackground = true, name = "검색 결과 없음")
 @Composable
-fun PreviewUserSearchContentEmpty() {
+fun PreviewUserSearchContentNoResults() {
     SeatNowTheme {
         UserSearchContent(
-            query = "",
-            searchResults = emptyList(),
-            isLoading = false,
+            query = "악악", // 검색어 입력됨
+            searchResults = emptyList(), // 결과 없음
+            isLoading = false, // 로딩 끝남
             onBackClick = {},
             onQueryChange = {},
             onSearchAction = {},
