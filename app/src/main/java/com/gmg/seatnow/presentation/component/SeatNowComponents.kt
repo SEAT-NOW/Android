@@ -1731,7 +1731,8 @@ fun UserMapContent(
 fun StoreListItem(
     index: Int,
     store: Store,
-    onItemClick: () -> Unit
+    onItemClick: () -> Unit,
+    onCallClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1809,7 +1810,7 @@ fun StoreListItem(
                 painter = painterResource(R.drawable.btn_calling),
                 contentDescription = "전화 걸기",
                 tint = SubGray,
-                modifier = Modifier.size(12.dp).clickable { }
+                modifier = Modifier.size(12.dp).clickable { onCallClick() }
             )
         }
 
@@ -1922,8 +1923,8 @@ fun StoreDetailContent(
 fun StoreDetailCard(
     index: Int,
     store: Store,
-    onClose: () -> Unit,
-    onItemClick: () -> Unit = {}
+    onItemClick: () -> Unit = {},
+    onCallClick: () -> Unit
 ) {
     // ★ 1. Surface 사용 + tonalElevation = 0.dp (핑크색 틴트 원천 차단)
     Surface(
@@ -2021,13 +2022,14 @@ fun StoreDetailCard(
                         painter = painterResource(R.drawable.btn_calling),
                         contentDescription = "전화 걸기",
                         tint = SubGray,
-                        modifier = Modifier.size(12.dp).clickable { }
+                        modifier = Modifier.size(12.dp).clickable { onCallClick() }
                     )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun FixedThreeImagesRow(
@@ -2057,33 +2059,6 @@ fun FixedThreeImagesRow(
                     )
                 }
             }
-        }
-    }
-}
-
-@Preview(name = "Store Detail Card Preview", showBackground = true, backgroundColor = 0xFFEEEEEE)
-@Composable
-fun PreviewStoreDetailCard() {
-    // 더미 데이터 생성
-    val dummyStore = Store(
-        id = 1L,
-        name = "투썸플레이스 강남점",
-        latitude = 37.5,
-        longitude = 127.0,
-        status = StoreStatus.HARD,
-        neighborhood = "역삼동",
-        distance = "350m",
-        operationStatus = "영업중",
-        images = listOf("", "", "") // 빈 문자열로 이미지 로딩 실패 케이스(회색 박스) 확인
-    )
-
-    SeatNowTheme {
-        Box(modifier = Modifier.padding(20.dp)) {
-            StoreDetailCard(
-                index = 1,
-                store = dummyStore,
-                onClose = {}
-            )
         }
     }
 }

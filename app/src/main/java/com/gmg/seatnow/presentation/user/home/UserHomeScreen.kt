@@ -33,6 +33,7 @@ import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.util.IntentUtil
 import com.gmg.seatnow.presentation.util.MapLogicHandler
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
@@ -352,8 +353,8 @@ fun UserHomeScreen(
                             StoreDetailCard(
                                 index = selectedIndex + 1,
                                 store = selectedStore,
-                                onClose = { selectedStoreId = null },
-                                onItemClick = { }
+                                onItemClick = { },
+                                onCallClick = { IntentUtil.makePhoneCall(context, selectedStore.storePhone) }
                             )
                         }
                     }
@@ -390,6 +391,8 @@ fun HomeBottomSheetContent(
             )
             .background(White)
     ) {
+        val context = LocalContext.current // ★ 바텀시트에서 Context 획득
+
         if (storeList.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -441,7 +444,8 @@ fun HomeBottomSheetContent(
                     StoreListItem(
                         index = index + 1,
                         store = store,
-                        onItemClick = { onItemClick(store) }
+                        onItemClick = { onItemClick(store) },
+                        onCallClick = { IntentUtil.makePhoneCall(context, store.storePhone) }
                     )
                     HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
                 }

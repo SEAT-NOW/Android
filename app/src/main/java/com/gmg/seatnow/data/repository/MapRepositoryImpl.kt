@@ -23,7 +23,6 @@ class MapRepositoryImpl @Inject constructor(
         userLng: Double?
     ): Flow<List<Store>> = flow {
         try {
-            // 1. 서버에는 "지도 중심" 좌표를 보냄 (검색용)
             val response = userApiService.getStoresOnMap(
                 keyword = keyword,
                 lat = centerLat,
@@ -36,7 +35,7 @@ class MapRepositoryImpl @Inject constructor(
                 val data = response.body()?.data ?: emptyList()
 
                 val stores = data.map { dto ->
-                    // ★ 2. 거리 직접 계산 로직
+                    // 거리 직접 계산 로직
                     val calculatedDistance = calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
 
                     Store(
@@ -47,8 +46,9 @@ class MapRepositoryImpl @Inject constructor(
                         status = mapStatus(dto.statusTag),
                         neighborhood = dto.neighborhood ?: "정보 없음",
                         images = dto.images ?: emptyList(),
-                        distance = calculatedDistance, // ★ 서버 값 대신 계산된 값 사용
-                        operationStatus = dto.operationStatus ?: "영업 정보 없음"
+                        distance = calculatedDistance,
+                        operationStatus = dto.operationStatus ?: "영업 정보 없음",
+                        storePhone = dto.storePhone // [추가] 전화번호 매핑
                     )
                 }
                 emit(stores)

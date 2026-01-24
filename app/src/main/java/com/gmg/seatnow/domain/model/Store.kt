@@ -17,5 +17,6 @@ data class Store(
     val neighborhood: String,
     val images: List<String>,
     val distance: String,
-    val operationStatus: String
+    val operationStatus: String,
+    val storePhone: String?
 )
