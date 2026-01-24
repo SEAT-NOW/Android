@@ -2,7 +2,8 @@ package com.gmg.seatnow.presentation.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,10 +23,13 @@ import com.gmg.seatnow.presentation.user.term.UserTermsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
+import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
+import com.gmg.seatnow.presentation.user.mypage.UserMyPageViewModel
+import com.gmg.seatnow.presentation.user.mypage.UserWithdrawScreen
 
 @Composable
 fun SeatNowNavGraph(
-    // [변경 1] AuthManager 파라미터 삭제 (UI는 데이터 관리를 몰라야 함)
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -40,9 +44,18 @@ fun SeatNowNavGraph(
                         popUpTo("splash") { inclusive = true }
                     }
                 },
-                // ★ [수정] 사장님 메인 화면으로 이동하도록 연결
+                onNavigateToUserMain = {
+                    navController.navigate("user_main") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
                 onNavigateToOwnerMain = {
-                    navController.navigate("store_main") { // "store_main"이 사장님 메인 라우트
+                    navController.navigate("store_main") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNavigateToTerms = { isGuest ->
+                    navController.navigate("user_terms/$isGuest") {
                         popUpTo("splash") { inclusive = true }
                     }
                 }
@@ -66,7 +79,7 @@ fun SeatNowNavGraph(
             )
         }
 
-        //2-1 사용자 약관 동의 화면
+        // 2-1 사용자 약관 동의 화면
         composable(
             route = "user_terms/{isGuest}",
             arguments = listOf(navArgument("isGuest") { type = NavType.BoolType })
@@ -77,7 +90,6 @@ fun SeatNowNavGraph(
             UserTermsScreen(
                 onNavigateToBack = { navController.popBackStack() },
                 onNavigateToMain = {
-                    // ★ 뷰모델에 어떤 로그인인지 알려주고 저장
                     viewModel.saveTermsAgreement(isGuest)
                     navController.navigate("user_main") {
                         popUpTo("login") { inclusive = true }
@@ -88,7 +100,60 @@ fun SeatNowNavGraph(
 
         // 3. 사용자 메인 (지도 화면)
         composable("user_main") {
-            UserMainScreen()
+            UserMainScreen(
+                onNavigateToAccountInfo = {
+                    navController.navigate("user_account_info")
+                },
+                onNavigateToLogin = {
+                    navController.navigate("login") {
+                        popUpTo("user_main") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // 3-1. 유저 계정 정보 화면
+        composable("user_account_info") {
+            val viewModel = hiltViewModel<UserMyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    when (event) {
+                        // [수정됨] 게스트와 일반 유저의 로그아웃이 모두 여기를 탑니다.
+                        // 메인화면(user_main)까지 백스택을 전부 비우고 로그인 화면으로 이동합니다.
+                        is UserMyPageViewModel.UserMyPageEvent.NavigateToLogin -> {
+                            navController.navigate("login") {
+                                popUpTo("user_main") { inclusive = true }
+                            }
+                        }
+                        is UserMyPageViewModel.UserMyPageEvent.NavigateToWithdraw -> {
+                            navController.navigate("user_withdraw")
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
+            UserAccountInfoScreen(
+                nickname = uiState.nickname,
+                onBackClick = { navController.popBackStack() },
+                isGuest = uiState.isGuest,
+                onLogoutClick = { viewModel.onAction(UserMyPageAction.OnLogoutClick) },
+                onNavigateToWithdraw = { viewModel.onAction(UserMyPageAction.OnWithdrawClick) }
+            )
+        }
+
+        // 3-2. 유저 회원 탈퇴 화면
+        composable("user_withdraw") {
+            UserWithdrawScreen(
+                onNavigateToLogin = {
+                    navController.navigate("login") {
+                        popUpTo("user_main") { inclusive = true }
+                    }
+                },
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         // 4. 사장님 로그인
@@ -96,9 +161,6 @@ fun SeatNowNavGraph(
             OwnerLoginScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToOwnerMain = {
-                    // [변경 2] 토큰 저장 로직 삭제!
-                    // (이미 ViewModel -> Repository에서 진짜 토큰을 저장했음)
-                    // 여기서는 순수하게 화면 이동만 수행
                     navController.navigate("store_main") {
                         popUpTo("login") { inclusive = true }
                     }
@@ -121,11 +183,8 @@ fun SeatNowNavGraph(
 
         // 6. 사장님 메인 (StoreMain)
         composable("store_main") {
-            // StoreMainViewModel에서 로그아웃 처리를 하고 이벤트를 보내주면 더 좋음.
-            // 여기서는 콜백으로 처리한다고 가정
             StoreMainRoute(
                 onNavigateToLogin = {
-                    // [변경 3] 토큰 삭제 로직 삭제 (Repository가 수행함)
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }
@@ -143,7 +202,6 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     if (event is MyPageViewModel.MyPageEvent.NavigateToLogin) {
-                        // [변경 4] 여기도 토큰 삭제 삭제
                         navController.navigate("login") {
                             popUpTo("store_main") { inclusive = true }
                         }
@@ -153,7 +211,7 @@ fun SeatNowNavGraph(
 
             AccountInfoScreen(
                 onBackClick = { navController.popBackStack() },
-                onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) }, // VM이 Repo.logout 호출
+                onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
                 onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
             )
         }
@@ -162,7 +220,6 @@ fun SeatNowNavGraph(
             OwnerWithdrawScreen(
                 onBackClick = { navController.popBackStack() },
                 onNavigateToLogin = {
-                    // [변경 5] 토큰 삭제 삭제
                     navController.navigate("login") {
                         popUpTo("store_main") { inclusive = true }
                     }

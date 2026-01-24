@@ -4,46 +4,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.gmg.seatnow.presentation.theme.PointRed
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
+import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.user.home.UserHomeScreen
+import com.gmg.seatnow.presentation.user.mypage.UserMyPageScreen
 import com.gmg.seatnow.presentation.user.seatsearch.SeatSearchScreen
 
 @Composable
-fun UserMainScreen() {
-    var currentTab by remember { mutableStateOf(UserTab.HOME) }
-
-    // [핵심] 홈 탭으로 전달할 필터 데이터 (null이면 필터 없음)
-    var searchFilterHeadCount by remember { mutableStateOf<Int?>(null) }
+fun UserMainScreen(
+    // [수정] NavGraph에서 받아올 네비게이션 콜백 추가
+    onNavigateToAccountInfo: () -> Unit,
+    onNavigateToLogin: () -> Unit
+) {
+    var currentTab by rememberSaveable { mutableStateOf(UserTab.HOME) }
+    var searchFilterHeadCount by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Scaffold(
         containerColor = White,
@@ -51,18 +38,13 @@ fun UserMainScreen() {
         bottomBar = {
             UserBottomNavigation(
                 currentTab = currentTab,
-                onTabSelected = { tab ->
-                    // 탭 변경 시 단순 이동만 처리
-                    currentTab = tab
-                }
+                onTabSelected = { tab -> currentTab = tab }
             )
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+
+            // [1] 홈 화면
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -75,21 +57,25 @@ fun UserMainScreen() {
                 )
             }
 
-            // [2] 자리 찾기 (필터 입력) 화면
+            // [2] 자리 찾기 화면
             if (currentTab == UserTab.SEAT_SEARCH) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(2f)
-                        .background(White)
-                ) {
+                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
                     SeatSearchScreen(
                         onSearchConfirmed = { headCount ->
-                            // 1. 필터 값 설정
                             searchFilterHeadCount = headCount
-                            // 2. 홈 탭으로 이동 (지도가 보이도록)
                             currentTab = UserTab.HOME
                         }
+                    )
+                }
+            }
+
+            // [3] 마이페이지 화면 (에러 수정됨)
+            if (currentTab == UserTab.MY_PAGE) {
+                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
+                    // [수정] NavGraph에서 받아온 콜백을 그대로 전달
+                    UserMyPageScreen(
+                        onNavigateToAccountInfo = onNavigateToAccountInfo,
+                        onNavigateToLogin = onNavigateToLogin
                     )
                 }
             }
