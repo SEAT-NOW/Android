@@ -27,7 +27,8 @@ import com.gmg.seatnow.presentation.user.seatsearch.SeatSearchScreen
 fun UserMainScreen(
     // [수정] NavGraph에서 받아올 네비게이션 콜백 추가
     onNavigateToAccountInfo: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToDetail: (Long) -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(UserTab.HOME) }
     var searchFilterHeadCount by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -53,7 +54,8 @@ fun UserMainScreen(
             ) {
                 UserHomeScreen(
                     initialHeadCount = searchFilterHeadCount,
-                    onFilterCleared = { searchFilterHeadCount = null }
+                    onFilterCleared = { searchFilterHeadCount = null },
+                    onNavigateToDetail = onNavigateToDetail
                 )
             }
 

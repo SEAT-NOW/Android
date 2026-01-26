@@ -18,5 +18,7 @@ data class Store(
     val images: List<String>,
     val distance: String,
     val operationStatus: String,
-    val storePhone: String?
+    val storePhone: String?,
+    val availableSeatCount: Int = 0,
+    val totalSeatCount: Int = 0
 )

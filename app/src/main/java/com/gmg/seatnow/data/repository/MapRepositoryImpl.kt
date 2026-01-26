@@ -7,6 +7,8 @@ import com.gmg.seatnow.domain.repository.MapRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import android.location.Location
+import com.gmg.seatnow.domain.model.StoreDetail
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 class MapRepositoryImpl @Inject constructor(
@@ -59,6 +61,26 @@ class MapRepositoryImpl @Inject constructor(
             e.printStackTrace()
             emit(emptyList())
         }
+    }
+
+    override suspend fun getStoreDetail(storeId: Long): StoreDetail {
+        // 실제 API 통신처럼 0.5초 딜레이를 줍니다.
+        delay(500)
+
+        // 전달받은 storeId에 해당하는 가짜 상세 데이터를 반환합니다.
+        return StoreDetail(
+            id = storeId,
+            name = "맛있는 술집 신촌본점 (ID: $storeId)", // ID가 제대로 전달되는지 확인용
+            images = listOf("image1", "image2", "image3"),
+            operationStatus = "영업 중",
+            availableSeatCount = 4,
+            totalSeatCount = 15,
+            status = StoreStatus.SPARE,
+            universityInfo = "연세대학교 신촌캠퍼스 도보 5분",
+            address = "서울특별시 서대문구 연세로 12길 34, 1층",
+            openHours = "매일 17:00 ~ 03:00",
+            closedDays = "토 · 일 휴무"
+        )
     }
 
     // [Helper] 거리 계산 함수

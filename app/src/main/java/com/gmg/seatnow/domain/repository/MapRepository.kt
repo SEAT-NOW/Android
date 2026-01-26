@@ -1,6 +1,7 @@
 package com.gmg.seatnow.domain.repository
 
 import com.gmg.seatnow.domain.model.Store
+import com.gmg.seatnow.domain.model.StoreDetail
 import kotlinx.coroutines.flow.Flow
 
 interface MapRepository {
@@ -13,4 +14,6 @@ interface MapRepository {
         userLat: Double?,
         userLng: Double?)
     : Flow<List<Store>>
+
+    suspend fun getStoreDetail(storeId: Long): StoreDetail
 }

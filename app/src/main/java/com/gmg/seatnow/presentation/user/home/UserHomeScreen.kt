@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +46,7 @@ import kotlinx.coroutines.launch
 fun UserHomeScreen(
     initialHeadCount: Int? = null,
     onFilterCleared: () -> Unit,
+    onNavigateToDetail: (Long) -> Unit,
     viewModel: UserHomeViewModel = hiltViewModel()
 ) {
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -56,7 +58,18 @@ fun UserHomeScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val cameraPositionState = rememberCameraPositionState()
+    var savedCameraLat by rememberSaveable { mutableStateOf<Double?>(null) }
+    var savedCameraLng by rememberSaveable { mutableStateOf<Double?>(null) }
+    var savedZoom by rememberSaveable { mutableStateOf(15.0) }
+
+    val cameraPositionState = rememberCameraPositionState {
+        if (savedCameraLat != null && savedCameraLng != null) {
+            position = com.naver.maps.map.CameraPosition(
+                LatLng(savedCameraLat!!, savedCameraLng!!),
+                savedZoom
+            )
+        }
+    }
     val locationSource = rememberFusedLocationSource()
     var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
 
@@ -139,7 +152,17 @@ fun UserHomeScreen(
         }
     }
 
+    LaunchedEffect(cameraPositionState.position) {
+        savedCameraLat = cameraPositionState.position.target.latitude
+        savedCameraLng = cameraPositionState.position.target.longitude
+        savedZoom = cameraPositionState.position.zoom
+    }
+
     LaunchedEffect(Unit) {
+        if (storeList.isNotEmpty() && savedCameraLat != null) {
+            return@LaunchedEffect
+        }
+
         val hasPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -206,14 +229,7 @@ fun UserHomeScreen(
                 isLoading = isLoading,
                 activeFilter = activeFilter,
                 onItemClick = { store ->
-                    selectedStoreId = store.id
-                    trackingMode = LocationTrackingMode.None
-                    coroutineScope.launch {
-                        cameraPositionState.animate(
-                            update = CameraUpdate.scrollTo(LatLng(store.latitude, store.longitude)),
-                            durationMs = 800
-                        )
-                    }
+                    onNavigateToDetail(store.id)
                 }
             )
         },
@@ -353,7 +369,7 @@ fun UserHomeScreen(
                             StoreDetailCard(
                                 index = selectedIndex + 1,
                                 store = selectedStore,
-                                onItemClick = { },
+                                onItemClick = { onNavigateToDetail(selectedStore.id) },
                                 onCallClick = { IntentUtil.makePhoneCall(context, selectedStore.storePhone) }
                             )
                         }
