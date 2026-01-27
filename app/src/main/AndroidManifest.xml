@@ -26,8 +26,16 @@
             android:theme="@style/Theme._4thMainProjectSeatNowAndroid">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="seatnow"
+                    android:host="seatnow.r-e.kr"
+                    android:pathPrefix="/store" />
             </intent-filter>
         </activity>
         <activity

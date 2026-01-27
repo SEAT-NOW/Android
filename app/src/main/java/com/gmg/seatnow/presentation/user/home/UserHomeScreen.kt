@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -13,13 +15,18 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -41,6 +48,12 @@ import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.compose.*
 import kotlinx.coroutines.launch
 
+enum class BottomSheetStep {
+    COLLAPSED, // 40dp (핸들바만)
+    HALF,      // 260dp (기본 리스트)
+    FULL       // 꽉 채움
+}
+
 @OptIn(ExperimentalNaverMapApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun UserHomeScreen(
@@ -51,9 +64,10 @@ fun UserHomeScreen(
 ) {
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
     var selectedStoreId by remember { mutableStateOf<Long?>(null) }
-
     var showPermissionDialog by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
+
+    var sheetStep by remember { mutableStateOf(BottomSheetStep.HALF) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -82,31 +96,24 @@ fun UserHomeScreen(
         viewModel.clearSearch()
     }
 
-    // ★ [수정됨] 기본 높이 45dp로 변경
-    var targetPeekHeight by remember { mutableStateOf(45.dp) }
-
-    LaunchedEffect(isLoading, isSearchActive, selectedStoreId, storeList.size) {
-        targetPeekHeight = when {
-            isSearchActive -> 0.dp
-            selectedStoreId != null -> 45.dp // ★ [수정됨] 핀 선택 시에도 45dp
-            isLoading -> 260.dp
-            else -> 260.dp
-        }
-    }
-
-    val animatedPeekHeight by animateDpAsState(
-        targetValue = targetPeekHeight,
-        label = "PeekHeightAnimation",
-        animationSpec = tween(durationMillis = 300)
-    )
-
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
             initialValue = SheetValue.PartiallyExpanded,
             skipHiddenState = true
         )
     )
-    val isSheetExpanded = scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded
+
+    val targetPeekHeight = when {
+        isSearchActive -> 0.dp
+        sheetStep == BottomSheetStep.COLLAPSED -> 40.dp
+        else -> 260.dp // HALF 이거나 FULL 일 때 기본 베이스는 260dp
+    }
+
+    val animatedPeekHeight by animateDpAsState(
+        targetValue = targetPeekHeight,
+        animationSpec = if (isSearchActive) snap() else tween(durationMillis = 200),
+        label = "PeekHeightAnimation"
+    )
 
     fun getCurrentRadius(): Double {
         val bounds = cameraPositionState.contentBounds
@@ -139,7 +146,8 @@ fun UserHomeScreen(
                     userLat = lat,
                     userLng = lng
                 )
-                trackingMode = LocationTrackingMode.Follow
+                sheetStep = BottomSheetStep.HALF
+                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
             }
         )
     }
@@ -150,12 +158,6 @@ fun UserHomeScreen(
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             refreshCurrentLocation()
         }
-    }
-
-    LaunchedEffect(cameraPositionState.position) {
-        savedCameraLat = cameraPositionState.position.target.latitude
-        savedCameraLng = cameraPositionState.position.target.longitude
-        savedZoom = cameraPositionState.position.zoom
     }
 
     LaunchedEffect(Unit) {
@@ -179,11 +181,31 @@ fun UserHomeScreen(
         }
     }
 
+    LaunchedEffect(cameraPositionState.position) {
+        savedCameraLat = cameraPositionState.position.target.latitude
+        savedCameraLng = cameraPositionState.position.target.longitude
+        savedZoom = cameraPositionState.position.zoom
+    }
+
+    val isSheetExpanded = scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded
+
+
     LaunchedEffect(selectedStoreId) {
         if (selectedStoreId != null) {
             if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
                 scaffoldState.bottomSheetState.partialExpand()
             }
+        }
+    }
+
+    LaunchedEffect(scaffoldState.bottomSheetState.targetValue) {
+        val target = scaffoldState.bottomSheetState.targetValue
+        if (target == SheetValue.Expanded) {
+            // 사용자가 리스트를 위로 밀어서 꽉 차게 만들었을 때
+            sheetStep = BottomSheetStep.FULL
+        } else if (target == SheetValue.PartiallyExpanded && sheetStep == BottomSheetStep.FULL) {
+            // FULL에서 아래로 내려왔을 때 HALF로 고정 (COLLAPSED로 튕김 방지)
+            sheetStep = BottomSheetStep.HALF
         }
     }
 
@@ -195,27 +217,46 @@ fun UserHomeScreen(
         sheetShadowElevation = 10.dp,
         sheetPeekHeight = animatedPeekHeight,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        sheetSwipeEnabled = !isSearchActive && storeList.isNotEmpty(),
+        sheetSwipeEnabled = false,
         sheetDragHandle = {
             if (!isSearchActive) {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(48.dp).background(Color.Transparent)
-                        .pointerInput(Unit) {
-                            detectVerticalDragGestures { change, dragAmount ->
-                                change.consume()
-                                val threshold = 5f
-                                if (dragAmount < -threshold) {
-                                    if (storeList.isNotEmpty()) {
-                                        if (scaffoldState.bottomSheetState.currentValue != SheetValue.Expanded) {
-                                            coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                        .pointerInput(Unit) { // 제스처 감지기 유지
+                            var dragAccumulator = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { dragAccumulator = 0f },
+                                onDragEnd = {
+                                    if (dragAccumulator < -20f) { // 위로 올림
+                                        selectedStoreId = null
+                                        when (sheetStep) {
+                                            BottomSheetStep.COLLAPSED -> sheetStep = BottomSheetStep.HALF
+                                            BottomSheetStep.HALF -> {
+                                                sheetStep = BottomSheetStep.FULL
+                                                coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                                            }
+                                            BottomSheetStep.FULL -> {}
+                                        }
+                                    } else if (dragAccumulator > 20f) { // 아래로 내림
+                                        when (sheetStep) {
+                                            BottomSheetStep.FULL -> {
+                                                // HALF로 상태만 변경. 애니메이션은 Compose 기본 물리 엔진이 알아서 함.
+                                                sheetStep = BottomSheetStep.HALF
+                                                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                                            }
+                                            BottomSheetStep.HALF -> {
+                                                // 260dp -> 40dp로 축소
+                                                sheetStep = BottomSheetStep.COLLAPSED
+                                            }
+                                            BottomSheetStep.COLLAPSED -> {}
                                         }
                                     }
-                                } else if (dragAmount > threshold) {
-                                    if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                                        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                                    }
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragAccumulator += dragAmount
                                 }
-                            }
+                            )
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -228,6 +269,14 @@ fun UserHomeScreen(
                 storeList = storeList,
                 isLoading = isLoading,
                 activeFilter = activeFilter,
+                sheetStep = sheetStep,
+                onScrollDownAtTop = {
+                    // ✅ 수정 핵심 2: FULL 상태일 때는 아무것도 하지 않음 (Compose 기본 동작에 위임)
+                    if (sheetStep == BottomSheetStep.HALF) {
+                        // HALF 상태에서 리스트를 당겨 내리면 COLLAPSED로 높이만 줄임
+                        sheetStep = BottomSheetStep.COLLAPSED
+                    }
+                },
                 onItemClick = { store ->
                     onNavigateToDetail(store.id)
                 }
@@ -243,7 +292,10 @@ fun UserHomeScreen(
                 trackingMode = trackingMode,
                 isLoading = false,
                 selectedStoreId = selectedStoreId,
-                onStoreClick = { storeId -> selectedStoreId = storeId },
+                onStoreClick = { storeId ->
+                    selectedStoreId = storeId
+                    sheetStep = BottomSheetStep.COLLAPSED
+                },
                 onMapClick = {
                     if (isSearchActive) {
                         isSearchActive = false
@@ -255,26 +307,21 @@ fun UserHomeScreen(
                 onSearchHereClick = { },
                 onCurrentLocationClick = { refreshCurrentLocation() },
                 onMapGestured = {
-                    // ★ [수정됨] 45dp로 변경 (제스처 시 내려가는 높이)
-                    if (targetPeekHeight > 45.dp && !isSearchActive) {
-                        trackingMode = LocationTrackingMode.NoFollow
-                        if (storeList.isNotEmpty()) {
-                            targetPeekHeight = 45.dp
-                            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                            }
-                        } else {
-                            targetPeekHeight = 45.dp
-                        }
-                    } else {
-                        trackingMode = LocationTrackingMode.NoFollow
-                    }
+                    trackingMode = LocationTrackingMode.NoFollow
+                    sheetStep = BottomSheetStep.COLLAPSED
                     if (selectedStoreId != null) selectedStoreId = null
                 }
             )
 
-            if (isSheetExpanded && !isSearchActive && storeList.isNotEmpty()) {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)))
+            val targetAlpha = if (scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded && !isSearchActive && storeList.isNotEmpty()) 0.25f else 0f
+            val animatedAlpha by animateFloatAsState(
+                targetValue = targetAlpha,
+                animationSpec = tween(durationMillis = 300),
+                label = "BackgroundAlphaAnimation"
+            )
+
+            if (animatedAlpha > 0f) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = animatedAlpha)))
             }
 
             if (isSearchActive) {
@@ -290,6 +337,7 @@ fun UserHomeScreen(
                             viewModel.clearSearch()
                             trackingMode = LocationTrackingMode.None
                             selectedStoreId = store.id
+                            sheetStep = BottomSheetStep.COLLAPSED
                             viewModel.fetchStoresInCurrentMap(
                                 lat = store.latitude,
                                 lng = store.longitude,
@@ -323,6 +371,7 @@ fun UserHomeScreen(
                         onClearFilter = {
                             viewModel.clearHeadCountFilter()
                             onFilterCleared()
+                            sheetStep = BottomSheetStep.HALF
                             val target = cameraPositionState.position.target
                             viewModel.fetchStoresInCurrentMap(
                                 target.latitude,
@@ -332,7 +381,13 @@ fun UserHomeScreen(
                                 currentUserLocation?.longitude
                             )
                         },
-                        onSearchClick = { isSearchActive = true }
+                        onSearchClick = {
+                            isSearchActive = true
+
+                            coroutineScope.launch {
+                                scaffoldState.bottomSheetState.partialExpand()
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -340,6 +395,7 @@ fun UserHomeScreen(
                         SearchHereButton(
                             isLoading = isLoading,
                             onClick = {
+                                sheetStep = BottomSheetStep.HALF
                                 val center = cameraPositionState.position.target
                                 viewModel.fetchStoresInCurrentMap(
                                     lat = center.latitude,
@@ -396,8 +452,38 @@ fun HomeBottomSheetContent(
     storeList: List<Store>,
     isLoading: Boolean,
     activeFilter: Int?,
+    sheetStep: BottomSheetStep,
+    onScrollDownAtTop: () -> Unit,
     onItemClick: (Store) -> Unit
 ) {
+    val context = LocalContext.current
+
+    val listState = rememberLazyListState()
+    val nestedScrollConnection = remember(listState, sheetStep) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val isScrollingDown = available.y > 0
+                val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+
+                // 리스트 최상단에서 '아래로' 당길 때만 개입합니다.
+                // 위로 당길 때(available.y < 0)는 아무것도 하지 않아야 Compose가 부드럽게 FULL로 확장시킵니다.
+                if (isScrollingDown && isAtTop) {
+                    if (sheetStep == BottomSheetStep.HALF) {
+                        // 1. HALF에서 당기기 시작하면 상태를 COLLAPSED로 변경
+                        onScrollDownAtTop()
+                        return available // 드래그 이벤트 흡수
+                    } else if (sheetStep == BottomSheetStep.COLLAPSED) {
+                        // 2. [핵심] 이미 축소되는 중에도 사용자의 손가락은 계속 드래그 중입니다.
+                        // 이 잔여 드래그가 Scaffold로 넘어가서 렉을 유발하는 것을 '완벽히 차단'합니다.
+                        return available
+                    }
+                }
+                // 위로 당기거나, 리스트 중간을 스크롤할 때는 Compose 기본 물리 엔진에 100% 위임
+                return Offset.Zero
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -407,8 +493,6 @@ fun HomeBottomSheetContent(
             )
             .background(White)
     ) {
-        val context = LocalContext.current // ★ 바텀시트에서 Context 획득
-
         if (storeList.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -425,8 +509,6 @@ fun HomeBottomSheetContent(
                 } else {
                     val count = activeFilter
                     if (count != null) {
-                        // [Case 1] N명 자리찾기 결과 없음 (이미지 포함)
-                        // ★ [수정됨] 여기에만 bottom padding 20dp 추가
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
@@ -445,7 +527,6 @@ fun HomeBottomSheetContent(
                             )
                         }
                     } else {
-                        // [Case 2] 일반 지도 검색 결과 없음
                         Text(
                             text = "이 지역에 등록된 술집이 없습니다.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -455,7 +536,13 @@ fun HomeBottomSheetContent(
                 }
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(nestedScrollConnection),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
                 itemsIndexed(storeList) { index, store ->
                     StoreListItem(
                         index = index + 1,
@@ -505,6 +592,8 @@ fun PreviewHomeBottomSheetEmptyFilter() {
             storeList = emptyList(),
             isLoading = false,
             activeFilter = 4,
+            sheetStep = BottomSheetStep.HALF, // ✅ [추가됨] Preview용 더미 데이터
+            onScrollDownAtTop = {},
             onItemClick = {}
         )
     }
@@ -518,6 +607,8 @@ fun PreviewHomeBottomSheetEmptyNormal() {
             storeList = emptyList(),
             isLoading = false,
             activeFilter = null,
+            sheetStep = BottomSheetStep.HALF, // ✅ [추가됨] Preview용 더미 데이터
+            onScrollDownAtTop = {},
             onItemClick = {}
         )
     }

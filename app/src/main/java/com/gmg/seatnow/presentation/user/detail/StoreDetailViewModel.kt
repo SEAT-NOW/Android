@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
+import com.gmg.seatnow.domain.model.MenuItemUiModel
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.usecase.store.GetStoreDetailUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +33,7 @@ class StoreDetailViewModel @Inject constructor(
     init {
         // ViewModel이 생성될 때 (화면 진입 시) API 호출
         fetchStoreDetail()
+        fetchMockMenus()
     }
 
     private fun fetchStoreDetail() {
@@ -44,6 +46,38 @@ class StoreDetailViewModel @Inject constructor(
                 // 에러 처리
             }
         }
+    }
+
+    private fun fetchMockMenus() {
+        val mockMenus = listOf(
+            // 카테고리 1 (아이템 2개)
+            MenuCategoryUiModel(
+                categoryName = "시그니처 메뉴",
+                menuItems = listOf(
+                    MenuItemUiModel(1, "바지락 술찜", 18000, "", true, false),
+                    MenuItemUiModel(2, "매콤 국물 떡볶이", 15000, "", false, true)
+                )
+            ),
+            // 카테고리 2 (아이템 3개)
+            MenuCategoryUiModel(
+                categoryName = "튀김 / 마른 안주",
+                menuItems = listOf(
+                    MenuItemUiModel(3, "모듬 감자튀김", 12000, "", false, false),
+                    MenuItemUiModel(4, "버터구이 오징어", 14000, "", true, true),
+                    MenuItemUiModel(5, "나초 & 치즈소스", 9000, "", false, false)
+                )
+            ),
+            // 카테고리 3 (아이템 3개)
+            MenuCategoryUiModel(
+                categoryName = "주류 / 음료",
+                menuItems = listOf(
+                    MenuItemUiModel(6, "생맥주 500cc", 5000, "", false, false),
+                    MenuItemUiModel(7, "참이슬 / 처음처럼", 5000, "", false, true),
+                    MenuItemUiModel(8, "얼그레이 하이볼", 8000, "", true, false)
+                )
+            )
+        )
+        _menuListState.value = mockMenus
     }
 
     // 좋아요 토글 이벤트 처리

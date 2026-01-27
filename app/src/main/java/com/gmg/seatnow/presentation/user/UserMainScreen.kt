@@ -20,6 +20,7 @@ import androidx.compose.ui.zIndex
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.user.home.UserHomeScreen
+import com.gmg.seatnow.presentation.user.keep.KeepScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageScreen
 import com.gmg.seatnow.presentation.user.seatsearch.SeatSearchScreen
 
@@ -71,7 +72,15 @@ fun UserMainScreen(
                 }
             }
 
-            // [3] 마이페이지 화면 (에러 수정됨)
+            // [3] 킵 화면
+            if (currentTab == UserTab.KEEP) {
+                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
+                    KeepScreen(
+                    )
+                }
+            }
+
+            // [4] 마이페이지 화면
             if (currentTab == UserTab.MY_PAGE) {
                 Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
                     // [수정] NavGraph에서 받아온 콜백을 그대로 전달

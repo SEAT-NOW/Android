@@ -47,13 +47,16 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -69,6 +72,7 @@ import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.Store
+import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
@@ -1756,7 +1760,7 @@ fun StoreListItem(
             )
 
             val tagResId = when (store.status) {
-                com.gmg.seatnow.domain.model.StoreStatus.FULL -> R.drawable.tag_full
+                StoreStatus.FULL -> R.drawable.tag_full
                 com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
                 com.gmg.seatnow.domain.model.StoreStatus.NORMAL -> R.drawable.tag_normal
                 else -> R.drawable.tag_spare
@@ -2060,5 +2064,105 @@ fun FixedThreeImagesRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SeatNowDetailHeader(
+    storeDetail: StoreDetail,
+    modifier: Modifier = Modifier,
+    customTopContent: @Composable () -> Unit = {},
+    customBottomContent: @Composable () -> Unit = {}
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        // 1. [Slot] 최상단 커스텀 영역 (ex. 타이틀 텍스트, 네비게이션 아이콘 등)
+        customTopContent()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 2. [공통] 상단 사진 스크롤 영역
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (storeDetail.images.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubPaleGray, RectangleShape))
+                }
+            } else {
+                items(storeDetail.images) { imageUrl ->
+                    // 추후 AsyncImage로 교체
+                    Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. [공통] 가게 이름
+        Text(
+            text = storeDetail.name,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = SubBlack,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 4. [공통] 영업 상태 및 좌석 수 현황
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = storeDetail.operationStatus, style = Body1_Medium_14, fontWeight = FontWeight.Bold, color = SubBlack)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = PointRed, fontWeight = FontWeight.Bold)) { append("${storeDetail.availableSeatCount}석") }
+                    withStyle(style = SpanStyle(color = SubBlack, fontWeight = FontWeight.Bold)) { append(" / ${storeDetail.totalSeatCount}석") }
+                },
+                style = Body1_Medium_14
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            val tagDrawableRes = when(storeDetail.status) {
+                StoreStatus.SPARE -> R.drawable.tag_spare
+                StoreStatus.NORMAL -> R.drawable.tag_normal
+                StoreStatus.HARD -> R.drawable.tag_hard
+                StoreStatus.FULL -> R.drawable.tag_full
+            }
+            Image(
+                painter = painterResource(id = tagDrawableRes),
+                contentDescription = null,
+                modifier = Modifier.width(50.dp).height(24.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 5. [Slot] 하단 커스텀 영역 (탭바, 메뉴 정보 등 주입)
+        customBottomContent()
+    }
+}
+
+/**
+ * [아이콘 + 텍스트 공통 컴포넌트]
+ * - 상세 페이지, 검색 결과 등 여러 곳에서 재사용
+ */
+@Composable
+fun InfoRow(
+    iconRes: Int,
+    text: String,
+    iconSize: Dp = 16.dp,
+    iconOffsetX: Dp = 0.dp
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            Icon(painter = painterResource(iconRes), contentDescription = null, tint = SubGray, modifier = Modifier.size(iconSize).offset(x = iconOffsetX))
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = text, style = Body1_Medium_14, color = SubBlack)
     }
 }

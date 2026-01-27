@@ -1,7 +1,5 @@
 package com.gmg.seatnow.presentation.nav
 
-import StoreDetailRoute
-import StoreDetailScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +23,8 @@ import com.gmg.seatnow.presentation.user.term.UserTermsViewModel
 import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageViewModel
@@ -164,7 +164,8 @@ fun SeatNowNavGraph(
         // 3-3 가게 상세 화면
         composable(
             route = "store_detail/{storeId}",
-            arguments = listOf(navArgument("storeId") { type = NavType.LongType })
+            arguments = listOf(navArgument("storeId") { type = NavType.LongType }),
+            deepLinks = listOf(navDeepLink { uriPattern = "seatnow://seatnow.r-e.kr/store/{storeId}" })
         ) {
             // ★ 뷰모델이 NavGraph의 storeId를 자동으로 가져가므로, 그냥 Route만 호출하면 됩니다.
             StoreDetailRoute()

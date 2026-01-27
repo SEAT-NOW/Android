@@ -73,6 +73,7 @@ class MapRepositoryImpl @Inject constructor(
             name = "맛있는 술집 신촌본점 (ID: $storeId)", // ID가 제대로 전달되는지 확인용
             images = listOf("image1", "image2", "image3"),
             operationStatus = "영업 중",
+            storePhone = "02-312-3456",
             availableSeatCount = 4,
             totalSeatCount = 15,
             status = StoreStatus.SPARE,

@@ -5,6 +5,7 @@ data class StoreDetail(
     val name: String,
     val images: List<String>,             // "Image list"
     val operationStatus: String,          // "영업 상태" (예: "영업 중")
+    val storePhone: String,
     val availableSeatCount: Int,          // "허용 가능 좌석"
     val totalSeatCount: Int,              // "토탈 좌석 수"
     val status: StoreStatus,              // "status(태그에 사용할)"

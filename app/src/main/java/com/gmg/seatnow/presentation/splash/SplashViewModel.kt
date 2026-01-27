@@ -26,31 +26,23 @@ class SplashViewModel @Inject constructor(
 
     private fun checkAutoLogin() {
         viewModelScope.launch {
-            delay(1500)
+            delay(1500) // 스플래시 지연 시간
 
+            // API 호출 없이 로컬에 저장된 데이터만 확인합니다.
             val hasToken = authManager.hasToken()
             val isGuestAgreed = authManager.isGuestTermsAgreed()
-            val storeId = authManager.getStoreId() // [핵심] 사장님 store_id 가져오기
+            val storeId = authManager.getStoreId()
 
+            // [핵심] 토큰이 존재하면 서버 검증 없이 바로 홈 화면으로 보냅니다.
+            // (만약 만료된 토큰이라면, 나중에 홈 화면에서 API를 호출할 때 Interceptor가 알아서 재발급을 처리합니다.)
             if (hasToken) {
-                // 토큰이 있다면 서버에 재발급(검증) 요청
-                reissueTokenUseCase().fold(
-                    onSuccess = {
-                        // ★ 분기점: storeId가 -1L이 아니면 '사장님'이므로 사장님 메인으로 이동
-                        if (storeId != -1L) {
-                            _event.emit(SplashEvent.NavigateToOwnerMain)
-                        }
-                        // storeId가 없으면 '일반 유저' (카카오 약관 동의 확인)
-                        else if (authManager.isKakaoTermsAgreed()) {
-                            _event.emit(SplashEvent.NavigateToUserMain)
-                        } else {
-                            _event.emit(SplashEvent.NavigateToTerms(isGuest = false))
-                        }
-                    },
-                    onFailure = {
-                        _event.emit(SplashEvent.NavigateToLogin)
-                    }
-                )
+                if (storeId != -1L) {
+                    _event.emit(SplashEvent.NavigateToOwnerMain)
+                } else if (authManager.isKakaoTermsAgreed()) {
+                    _event.emit(SplashEvent.NavigateToUserMain)
+                } else {
+                    _event.emit(SplashEvent.NavigateToTerms(isGuest = false))
+                }
             } else if (isGuestAgreed) {
                 _event.emit(SplashEvent.NavigateToUserMain)
             } else {
