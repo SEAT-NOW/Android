@@ -44,6 +44,7 @@ val Body1_Medium_16 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight
 val Body1_Medium_14 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = WideSpacing)
 val Body1_Medium_12 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = WideSpacing)
 val Body1_Medium_10 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight.Medium, fontSize = 10.sp, lineHeight = 12.sp, letterSpacing = WideSpacing)
+val Body1_Medium_8 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight.Medium, fontSize = 8.sp, lineHeight = 12.sp, letterSpacing = WideSpacing)
 
 // --- Body2 (Regular) ---
 val Body2_Regular_16 = TextStyle(fontFamily = Pretendard, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = WideSpacing)

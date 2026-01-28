@@ -13,10 +13,12 @@ import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
+import com.gmg.seatnow.data.model.response.KakaoLoginResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
@@ -115,4 +117,13 @@ interface AuthService {
     suspend fun updateSeatStatus(
         @Body request: SeatUpdateRequestDTO
     ): Response<BaseResponse<SeatStatusResponseDTO>>
+
+    // 카카오 로그인
+    @GET("/auth/login/kakao")
+    suspend fun loginWithKakao(
+        @Query("kakaoAccessToken") kakaoAccessToken: String
+    ): Response<BaseResponse<KakaoLoginResponse>>
+
+    @DELETE("/api/v1/users")
+    suspend fun withdrawUser(): Response<BaseResponse<Unit>>
 }

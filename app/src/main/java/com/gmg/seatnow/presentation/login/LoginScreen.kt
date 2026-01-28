@@ -34,7 +34,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(), // Hilt 주입
     onNavigateToUserMain: () -> Unit,
-    onNavigateToOwnerLogin: () -> Unit
+    onNavigateToOwnerLogin: () -> Unit,
+    onNavigateToTerms: (Boolean) -> Unit
 ) {
     // ViewModel 이벤트 감지
     LaunchedEffect(true) {
@@ -42,6 +43,9 @@ fun LoginScreen(
             when (event) {
                 is LoginViewModel.LoginEvent.NavigateToUserMain -> onNavigateToUserMain()
                 is LoginViewModel.LoginEvent.NavigateToOwnerLogin -> onNavigateToOwnerLogin()
+                is LoginViewModel.LoginEvent.NavigateToTerms -> {
+                    onNavigateToTerms(event.isGuest)
+                }
             }
         }
     }

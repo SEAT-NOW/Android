@@ -16,6 +16,16 @@ class AuthManager @Inject constructor(
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token" // [신규] Refresh Token 키
         private const val KEY_STORE_ID = "store_id" // API조회를 위한 store Id
+        private const val KEY_AGREED_GUEST = "is_agreed_guest"
+        private const val KEY_AGREED_KAKAO = "is_agreed_kakao"
+
+        private const val KEY_USER_NICKNAME = "user_nickname"
+    }
+
+    fun saveUserInfo(nickname: String?) {
+        prefs.edit()
+            .putString(KEY_USER_NICKNAME, nickname)
+            .apply()
     }
 
     // 토큰 저장 (로그인 성공 시 둘 다 저장)
@@ -44,6 +54,7 @@ class AuthManager @Inject constructor(
             .remove(KEY_ACCESS_TOKEN)
             .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_STORE_ID) // ★ 삭제
+            .remove(KEY_USER_NICKNAME)
             .apply()
     }
 
@@ -66,4 +77,22 @@ class AuthManager @Inject constructor(
     fun hasToken(): Boolean {
         return !getAccessToken().isNullOrEmpty() && !getRefreshToken().isNullOrEmpty()
     }
+
+    fun setGuestTermsAgreed(isAgreed: Boolean) {
+        prefs.edit().putBoolean(KEY_AGREED_GUEST, isAgreed).apply()
+    }
+
+    fun isGuestTermsAgreed(): Boolean {
+        return prefs.getBoolean(KEY_AGREED_GUEST, false)
+    }
+
+    fun setKakaoTermsAgreed(isAgreed: Boolean) {
+        prefs.edit().putBoolean(KEY_AGREED_KAKAO, isAgreed).apply()
+    }
+
+    fun isKakaoTermsAgreed(): Boolean {
+        return prefs.getBoolean(KEY_AGREED_KAKAO, false)
+    }
+
+    fun getUserNickname(): String? = prefs.getString(KEY_USER_NICKNAME, null)
 }

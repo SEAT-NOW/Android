@@ -1,8 +1,12 @@
 package com.gmg.seatnow.presentation.component
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.shapes.Shape
 import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -41,19 +45,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import coil.compose.AsyncImage
 import com.commandiron.wheel_picker_compose.core.WheelPickerDefaults
 import com.commandiron.wheel_picker_compose.core.WheelTextPicker
@@ -62,9 +72,12 @@ import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.presentation.extension.bottomShadow
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.Store
+import com.gmg.seatnow.domain.model.StoreDetail
+import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.util.MapUtils
 import com.gmg.seatnow.presentation.util.MapUtils.createMarkerBitmap
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
@@ -1137,7 +1150,7 @@ fun SeatNowMenuItem(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium), // 스타일 통일
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), // 스타일 통일
             color = textColor
         )
 
@@ -1468,14 +1481,16 @@ fun TableStepperItem(
 @Composable
 fun HomeSearchBar(
     activeHeadCount: Int?,
-    onClearFilter: () -> Unit
+    onClearFilter: () -> Unit,
+    onSearchClick: () -> Unit
 ) {
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .shadow(4.dp, RoundedCornerShape(8.dp)),
+            .shadow(4.dp, RoundedCornerShape(8.dp))
+            .clickable(onClick = onSearchClick),
         shape = RoundedCornerShape(8.dp),
         color = White
     ) {
@@ -1627,29 +1642,30 @@ fun CurrentLocationButton(
     }
 }
 
-/**
- * [통합 지도 컴포넌트]
- * 지도 + 마커 + 상단 검색바 + 재검색 버튼 + 현재 위치 버튼이 모두 포함됨.
- * 홈 화면과 검색 화면에서 공통으로 사용.
- */
 @OptIn(ExperimentalNaverMapApi::class)
 @Composable
 fun UserMapContent(
+    // ... (파라미터 기존과 동일)
     cameraPositionState: CameraPositionState,
     locationSource: LocationSource,
     storeList: List<Store>,
     trackingMode: LocationTrackingMode,
     isLoading: Boolean = false,
+    selectedStoreId: Long? = null,
+    onStoreClick: (Long) -> Unit,
+    onMapClick: () -> Unit,
     onSearchHereClick: () -> Unit,
     onCurrentLocationClick: () -> Unit,
     onMapGestured: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. 네이버 지도 (Base)
         NaverMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
             locationSource = locationSource,
+            onMapClick = { _, _ -> onMapClick() },
             uiSettings = MapUiSettings(
                 isLocationButtonEnabled = false,
                 isZoomControlEnabled = false
@@ -1660,18 +1676,50 @@ fun UserMapContent(
         ) {
             storeList.forEachIndexed { index, store ->
                 if (index < 10) {
-                    val markerIcon = createMarkerBitmap(index + 1, store.status)
+                    key(store.id) {
+                        val isSelected = (store.id == selectedStoreId)
 
-                    Marker(
-                        state = MarkerState(position = LatLng(store.latitude, store.longitude)),
-                        captionText = store.name,
-                        captionOffset = 5.dp,
-                        icon = OverlayImage.fromBitmap(markerIcon),
-                        onClick = { true }
-                    )
+                        // 1. 비트맵 생성 (둘 다 status 전달하여 색상 동기화)
+                        val markerIcon = if (isSelected) {
+                            // ★ [수정] status 전달 -> 선택된 핀도 색상 맞춤
+                            MapUtils.createSelectedMarkerBitmap(context, index + 1, store.status)
+                        } else {
+                            MapUtils.createMarkerBitmap(context, index + 1, store.status)
+                        }
+
+                        // 2. 크기 애니메이션
+                        val targetWidth = if (isSelected) 52.dp else 34.dp
+                        val targetHeight = if (isSelected) 65.dp else 34.dp // 비율 고려
+
+                        val animatedWidth by animateDpAsState(
+                            targetValue = targetWidth,
+                            label = "Width",
+                            animationSpec = tween(300)
+                        )
+                        val animatedHeight by animateDpAsState(
+                            targetValue = targetHeight,
+                            label = "Height",
+                            animationSpec = tween(300)
+                        )
+
+                        Marker(
+                            state = MarkerState(position = LatLng(store.latitude, store.longitude)),
+                            captionText = if (isSelected) "" else store.name,
+                            captionOffset = 5.dp,
+                            icon = OverlayImage.fromBitmap(markerIcon),
+                            width = animatedWidth,
+                            height = animatedHeight,
+                            zIndex = if (isSelected) 100 else 0,
+                            onClick = {
+                                onStoreClick(store.id)
+                                true
+                            }
+                        )
+                    }
                 }
             }
 
+            // ... (MapEffect 유지)
             MapEffect(Unit) { naverMap ->
                 naverMap.addOnCameraChangeListener { reason, _ ->
                     if (reason == CameraUpdate.REASON_GESTURE) {
@@ -1679,25 +1727,442 @@ fun UserMapContent(
                     }
                 }
             }
+        }
+    }
+}
 
+@Composable
+fun StoreListItem(
+    index: Int,
+    store: Store,
+    onItemClick: () -> Unit,
+    onCallClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onItemClick)
+            .padding(vertical = 8.dp, horizontal = 24.dp)
+    ) {
+        // 1. 상단 정보 (이름 + 상태 태그)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${index}. ${store.name}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
+                color = SubBlack
+            )
+
+            val tagResId = when (store.status) {
+                StoreStatus.FULL -> R.drawable.tag_full
+                com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
+                com.gmg.seatnow.domain.model.StoreStatus.NORMAL -> R.drawable.tag_normal
+                else -> R.drawable.tag_spare
+            }
+
+            Image(
+                painter = painterResource(id = tagResId),
+                contentDescription = store.status.name,
+                modifier = Modifier.height(22.dp),
+                contentScale = ContentScale.Fit
+            )
         }
 
-        // 3. 현 지도에서 검색 버튼 (검색바 아래)
-        SearchHereButton(
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 2. 중간 정보
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = store.operationStatus,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = SubBlack
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "·",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = SubGray
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_itempin),
+                contentDescription = null,
+                tint = SubGray,
+                modifier = Modifier.size(10.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = store.neighborhood,
+                style = MaterialTheme.typography.bodySmall,
+                color = SubGray
+            )
+            if (store.distance.isNotBlank()) {
+                Text(
+                    text = "  ${store.distance}",
+                    style = Body1_Medium_10,
+                    color = SubLightGray
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                painter = painterResource(R.drawable.btn_calling),
+                contentDescription = "전화 걸기",
+                tint = SubGray,
+                modifier = Modifier.size(12.dp).clickable { onCallClick() }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. 하단 사진 (고정형 3장)
+        FixedThreeImagesRow(
+            images = store.images,
+            shape = RectangleShape,
+            spacing = 2.dp
+        )
+    }
+}
+
+@Composable
+fun StoreDetailContent(
+    index: Int,
+    store: Store,
+    onItemClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onItemClick)
+            .padding(vertical = 16.dp, horizontal = 24.dp)
+    ) {
+        // 1. 상단 사진 (고정형 3장) - 먼저 배치
+        FixedThreeImagesRow(images = store.images)
+
+        Spacer(modifier = Modifier.height(16.dp)) // 사진과 텍스트 사이 여백
+
+        // 2. 하단 정보 (이름 + 상태 태그)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${index}. ${store.name}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
+                color = SubBlack
+            )
+
+            val tagResId = when (store.status) {
+                com.gmg.seatnow.domain.model.StoreStatus.FULL -> R.drawable.tag_full
+                com.gmg.seatnow.domain.model.StoreStatus.HARD -> R.drawable.tag_hard
+                com.gmg.seatnow.domain.model.StoreStatus.NORMAL -> R.drawable.tag_normal
+                else -> R.drawable.tag_spare
+            }
+
+            Image(
+                painter = painterResource(id = tagResId),
+                contentDescription = store.status.name,
+                modifier = Modifier.height(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 3. 최하단 정보
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = store.operationStatus,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = SubBlack
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = "·",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = SubGray
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_itempin),
+                contentDescription = null,
+                tint = SubGray,
+                modifier = Modifier.size(10.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = store.neighborhood,
+                style = MaterialTheme.typography.bodySmall,
+                color = SubGray
+            )
+            if (store.distance.isNotBlank()) {
+                Text(
+                    text = "  ${store.distance}",
+                    style = Body1_Medium_10,
+                    color = PointRed
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                painter = painterResource(R.drawable.btn_calling),
+                contentDescription = "전화 걸기",
+                tint = SubGray,
+                modifier = Modifier.size(18.dp).clickable { }
+            )
+        }
+    }
+}
+
+// ★ [수정됨] 상세 카드 컴포넌트
+@Composable
+fun StoreDetailCard(
+    index: Int,
+    store: Store,
+    onItemClick: () -> Unit = {},
+    onCallClick: () -> Unit
+) {
+    // ★ 1. Surface 사용 + tonalElevation = 0.dp (핑크색 틴트 원천 차단)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 20.dp)
+            .wrapContentHeight(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White, // 완전한 흰색
+        tonalElevation = 0.dp, // 틴트 제거
+        shadowElevation = 10.dp // 그림자 유지
+    ) {
+        Column(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 20.dp),
-            isLoading = isLoading,
-            onClick = onSearchHereClick
+                .fillMaxWidth()
+                .clickable(onClick = onItemClick)
+        ) {
+            // 1. 상단 사진 (뚜껑)
+            FixedThreeImagesRow(
+                images = store.images,
+                shape = RectangleShape,
+                spacing = 2.dp,
+                modifier = Modifier.height(120.dp)
+            )
+
+            // 2. 하단 텍스트 정보
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // ★ 2. 상단 패딩 축소 (20dp -> 12dp)
+                    .padding(top = 12.dp, start = 16.dp, end = 16.dp, bottom = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${index}. ${store.name}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = SubBlack
+                    )
+                    val tagResId = when (store.status) {
+                        StoreStatus.FULL -> R.drawable.tag_full
+                        StoreStatus.HARD -> R.drawable.tag_hard
+                        StoreStatus.NORMAL -> R.drawable.tag_normal
+                        else -> R.drawable.tag_spare
+                    }
+                    Image(
+                        painter = painterResource(id = tagResId),
+                        contentDescription = store.status.name,
+                        modifier = Modifier.height(24.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = store.operationStatus,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = SubBlack
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "·",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = SubGray
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_itempin),
+                        contentDescription = null,
+                        tint = SubGray,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = store.neighborhood,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SubGray
+                    )
+                    if (store.distance.isNotBlank()) {
+                        // 거리 텍스트 (상세 카드에서도 동일하게 적용)
+                        Text(
+                            text = "  ${store.distance}",
+                            style = Body1_Medium_10,
+                            color = SubGray
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        painter = painterResource(R.drawable.btn_calling),
+                        contentDescription = "전화 걸기",
+                        tint = SubGray,
+                        modifier = Modifier.size(12.dp).clickable { onCallClick() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun FixedThreeImagesRow(
+    images: List<String>,
+    shape: androidx.compose.ui.graphics.Shape = RectangleShape, // 기본값: 뾰족하게
+    spacing: Dp = 8.dp,            // 기본값: 간격 8dp
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing)
+    ) {
+        for (i in 0 until 3) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(shape) // ★ shape 적용 (ListItem은 Rectangle, Detail은 CardClip)
+                    .background(SubPaleGray)
+            ) {
+                if (i < images.size) {
+                    AsyncImage(
+                        model = images[i],
+                        contentDescription = "가게 사진",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SeatNowDetailHeader(
+    storeDetail: StoreDetail,
+    modifier: Modifier = Modifier,
+    customTopContent: @Composable () -> Unit = {},
+    customBottomContent: @Composable () -> Unit = {}
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        // 1. [Slot] 최상단 커스텀 영역 (ex. 타이틀 텍스트, 네비게이션 아이콘 등)
+        customTopContent()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 2. [공통] 상단 사진 스크롤 영역
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (storeDetail.images.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubPaleGray, RectangleShape))
+                }
+            } else {
+                items(storeDetail.images) { imageUrl ->
+                    // 추후 AsyncImage로 교체
+                    Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 3. [공통] 가게 이름
+        Text(
+            text = storeDetail.name,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = SubBlack,
+            modifier = Modifier.padding(horizontal = 24.dp)
         )
 
-        // 4. 현재 위치 버튼 (우측 하단)
-        CurrentLocationButton(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 32.dp),
-            isSelected = trackingMode == LocationTrackingMode.Follow,
-            onClick = onCurrentLocationClick
-        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 4. [공통] 영업 상태 및 좌석 수 현황
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = storeDetail.operationStatus, style = Body1_Medium_14, fontWeight = FontWeight.Bold, color = SubBlack)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = PointRed, fontWeight = FontWeight.Bold)) { append("${storeDetail.availableSeatCount}석") }
+                    withStyle(style = SpanStyle(color = SubBlack, fontWeight = FontWeight.Bold)) { append(" / ${storeDetail.totalSeatCount}석") }
+                },
+                style = Body1_Medium_14
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            val tagDrawableRes = when(storeDetail.status) {
+                StoreStatus.SPARE -> R.drawable.tag_spare
+                StoreStatus.NORMAL -> R.drawable.tag_normal
+                StoreStatus.HARD -> R.drawable.tag_hard
+                StoreStatus.FULL -> R.drawable.tag_full
+            }
+            Image(
+                painter = painterResource(id = tagDrawableRes),
+                contentDescription = null,
+                modifier = Modifier.width(50.dp).height(24.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 5. [Slot] 하단 커스텀 영역 (탭바, 메뉴 정보 등 주입)
+        customBottomContent()
+    }
+}
+
+/**
+ * [아이콘 + 텍스트 공통 컴포넌트]
+ * - 상세 페이지, 검색 결과 등 여러 곳에서 재사용
+ */
+@Composable
+fun InfoRow(
+    iconRes: Int,
+    text: String,
+    iconSize: Dp = 16.dp,
+    iconOffsetX: Dp = 0.dp
+) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            Icon(painter = painterResource(iconRes), contentDescription = null, tint = SubGray, modifier = Modifier.size(iconSize).offset(x = iconOffsetX))
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = text, style = Body1_Medium_14, color = SubBlack)
     }
 }

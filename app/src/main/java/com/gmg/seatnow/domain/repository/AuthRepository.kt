@@ -1,6 +1,7 @@
 package com.gmg.seatnow.domain.repository
 
 import android.net.Uri
+import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.domain.model.StoreSearchResult
@@ -8,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
     // LoginScreen
-    suspend fun loginKakao(): Result<String>
+    suspend fun loginKakao(): Result<KakaoLoginResult>
 
     // OwnerLoginScreen
     suspend fun loginOwner(email: String, password: String) : Result<Unit>
@@ -31,9 +32,9 @@ interface AuthRepository {
         storeImageUris: List<Uri>
     ): Result<Unit>
 
-    // OwnerStore
+    // OwnerStore & User
     suspend fun reissueToken(): Result<Unit> // 토큰 재발급
     suspend fun ownerLogout(): Result<Unit> // 로그아웃
     suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> // 회원탈퇴
-
+    suspend fun withdrawUser(): Result<Unit>
 }

@@ -13,5 +13,12 @@ data class Store(
     val latitude: Double,
     val longitude: Double,
     val status: StoreStatus = StoreStatus.NORMAL, // 상태 추가
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val neighborhood: String,
+    val images: List<String>,
+    val distance: String,
+    val operationStatus: String,
+    val storePhone: String?,
+    val availableSeatCount: Int = 0,
+    val totalSeatCount: Int = 0
 )

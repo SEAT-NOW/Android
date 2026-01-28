@@ -8,8 +8,24 @@ import javax.inject.Inject
 class GetStoresByHeadCountUseCase @Inject constructor(
     private val repository: MapRepository
 ) {
-    operator fun invoke(headCount: Int, lat: Double, lng: Double, radius : Double): Flow<List<Store>> {
-        // ★ 수정됨: 별도 API 함수 대신 통합된 getStores를 사용하고 headCount를 넘깁니다.
-        return repository.getStores(minPerson = headCount, centerLat = lat, centerLng = lng, radius)
+    // ★ keyword 추가
+    operator fun invoke(
+        headCount: Int,
+        keyword: String? = null,
+        lat: Double,
+        lng: Double,
+        radius: Double,
+        userLat: Double?,
+        userLng: Double?
+    ): Flow<List<Store>> {
+        return repository.getStores(
+            keyword = keyword,
+            minPerson = headCount,
+            centerLat = lat,
+            centerLng = lng,
+            radius = radius,
+            userLat = userLat,
+            userLng = userLng
+        )
     }
 }

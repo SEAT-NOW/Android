@@ -1,0 +1,120 @@
+package com.gmg.seatnow.presentation.user.detail
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.domain.model.MenuCategoryUiModel
+import com.gmg.seatnow.domain.model.MenuItemUiModel
+import com.gmg.seatnow.domain.model.StoreDetail
+import com.gmg.seatnow.domain.usecase.store.GetStoreDetailUseCase
+import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class StoreDetailViewModel @Inject constructor(
+    private val getStoreDetailUseCase: GetStoreDetailUseCase,
+    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase,
+    savedStateHandle: SavedStateHandle // Navigation 파라미터를 받기 위한 툴
+) : ViewModel() {
+
+    // 네비게이션 스택에서 storeId를 가져옵니다.
+    private val storeId: Long = checkNotNull(savedStateHandle["storeId"])
+
+    private val _storeDetailState = MutableStateFlow<StoreDetail?>(null)
+    val storeDetailState: StateFlow<StoreDetail?> = _storeDetailState.asStateFlow()
+
+    // 메뉴 상태 (이전 대화에서 만들었던 메뉴 상태)
+    private val _menuListState = MutableStateFlow<List<MenuCategoryUiModel>>(emptyList())
+    val menuListState: StateFlow<List<MenuCategoryUiModel>> = _menuListState.asStateFlow()
+
+    init {
+        // ViewModel이 생성될 때 (화면 진입 시) API 호출
+        fetchStoreDetail()
+        fetchMockMenus()
+    }
+
+    private fun fetchStoreDetail() {
+        viewModelScope.launch {
+            try {
+                // UseCase를 통해 가게 ID로 상세 정보 조회
+                val result = getStoreDetailUseCase(storeId)
+                _storeDetailState.value = result
+            } catch (e: Exception) {
+                // 에러 처리
+            }
+        }
+    }
+
+    private fun fetchMockMenus() {
+        val mockMenus = listOf(
+            // 카테고리 1 (아이템 2개)
+            MenuCategoryUiModel(
+                categoryName = "시그니처 메뉴",
+                menuItems = listOf(
+                    MenuItemUiModel(1, "바지락 술찜", 18000, "", true, false),
+                    MenuItemUiModel(2, "매콤 국물 떡볶이", 15000, "", false, true)
+                )
+            ),
+            // 카테고리 2 (아이템 3개)
+            MenuCategoryUiModel(
+                categoryName = "튀김 / 마른 안주",
+                menuItems = listOf(
+                    MenuItemUiModel(3, "모듬 감자튀김", 12000, "", false, false),
+                    MenuItemUiModel(4, "버터구이 오징어", 14000, "", true, true),
+                    MenuItemUiModel(5, "나초 & 치즈소스", 9000, "", false, false)
+                )
+            ),
+            // 카테고리 3 (아이템 3개)
+            MenuCategoryUiModel(
+                categoryName = "주류 / 음료",
+                menuItems = listOf(
+                    MenuItemUiModel(6, "생맥주 500cc", 5000, "", false, false),
+                    MenuItemUiModel(7, "참이슬 / 처음처럼", 5000, "", false, true),
+                    MenuItemUiModel(8, "얼그레이 하이볼", 8000, "", true, false)
+                )
+            )
+        )
+        _menuListState.value = mockMenus
+    }
+
+    // 좋아요 토글 이벤트 처리
+    fun toggleMenuLike(menuId: Long, isLiked: Boolean) {
+        viewModelScope.launch {
+            // 1. API UseCase 호출 (좋아요 서버 전송)
+            // toggleLikeUseCase(menuId, isLiked)
+
+            // 2. 로컬 UI State 업데이트 (단방향 데이터 흐름 준수)
+            _menuListState.value = _menuListState.value.map { category ->
+                category.copy(
+                    menuItems = category.menuItems.map { item ->
+                        if (item.id == menuId) item.copy(isLiked = isLiked) else item
+                    }
+                )
+            }
+        }
+    }
+
+    fun toggleStoreKeep() {
+        val currentDetail = _storeDetailState.value ?: return
+        val newKeptState = !currentDetail.isKept // 현재 상태 반전
+
+        viewModelScope.launch {
+            // 1. [낙관적 업데이트] API 응답 기다리지 않고 UI 먼저 갱신
+            _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
+
+            // 2. API 호출 (Mock)
+            val result = toggleStoreKeepUseCase(currentDetail.id, newKeptState)
+
+            // 3. 실패 시 롤백 (원래 상태로 되돌림)
+            if (result.isFailure) {
+                _storeDetailState.value = currentDetail // 되돌리기
+                // 필요 시 에러 메시지 처리 (예: Toast 이벤트 발송)
+            }
+        }
+    }
+}

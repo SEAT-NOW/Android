@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.api.AuthInterceptor
+import com.gmg.seatnow.data.api.AuthService
+import javax.inject.Provider
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -21,12 +23,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authManager: AuthManager
+        authManager: AuthManager,
+        authServiceProvider: Provider<AuthService>
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
-        val authInterceptor = AuthInterceptor(authManager)
+        val authInterceptor = AuthInterceptor(authManager, authServiceProvider)
 
         return OkHttpClient.Builder()
             .addInterceptor(logging)

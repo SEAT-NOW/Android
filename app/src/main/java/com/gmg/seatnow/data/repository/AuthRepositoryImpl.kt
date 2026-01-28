@@ -14,6 +14,7 @@ import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
+import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
 import com.google.gson.Gson
@@ -28,6 +29,7 @@ import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class AuthRepositoryImpl @Inject constructor(
@@ -36,25 +38,59 @@ class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService
 ) : AuthRepository {
 
-    override suspend fun loginKakao(): Result<String> = suspendCoroutine { continuation ->
-        // 1. 카카오톡 앱으로 로그인 가능한지 확인
+    override suspend fun loginKakao(): Result<KakaoLoginResult> {
+        return try {
+            // 1. 카카오 SDK로 토큰 발급
+            val kakaoToken = getKakaoAccessToken()
+
+            // 2. 백엔드 API 호출 (Query Parameter 전송)
+            val response = authService.loginWithKakao(kakaoToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 3. 응답 데이터 추출 (KakaoLoginResponse)
+                val responseData = response.body()?.data ?: throw Exception("응답 데이터가 없습니다.")
+
+                // 4. "Bearer " 접두사 처리
+                val appAccessToken = if (responseData.accessToken.startsWith("Bearer")) {
+                    responseData.accessToken
+                } else {
+                    "Bearer ${responseData.accessToken}"
+                }
+
+                // 5. AuthManager에 로컬 저장 (storeId가 null이면 -1L로 저장)
+                authManager.saveLoginData(
+                    accessToken = appAccessToken,
+                    refreshToken = responseData.refreshToken,
+                    storeId = responseData.storeId ?: -1L
+                )
+
+                // 6. Domain 모델로 매핑하여 반환 (toDomain 함수 사용)
+                Result.success(responseData.toDomain(appAccessToken))
+
+            } else {
+                // ... 기존 에러 파싱 로직 (parseErrorMessage 등)
+                Result.failure(Exception("서버 로그인 실패"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 카카오 SDK 로그인을 코루틴으로 감싼 내부 함수
+    private suspend fun getKakaoAccessToken(): String = suspendCoroutine { continuation ->
         if (UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
             UserApiClient.instance.loginWithKakaoTalk(context) { token, error ->
                 if (error != null) {
-                    // 카톡 로그인 실패 시 웹 로그인 시도 (Fallback)
                     UserApiClient.instance.loginWithKakaoAccount(context) { tokenWeb, errorWeb ->
-                        if (errorWeb != null) continuation.resume(Result.failure(errorWeb))
-                        else if (tokenWeb != null) continuation.resume(Result.success(tokenWeb.accessToken))
+                        if (errorWeb != null) continuation.resumeWithException(errorWeb)
+                        else if (tokenWeb != null) continuation.resume(tokenWeb.accessToken)
                     }
-                } else if (token != null) {
-                    continuation.resume(Result.success(token.accessToken))
-                }
+                } else if (token != null) continuation.resume(token.accessToken)
             }
         } else {
-            // 2. 카카오톡 없으면 웹으로 로그인
             UserApiClient.instance.loginWithKakaoAccount(context) { token, error ->
-                if (error != null) continuation.resume(Result.failure(error))
-                else if (token != null) continuation.resume(Result.success(token.accessToken))
+                if (error != null) continuation.resumeWithException(error)
+                else if (token != null) continuation.resume(token.accessToken)
             }
         }
     }
@@ -379,6 +415,23 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun withdrawUser(): Result<Unit> {
+        return try {
+            val response = authService.withdrawUser()
+            val body = response.body()
+
+            // 통신 성공 & BaseResponse의 success가 true일 때
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(Unit)
+            } else {
+                // 서버에서 내려준 message를 에러 메시지로 사용
+                Result.failure(Exception(body?.message ?: "회원탈퇴에 실패했습니다."))
+            }
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
