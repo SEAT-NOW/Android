@@ -41,6 +41,8 @@ fun MyPageScreen(
                 is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
                 is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {}
                 is MyPageViewModel.MyPageEvent.NavigateToChangePassword -> {}
+                is MyPageViewModel.MyPageEvent.NavigateBack -> {}
+                is MyPageViewModel.MyPageEvent.ShowToast -> {}
             }
         }
     }

@@ -10,11 +10,13 @@ import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
+import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
 import com.gmg.seatnow.data.model.response.KakaoLoginResponse
+import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -125,10 +127,21 @@ interface AuthService {
         @Query("kakaoAccessToken") kakaoAccessToken: String
     ): Response<BaseResponse<KakaoLoginResponse>>
 
+    // 사장님 계정정보 조회
+    @GET("/api/v1/stores/owner/account")
+    suspend fun getOwnerAccount(): Response<BaseResponse<OwnerAccountResponseDTO>>
+
+    // 사장님 계정정보 비밀번호 수정 전 체크
     @POST("/api/v1/stores/owner/verify-password")
     suspend fun verifyOwnerPassword(
         @Body request: VerifyPasswordRequestDTO
     ): Response<BaseResponse<Boolean>> // Data가 Boolean 혹은 Any일 수 있음
+
+    // 사장님 계정정보 비밀번호 수정
+    @PATCH("/api/v1/stores/owner/password")
+    suspend fun changeOwnerPassword(
+        @Body request: ChangePasswordRequestDTO
+    ): Response<BaseResponse<Boolean>> // data: true/false
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>

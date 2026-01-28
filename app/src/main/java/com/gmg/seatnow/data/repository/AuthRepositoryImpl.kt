@@ -14,7 +14,9 @@ import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
+import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
+import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
 import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
@@ -38,6 +40,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val authManager: AuthManager,
     private val authService: AuthService
 ) : AuthRepository {
+
+    private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
 
     override suspend fun loginKakao(): Result<KakaoLoginResult> {
         return try {
@@ -447,6 +451,53 @@ class AuthRepositoryImpl @Inject constructor(
             } else {
                 // 400(비번 불일치), 404(유저 없음) 등 에러 처리
                 // parseErrorMessage는 기존 AuthRepositoryImpl에 있는 함수 재사용
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun changeOwnerPassword(password: String): Result<Unit> {
+        return try {
+            val response = authService.changeOwnerPassword(ChangePasswordRequestDTO(password))
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 200 OK
+                Result.success(Unit)
+            } else {
+                // 에러 파싱
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO> {
+        // 1. 캐시된 데이터가 있으면 바로 반환 (API 호출 X)
+        cachedOwnerAccount?.let {
+            return Result.success(it)
+        }
+
+        // 2. 캐시가 없으면 API 호출
+        return try {
+            val response = authService.getOwnerAccount()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data != null) {
+                    // ★ 3. 성공 시 캐시에 저장
+                    cachedOwnerAccount = data
+                    Result.success(data)
+                } else {
+                    Result.failure(Exception("데이터가 비어있습니다."))
+                }
+            } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string())
                 Result.failure(Exception(errorMsg))
             }

@@ -2,8 +2,11 @@ package com.gmg.seatnow.presentation.owner.store.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.domain.usecase.auth.ChangeOwnerPasswordUseCase
+import com.gmg.seatnow.domain.usecase.auth.GetOwnerAccountUseCase
 import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
 import com.gmg.seatnow.domain.usecase.auth.VerifyOwnerPasswordUseCase
+import com.gmg.seatnow.domain.usecase.logic.ValidatePasswordUseCase
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel.MyPageEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -18,7 +21,10 @@ import javax.inject.Inject
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
     private val logoutUseCase: OwnerLogoutUseCase,
-    private val verifyOwnerPasswordUseCase: VerifyOwnerPasswordUseCase
+    private val verifyOwnerPasswordUseCase: VerifyOwnerPasswordUseCase,
+    private val getOwnerAccountUseCase: GetOwnerAccountUseCase,
+    private val validatePasswordUseCase: ValidatePasswordUseCase,
+    private val changeOwnerPasswordUseCase: ChangeOwnerPasswordUseCase // ★ 주입
 ) : ViewModel() {
 
     // UI State (로딩 상태 등)
@@ -28,7 +34,13 @@ class MyPageViewModel @Inject constructor(
         val ownerPhoneNumber: String = "", // 전화번호
         val isProfileLoaded: Boolean = false, // 로딩 완료 여부
         val checkPassword: String = "",
-        val checkPasswordError: String? = null
+        val checkPasswordError: String? = null,
+
+        val newPassword: String = "",
+        val newPasswordError: String? = null,
+        val newPasswordCheck: String = "",
+        val newPasswordCheckError: String? = null,
+        val isChangePasswordButtonEnabled: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(MyPageUiState())
@@ -42,10 +54,16 @@ class MyPageViewModel @Inject constructor(
         data object NavigateToEditSeatConfig : MyPageEvent
         data object NavigateToCheckPassword : MyPageEvent
         data object NavigateToChangePassword : MyPageEvent
+        data object NavigateBack : MyPageEvent // ★ 뒤로가기 이벤트
+        data class ShowToast(val message: String) : MyPageEvent
     }
 
     private val _event = MutableSharedFlow<MyPageEvent>()
     val event = _event.asSharedFlow()
+
+    init {
+        fetchOwnerProfile()
+    }
 
     // Action
     fun onAction(action: MyPageAction) {
@@ -80,28 +98,33 @@ class MyPageViewModel @Inject constructor(
 
             // ★ '다음' 버튼 클릭 (검증 로직)
             is MyPageAction.OnCheckPasswordNextClick -> verifyPassword()
+
+            is MyPageAction.UpdateNewPassword -> validateAndUpdateNewPassword(action.password)
+            is MyPageAction.UpdateNewPasswordCheck -> validateAndUpdateNewPasswordCheck(action.check)
+            is MyPageAction.OnChangePasswordClick -> changePassword()
         }
     }
 
     private fun fetchOwnerProfile() {
         viewModelScope.launch {
+            // 로딩 시작 (캐시가 있으면 아주 짧게 보임)
             _uiState.update { it.copy(isLoading = true) }
 
-            // TODO: 실제 API 호출 (Bearer Token은 Repository 레벨에서 Interceptor가 처리한다고 가정)
-            // val result = getOwnerProfileUseCase()
-
-            // [Mock Data] API 연동 전 테스트용
-            val mockEmail = "test_owner@seatnow.com"
-            val mockPhone = "010-1234-5678"
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    ownerEmail = mockEmail,
-                    ownerPhoneNumber = mockPhone,
-                    isProfileLoaded = true
-                )
-            }
+            getOwnerAccountUseCase()
+                .onSuccess { data ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            ownerEmail = data.email,       // API 데이터 적용
+                            ownerPhoneNumber = data.phoneNumber, // API 데이터 적용
+                            isProfileLoaded = true
+                        )
+                    }
+                }
+                .onFailure {
+                    // 실패 시 로딩만 끔 (필요 시 에러 토스트 처리 가능)
+                    _uiState.update { it.copy(isLoading = false) }
+                }
         }
     }
 
@@ -127,6 +150,72 @@ class MyPageViewModel @Inject constructor(
                             checkPasswordError = error.message ?: "비밀번호 확인에 실패했습니다."
                         )
                     }
+                }
+        }
+    }
+
+    //비밀번호 변경 로직
+
+    private fun validateAndUpdateNewPassword(password: String) {
+        // UseCase를 사용하여 정규식 검사 (영문, 숫자, 특수문자 포함 8~20자리)
+        val isValid = validatePasswordUseCase(password)
+        val error = if (password.isNotBlank() && !isValid) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
+
+        _uiState.update { it.copy(newPassword = password, newPasswordError = error) }
+
+        // 비밀번호가 바뀌면 비밀번호 확인 필드도 다시 검사해야 함 (일치 여부 확인)
+        validateAndUpdateNewPasswordCheck(_uiState.value.newPasswordCheck)
+    }
+
+    private fun validateAndUpdateNewPasswordCheck(check: String) {
+        val currentPassword = _uiState.value.newPassword
+        val error = if (check.isNotBlank() && check != currentPassword) "비밀번호가 일치하지 않습니다." else null
+
+        _uiState.update {
+            it.copy(
+                newPasswordCheck = check,
+                newPasswordCheckError = error
+            )
+        }
+        checkChangeButtonEnabled()
+    }
+
+    private fun checkChangeButtonEnabled() {
+        val state = _uiState.value
+        // 조건: 비밀번호 유효성 통과(Error == null), 값 존재, 비밀번호 확인 일치
+        val isValid = state.newPassword.isNotBlank() && state.newPasswordError == null &&
+                state.newPasswordCheck.isNotBlank() && state.newPasswordCheckError == null &&
+                state.newPassword == state.newPasswordCheck
+
+        _uiState.update { it.copy(isChangePasswordButtonEnabled = isValid) }
+    }
+
+    private fun changePassword() {
+        val newPassword = _uiState.value.newPassword
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // 1. 실제 API 호출
+            changeOwnerPasswordUseCase(newPassword)
+                .onSuccess {
+                    // 2. 성공 시
+                    _uiState.update { it.copy(isLoading = false) }
+
+                    // 토스트 메시지 띄우고 뒤로가기
+                    _event.emit(MyPageEvent.ShowToast("비밀번호가 성공적으로 수정되었습니다."))
+
+                    // 비밀번호 변경 화면 -> 계정 정보 수정 화면으로 이동
+                    _event.emit(MyPageEvent.NavigateBack)
+                }
+                .onFailure { error ->
+                    // 3. 실패 시
+                    _uiState.update { it.copy(isLoading = false) }
+
+                    // 에러 메시지를 토스트로 띄우거나, 에러 텍스트 필드에 표시할 수 있음
+                    // 여기서는 간단히 Toast로 에러 알림
+                    val msg = error.message ?: "비밀번호 변경에 실패했습니다."
+                    _event.emit(MyPageEvent.ShowToast(msg))
                 }
         }
     }
@@ -157,4 +246,7 @@ sealed interface MyPageAction {
     data object OnCheckPasswordClick : MyPageAction
     data class UpdateCheckPassword(val password: String) : MyPageAction
     data object OnCheckPasswordNextClick : MyPageAction
+    data class UpdateNewPassword(val password: String) : MyPageAction
+    data class UpdateNewPasswordCheck(val check: String) : MyPageAction
+    data object OnChangePasswordClick : MyPageAction
 }

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.gmg.seatnow.presentation.owner.store.mypage.account.ChangePasswordScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.CheckPasswordScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.EditAccountInfoScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScreen
@@ -267,13 +268,7 @@ fun SeatNowNavGraph(
             )
         }
 
-        // 9. 좌석 정보 구성 수정 화면
-        composable("edit_seat_config") {
-            EditSeatConfigScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
+        // 8-1 계정 정보 수정-패스워드 변경 전 체크화면
         composable("check_password") {
             val viewModel = hiltViewModel<MyPageViewModel>()
             val uiState by viewModel.uiState.collectAsState()
@@ -281,9 +276,7 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     if (event is MyPageViewModel.MyPageEvent.NavigateToChangePassword) {
-                        // TODO: 다음 화면(비밀번호 변경)으로 이동
-                        // navController.navigate("change_password")
-                        // 우선은 로그 등으로 확인 가능
+                        navController.navigate("change_password")
                     }
                 }
             }
@@ -295,7 +288,35 @@ fun SeatNowNavGraph(
             )
         }
 
+        // 8-2 계정 정보 수정-패스워드 변경 화면
+        composable("change_password") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
 
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    when (event) {
+                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
+                            // 변경 완료 후 이전 화면(계정 정보 수정)으로 돌아가기
+                            // check_password 화면도 건너뛰고 account_info로 가는 게 UX상 좋음
+                            navController.popBackStack("account_info", inclusive = false)
+                        }
+                        is MyPageViewModel.MyPageEvent.ShowToast -> {
+                            // Toast 메시지 처리 (MainActivity 등에서 처리하거나 여기서 Context로 띄움)
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
+            ChangePasswordScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 8-3 계정 정보 - 회원탈퇴 화면
         composable("owner_withdraw") {
             OwnerWithdrawScreen(
                 onBackClick = { navController.popBackStack() },
@@ -304,6 +325,13 @@ fun SeatNowNavGraph(
                         popUpTo("store_main") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // 9. 좌석 정보 구성 수정 화면
+        composable("edit_seat_config") {
+            EditSeatConfigScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
