@@ -76,6 +76,7 @@ fun UserMainScreen(
             if (currentTab == UserTab.KEEP) {
                 Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
                     KeepScreen(
+                        onNavigateToDetail = onNavigateToDetail
                     )
                 }
             }

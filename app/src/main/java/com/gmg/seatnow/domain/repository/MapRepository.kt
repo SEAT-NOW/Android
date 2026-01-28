@@ -16,4 +16,6 @@ interface MapRepository {
     : Flow<List<Store>>
 
     suspend fun getStoreDetail(storeId: Long): StoreDetail
+    suspend fun toggleStoreKeep(storeId: Long, isKept: Boolean): Result<Unit>
+    suspend fun getKeepStoreList(): Result<List<StoreDetail>>
 }

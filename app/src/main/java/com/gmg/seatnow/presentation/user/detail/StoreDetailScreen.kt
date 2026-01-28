@@ -41,6 +41,7 @@ import com.gmg.seatnow.presentation.util.IntentUtil
 @Composable
 fun StoreDetailRoute(
     viewModel: StoreDetailViewModel = hiltViewModel(),
+    onBackClick: () -> Unit
 ) {
     val storeDetail by viewModel.storeDetailState.collectAsState()
     val menuCategories by viewModel.menuListState.collectAsState()
@@ -49,7 +50,9 @@ fun StoreDetailRoute(
         StoreDetailScreen(
             storeDetail = storeDetail!!,
             menuCategories = menuCategories,
-            onLikeClicked = viewModel::toggleMenuLike
+            onLikeClicked = viewModel::toggleMenuLike,
+            onKeepClicked = viewModel::toggleStoreKeep, // ★ ViewModel 함수 전달
+            onBackClick = onBackClick
         )
     } else {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -64,10 +67,11 @@ fun StoreDetailScreen(
     modifier: Modifier = Modifier,
     menuCategories: List<MenuCategoryUiModel>,
     initialTabIndex: Int = 0,
-    onLikeClicked: (Long, Boolean) -> Unit
+    onLikeClicked: (Long, Boolean) -> Unit,
+    onKeepClicked: () -> Unit,
+    onBackClick: () -> Unit
 ) {
     val context = LocalContext.current // ★ 전화 걸기를 위한 Context
-    var isKept by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -79,14 +83,14 @@ fun StoreDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { isKept = !isKept }) {
+                    IconButton(onClick = onKeepClicked) {
                         // isKept 상태에 따라 보여줄 아이콘 리소스 결정
-                        val keepIconRes = if (isKept) {
+                        val keepIconRes = if (storeDetail.isKept) {
                             // TODO: 여기에 '눌렸을 때(빨간색/채워진)' 사용할 Drawable ID를 넣으세요.
-                            R.drawable.ic_keep_default // (예시: R.drawable.ic_keep_pressed)
+                            R.drawable.ic_keep_pressed // (예시: R.drawable.ic_keep_pressed)
                         } else {
                             // 평상시(안 눌렸을 때) 사용할 Drawable ID
-                            R.drawable.ic_keep_pressed
+                            R.drawable.ic_keep_default
                         }
 
                         Icon(
@@ -232,7 +236,9 @@ fun StoreDetailScreenPreview() {
                 closedDays = "토 · 일 휴무"
             ),
             menuCategories = dummyMenuCategories,
-            onLikeClicked = { _, _ -> }
+            onLikeClicked = { _, _ -> },
+            onKeepClicked = {},
+            onBackClick = {}
         )
     }
 }
@@ -303,6 +309,8 @@ fun StoreDetailScreenMenuTabPreview() {
             ),
             menuCategories = dummyMenuCategories,
             onLikeClicked = { _, _ -> },
+            onKeepClicked = {},
+            onBackClick = {},
             initialTabIndex = 1
         )
     }

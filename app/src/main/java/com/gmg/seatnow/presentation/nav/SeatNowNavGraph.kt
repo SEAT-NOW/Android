@@ -1,5 +1,7 @@
 package com.gmg.seatnow.presentation.nav
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -163,12 +165,22 @@ fun SeatNowNavGraph(
 
         // 3-3 가게 상세 화면
         composable(
-            route = "store_detail/{storeId}",
+            route = "store_detail/{storeId}", // SeatNowDestinations.STORE_DETAIL_ROUTE 상수를 쓰셔도 됩니다.
             arguments = listOf(navArgument("storeId") { type = NavType.LongType }),
-            deepLinks = listOf(navDeepLink { uriPattern = "seatnow://seatnow.r-e.kr/store/{storeId}" })
+            // 딥링크가 필요하다면 유지, 아니면 생략 가능
+            deepLinks = listOf(navDeepLink { uriPattern = "seatnow://seatnow.r-e.kr/store/{storeId}" }),
+
+            // ★ [요청사항 1] 애니메이션 제거 (즉시 전환)
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) {
-            // ★ 뷰모델이 NavGraph의 storeId를 자동으로 가져가므로, 그냥 Route만 호출하면 됩니다.
-            StoreDetailRoute()
+            // ★ [요청사항 2] ID 추출 로직 삭제됨 (ViewModel이 알아서 가져감)
+            // 단, 뒤로가기 처리를 위한 람다는 전달해야 합니다.
+            StoreDetailRoute(
+                onBackClick = { navController.popBackStack() }
+            )
         }
 
         // 4. 사장님 로그인

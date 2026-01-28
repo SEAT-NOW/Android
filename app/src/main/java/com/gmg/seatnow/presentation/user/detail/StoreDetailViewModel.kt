@@ -7,6 +7,7 @@ import com.gmg.seatnow.domain.model.MenuCategoryUiModel
 import com.gmg.seatnow.domain.model.MenuItemUiModel
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.usecase.store.GetStoreDetailUseCase
+import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StoreDetailViewModel @Inject constructor(
     private val getStoreDetailUseCase: GetStoreDetailUseCase,
+    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase,
     savedStateHandle: SavedStateHandle // Navigation 파라미터를 받기 위한 툴
 ) : ViewModel() {
 
@@ -93,6 +95,25 @@ class StoreDetailViewModel @Inject constructor(
                         if (item.id == menuId) item.copy(isLiked = isLiked) else item
                     }
                 )
+            }
+        }
+    }
+
+    fun toggleStoreKeep() {
+        val currentDetail = _storeDetailState.value ?: return
+        val newKeptState = !currentDetail.isKept // 현재 상태 반전
+
+        viewModelScope.launch {
+            // 1. [낙관적 업데이트] API 응답 기다리지 않고 UI 먼저 갱신
+            _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
+
+            // 2. API 호출 (Mock)
+            val result = toggleStoreKeepUseCase(currentDetail.id, newKeptState)
+
+            // 3. 실패 시 롤백 (원래 상태로 되돌림)
+            if (result.isFailure) {
+                _storeDetailState.value = currentDetail // 되돌리기
+                // 필요 시 에러 메시지 처리 (예: Toast 이벤트 발송)
             }
         }
     }

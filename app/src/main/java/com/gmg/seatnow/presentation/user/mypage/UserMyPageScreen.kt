@@ -60,11 +60,11 @@ fun UserMyPageContent(
             Text(
                 "마이페이지",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(bottom = 32.dp, top = 4.dp)
+                modifier = Modifier.padding(bottom = 32.dp, top = 0.dp)
             )
 
             // 계정 섹션 헤더
-            Text("계정", fontSize = 18.sp, color = SubGray, modifier = Modifier.padding(bottom = 8.dp))
+            Text("계정", style = MaterialTheme.typography.bodyLarge, color = SubGray, modifier = Modifier.padding(bottom = 8.dp))
 
             // 계정 정보 조회 메뉴
             SeatNowMenuItem(text = "계정 정보 조회", onClick = onAccountInfoClick)

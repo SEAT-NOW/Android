@@ -1150,7 +1150,7 @@ fun SeatNowMenuItem(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium), // 스타일 통일
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), // 스타일 통일
             color = textColor
         )
 

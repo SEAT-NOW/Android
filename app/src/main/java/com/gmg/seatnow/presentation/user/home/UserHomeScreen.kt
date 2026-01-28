@@ -138,6 +138,8 @@ fun UserHomeScreen(
             cameraPositionState = cameraPositionState,
             coroutineScope = coroutineScope,
             onLocationFound = { lat, lng ->
+                trackingMode = LocationTrackingMode.Follow
+
                 currentUserLocation = LatLng(lat, lng)
                 viewModel.fetchStoresInCurrentMap(
                     lat = lat,
@@ -409,9 +411,15 @@ fun UserHomeScreen(
                     }
                 }
 
-                if (!isSheetExpanded && selectedStoreId == null) {
+                val isSheetPhysicallyExpanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
+
+                if (!isSearchActive && selectedStoreId == null && sheetStep != BottomSheetStep.FULL && !isSheetPhysicallyExpanded) {
                     CurrentLocationButton(
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 80.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp)
+                            // ★ 핵심: 바텀시트 높이(animatedPeekHeight) + 20dp 만큼 위로 띄움 -> 시트랑 같이 움직임
+                            .padding(bottom = animatedPeekHeight + 20.dp),
                         isSelected = trackingMode == LocationTrackingMode.Follow,
                         onClick = { refreshCurrentLocation() }
                     )

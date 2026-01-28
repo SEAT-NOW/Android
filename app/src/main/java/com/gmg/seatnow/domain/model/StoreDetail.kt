@@ -12,7 +12,8 @@ data class StoreDetail(
     val universityInfo: String,           // "근처 대학 정보"
     val address: String,                  // "가게 상세 주소"
     val openHours: String,                // "영업 시간"
-    val closedDays: String                // "휴무일"
+    val closedDays: String,               // "휴무일"
+    val isKept: Boolean = false
 )
 
 data class MenuCategoryUiModel(
