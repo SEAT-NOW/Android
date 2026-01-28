@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowMenuItem
 import com.gmg.seatnow.presentation.theme.SubGray
+import com.gmg.seatnow.presentation.theme.SubPaleGray
 import com.gmg.seatnow.presentation.theme.White
 import kotlinx.coroutines.flow.collectLatest
 
@@ -24,7 +25,9 @@ import kotlinx.coroutines.flow.collectLatest
 fun MyPageScreen(
     viewModel: MyPageViewModel = hiltViewModel(),
     onNavigateToAccountInfo: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -34,6 +37,8 @@ fun MyPageScreen(
             when (event) {
                 is MyPageViewModel.MyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
                 is MyPageViewModel.MyPageEvent.NavigateToLogin -> onNavigateToLogin()
+                is MyPageViewModel.MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
+                is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
             }
         }
     }
@@ -76,7 +81,26 @@ fun MyPageContent(
             )
 
             // 구분선이나 추가 메뉴가 필요하면 여기에 배치
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            SectionHeader("운영 설정")
+
+            SeatNowMenuItem(
+                text = "계정 정보 수정",
+                onClick = onAccountInfoClick
+            )
+
+            SeatNowMenuItem(
+                text = "좌석 정보 구성 수정",
+                onClick = onAccountInfoClick
+            )
+
+
+
         }
 
         if (isLoading) {
@@ -89,9 +113,8 @@ fun MyPageContent(
 fun SectionHeader(text: String) {
     Text(
         text,
-        fontSize = 18.sp,
+        style = MaterialTheme.typography.bodyLarge,
         color = SubGray,
-        modifier = Modifier.padding(bottom = 8.dp)
     )
 }
 

@@ -1144,7 +1144,7 @@ fun SeatNowMenuItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 16.dp), // 터치 영역 및 간격 확보
+            .padding(vertical = 8.dp), // 터치 영역 및 간격 확보
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

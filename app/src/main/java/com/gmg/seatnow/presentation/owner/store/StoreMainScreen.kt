@@ -30,7 +30,9 @@ import com.gmg.seatnow.presentation.theme.White
 fun StoreMainRoute(
     viewModel: StoreMainViewModel = hiltViewModel(),
     onNavigateToLogin: () -> Unit,
-    onNavigateToAccountInfo: () -> Unit
+    onNavigateToAccountInfo: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -40,7 +42,9 @@ fun StoreMainRoute(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateToLogin = onNavigateToLogin,
-        onNavigateToAccountInfo = onNavigateToAccountInfo
+        onNavigateToAccountInfo = onNavigateToAccountInfo,
+        onNavigateToEditAccount = onNavigateToEditAccount,
+        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig
     )
 }
 
@@ -49,7 +53,9 @@ fun StoreMainScreen(
     uiState: StoreMainViewModel.StoreMainUiState,
     onAction: (StoreMainAction) -> Unit,
     onNavigateToLogin: () -> Unit,
-    onNavigateToAccountInfo: () -> Unit
+    onNavigateToAccountInfo: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit
 ) {
     Scaffold(
         containerColor = White,
@@ -74,7 +80,9 @@ fun StoreMainScreen(
                     // ✅ 여기서 MyPageScreen을 호출하며 콜백을 전달합니다.
                     MyPageScreen(
                         onNavigateToAccountInfo = onNavigateToAccountInfo,
-                        onNavigateToLogin = onNavigateToLogin
+                        onNavigateToLogin = onNavigateToLogin,
+                        onNavigateToEditAccount = onNavigateToEditAccount,
+                        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig
                     )
                 }
             }

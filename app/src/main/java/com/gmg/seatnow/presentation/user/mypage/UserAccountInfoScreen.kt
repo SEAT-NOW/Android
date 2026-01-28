@@ -2,6 +2,8 @@ package com.gmg.seatnow.presentation.user.mypage
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -72,7 +74,7 @@ fun UserAccountInfoScreen(
 
 // 정보 한 줄을 표시하는 컴포넌트 (타이틀 --- 여백 --- 데이터)
 @Composable
-fun UserInfoRow(title: String, value: String) {
+fun UserInfoRow(title: String, value: String, showArrow: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -89,6 +91,16 @@ fun UserInfoRow(title: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = SubDarkGray
         )
+
+        if (showArrow) {
+            Spacer(modifier = Modifier.width(4.dp)) // 텍스트와 화살표 사이 간격
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = SubGray, // 화살표 색상은 연하게
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 

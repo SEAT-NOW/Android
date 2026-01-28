@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.gmg.seatnow.presentation.owner.store.mypage.EditAccountInfoScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.EditSeatConfigScreen
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -218,6 +220,12 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToAccountInfo = {
                     navController.navigate("account_info")
+                },
+                onNavigateToEditAccount = {
+                    navController.navigate("edit_account_info")
+                },
+                onNavigateToEditSeatConfig = {
+                    navController.navigate("edit_seat_config")
                 }
             )
         }
@@ -225,6 +233,7 @@ fun SeatNowNavGraph(
         // 7. 계정 정보 수정 (AccountInfo)
         composable("account_info") {
             val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
@@ -237,9 +246,24 @@ fun SeatNowNavGraph(
             }
 
             AccountInfoScreen(
+                uiState = uiState, // 이제 정상적으로 전달됨
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
                 onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
+            )
+        }
+
+        // 8. 계정 정보 수정 화면
+        composable("edit_account_info") {
+            EditAccountInfoScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 9. 좌석 정보 구성 수정 화면
+        composable("edit_seat_config") {
+            EditSeatConfigScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
 
