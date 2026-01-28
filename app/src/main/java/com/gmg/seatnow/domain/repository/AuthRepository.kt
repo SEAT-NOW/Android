@@ -37,4 +37,5 @@ interface AuthRepository {
     suspend fun ownerLogout(): Result<Unit> // 로그아웃
     suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> // 회원탈퇴
     suspend fun withdrawUser(): Result<Unit>
+    suspend fun verifyOwnerPassword(password: String): Result<Unit>
 }

@@ -14,7 +14,7 @@ import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
-import com.gmg.seatnow.presentation.owner.store.mypage.AccountInfoScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.AccountInfoScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
@@ -26,8 +26,9 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import com.gmg.seatnow.presentation.owner.store.mypage.EditAccountInfoScreen
-import com.gmg.seatnow.presentation.owner.store.mypage.EditSeatConfigScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.CheckPasswordScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.EditAccountInfoScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScreen
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -237,10 +238,15 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
-                    if (event is MyPageViewModel.MyPageEvent.NavigateToLogin) {
-                        navController.navigate("login") {
-                            popUpTo("store_main") { inclusive = true }
+                    when(event) {
+                        is MyPageViewModel.MyPageEvent.NavigateToLogin -> {
+                            navController.navigate("login") { popUpTo("store_main") { inclusive = true } }
                         }
+                        // ★ 비밀번호 확인 화면으로 이동
+                        is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {
+                            navController.navigate("check_password")
+                        }
+                        else -> {}
                     }
                 }
             }
@@ -249,7 +255,8 @@ fun SeatNowNavGraph(
                 uiState = uiState, // 이제 정상적으로 전달됨
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
-                onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
+                onNavigateToWithdraw = { navController.navigate("owner_withdraw") },
+                onCheckPasswordClick = { viewModel.onAction(MyPageAction.OnCheckPasswordClick) }
             )
         }
 
@@ -266,6 +273,28 @@ fun SeatNowNavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
+
+        composable("check_password") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    if (event is MyPageViewModel.MyPageEvent.NavigateToChangePassword) {
+                        // TODO: 다음 화면(비밀번호 변경)으로 이동
+                        // navController.navigate("change_password")
+                        // 우선은 로그 등으로 확인 가능
+                    }
+                }
+            }
+
+            CheckPasswordScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
 
         composable("owner_withdraw") {
             OwnerWithdrawScreen(

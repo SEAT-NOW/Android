@@ -39,6 +39,8 @@ fun MyPageScreen(
                 is MyPageViewModel.MyPageEvent.NavigateToLogin -> onNavigateToLogin()
                 is MyPageViewModel.MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
                 is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
+                is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {}
+                is MyPageViewModel.MyPageEvent.NavigateToChangePassword -> {}
             }
         }
     }
@@ -46,7 +48,9 @@ fun MyPageScreen(
     // 순수 UI 컴포넌트 호출
     MyPageContent(
         isLoading = uiState.isLoading,
-        onAccountInfoClick = { viewModel.onAction(MyPageAction.OnAccountInfoClick) }
+        onAccountInfoClick = { viewModel.onAction(MyPageAction.OnAccountInfoClick) },
+        onEditSeatConfigClick = { viewModel.onAction(MyPageAction.OnEditSeatConfigClick) },
+        onEditAccountInfoClick = { viewModel.onAction(MyPageAction.OnEditAccountInfoClick) }
     )
 }
 
@@ -54,7 +58,9 @@ fun MyPageScreen(
 @Composable
 fun MyPageContent(
     isLoading: Boolean,
-    onAccountInfoClick: () -> Unit
+    onAccountInfoClick: () -> Unit,
+    onEditSeatConfigClick: () -> Unit,
+    onEditAccountInfoClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -90,7 +96,7 @@ fun MyPageContent(
             SectionHeader("운영 설정")
 
             SeatNowMenuItem(
-                text = "계정 정보 수정",
+                text = "가게 정보 수정",
                 onClick = onAccountInfoClick
             )
 
@@ -124,6 +130,8 @@ fun SectionHeader(text: String) {
 fun MyPageScreenPreview() {
     MyPageContent(
         isLoading = false,
-        onAccountInfoClick = {}
+        onAccountInfoClick = { },
+        onEditSeatConfigClick = { },
+        onEditAccountInfoClick = {  }
     )
 }

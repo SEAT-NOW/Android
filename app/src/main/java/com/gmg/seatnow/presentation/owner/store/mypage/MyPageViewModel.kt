@@ -3,8 +3,10 @@ package com.gmg.seatnow.presentation.owner.store.mypage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
+import com.gmg.seatnow.domain.usecase.auth.VerifyOwnerPasswordUseCase
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel.MyPageEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
-    private val logoutUseCase: OwnerLogoutUseCase
+    private val logoutUseCase: OwnerLogoutUseCase,
+    private val verifyOwnerPasswordUseCase: VerifyOwnerPasswordUseCase
 ) : ViewModel() {
 
     // UI State (로딩 상태 등)
@@ -23,7 +26,9 @@ class MyPageViewModel @Inject constructor(
         val isLoading: Boolean = false,
         val ownerEmail: String = "",       // 이메일
         val ownerPhoneNumber: String = "", // 전화번호
-        val isProfileLoaded: Boolean = false // 로딩 완료 여부
+        val isProfileLoaded: Boolean = false, // 로딩 완료 여부
+        val checkPassword: String = "",
+        val checkPasswordError: String? = null
     )
 
     private val _uiState = MutableStateFlow(MyPageUiState())
@@ -35,6 +40,8 @@ class MyPageViewModel @Inject constructor(
         data object NavigateToAccountInfo : MyPageEvent
         data object NavigateToEditAccount : MyPageEvent
         data object NavigateToEditSeatConfig : MyPageEvent
+        data object NavigateToCheckPassword : MyPageEvent
+        data object NavigateToChangePassword : MyPageEvent
     }
 
     private val _event = MutableSharedFlow<MyPageEvent>()
@@ -59,6 +66,20 @@ class MyPageViewModel @Inject constructor(
             is MyPageAction.OnEditSeatConfigClick -> {
                 emitEvent(MyPageEvent.NavigateToEditSeatConfig)
             }
+
+            is MyPageAction.OnCheckPasswordClick -> {
+                // 화면 이동 전 상태 초기화
+                _uiState.update { it.copy(checkPassword = "", checkPasswordError = null) }
+                emitEvent(MyPageEvent.NavigateToCheckPassword)
+            }
+
+            // ★ 비밀번호 입력 중
+            is MyPageAction.UpdateCheckPassword -> {
+                _uiState.update { it.copy(checkPassword = action.password, checkPasswordError = null) }
+            }
+
+            // ★ '다음' 버튼 클릭 (검증 로직)
+            is MyPageAction.OnCheckPasswordNextClick -> verifyPassword()
         }
     }
 
@@ -81,6 +102,32 @@ class MyPageViewModel @Inject constructor(
                     isProfileLoaded = true
                 )
             }
+        }
+    }
+
+    private fun verifyPassword() {
+        val currentPassword = _uiState.value.checkPassword
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, checkPasswordError = null) }
+
+            // 1. API 호출
+            verifyOwnerPasswordUseCase(currentPassword)
+                .onSuccess {
+                    // 2. 성공 (200) -> 비밀번호 변경 화면으로 이동
+                    _uiState.update { it.copy(isLoading = false) }
+                    _event.emit(MyPageEvent.NavigateToChangePassword)
+                }
+                .onFailure { error ->
+                    // 3. 실패 (400, 404 등) -> 에러 메시지 표시
+                    // Repository에서 파싱해준 message("유효하지 않은 비밀번호입니다." 등)를 그대로 씁니다.
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            checkPasswordError = error.message ?: "비밀번호 확인에 실패했습니다."
+                        )
+                    }
+                }
         }
     }
 
@@ -107,4 +154,7 @@ sealed interface MyPageAction {
     data object OnAccountInfoClick : MyPageAction
     data object OnEditAccountInfoClick : MyPageAction
     data object OnEditSeatConfigClick : MyPageAction
+    data object OnCheckPasswordClick : MyPageAction
+    data class UpdateCheckPassword(val password: String) : MyPageAction
+    data object OnCheckPasswordNextClick : MyPageAction
 }

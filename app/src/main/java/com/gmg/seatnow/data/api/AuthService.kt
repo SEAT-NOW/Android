@@ -8,6 +8,7 @@ import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
@@ -123,6 +124,11 @@ interface AuthService {
     suspend fun loginWithKakao(
         @Query("kakaoAccessToken") kakaoAccessToken: String
     ): Response<BaseResponse<KakaoLoginResponse>>
+
+    @POST("/api/v1/stores/owner/verify-password")
+    suspend fun verifyOwnerPassword(
+        @Body request: VerifyPasswordRequestDTO
+    ): Response<BaseResponse<Boolean>> // Data가 Boolean 혹은 Any일 수 있음
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>

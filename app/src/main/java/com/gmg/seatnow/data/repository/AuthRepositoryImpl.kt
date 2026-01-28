@@ -13,6 +13,7 @@ import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
 import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.domain.model.StoreSearchResult
@@ -432,6 +433,25 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.failure(Exception(body?.message ?: "회원탈퇴에 실패했습니다."))
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun verifyOwnerPassword(password: String): Result<Unit> {
+        return try {
+            val response = authService.verifyOwnerPassword(VerifyPasswordRequestDTO(password))
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 200 OK: 확인 성공
+                Result.success(Unit)
+            } else {
+                // 400(비번 불일치), 404(유저 없음) 등 에러 처리
+                // parseErrorMessage는 기존 AuthRepositoryImpl에 있는 함수 재사용
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }

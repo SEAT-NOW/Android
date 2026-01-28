@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.store.mypage
+package com.gmg.seatnow.presentation.owner.store.mypage.account
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

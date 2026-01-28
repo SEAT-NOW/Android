@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.store.mypage
+package com.gmg.seatnow.presentation.owner.store.mypage.account
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
 import com.gmg.seatnow.presentation.user.mypage.UserInfoRow
@@ -21,7 +22,8 @@ fun AccountInfoScreen(
     uiState: MyPageViewModel.MyPageUiState,
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    onNavigateToWithdraw: () -> Unit
+    onNavigateToWithdraw: () -> Unit,
+    onCheckPasswordClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -52,11 +54,17 @@ fun AccountInfoScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            UserInfoRow(
-                title = "비밀번호",
-                value = "●●●●●●●", // 실제 값 대신 마스킹 처리
-                showArrow = true   // "눌러서 변경 가능함"을 암시
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onCheckPasswordClick) // ★ 클릭 시 이동 액션
+            ) {
+                UserInfoRow(
+                    title = "비밀번호",
+                    value = "●●●●●●●",
+                    showArrow = true // 화살표 표시
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -91,21 +99,3 @@ fun AccountInfoScreen(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-@Composable
-fun AccountInfoScreenPreview() {
-    // 프리뷰용 더미 상태 생성
-    val dummyState = MyPageViewModel.MyPageUiState(
-        isLoading = false,
-        ownerEmail = "test@seatnow.com",
-        ownerPhoneNumber = "010-1234-5678",
-        isProfileLoaded = true
-    )
-
-    AccountInfoScreen(
-        uiState = dummyState,
-        onBackClick = {},
-        onLogoutClick = {},
-        onNavigateToWithdraw = {}
-    )
-}
