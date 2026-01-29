@@ -4,6 +4,7 @@ import android.net.Uri
 import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import kotlinx.coroutines.flow.Flow
@@ -41,4 +42,6 @@ interface AuthRepository {
     suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO>
     suspend fun verifyOwnerPassword(password: String): Result<Unit>
     suspend fun changeOwnerPassword(password: String): Result<Unit>
+    suspend fun updateStorePhone(phone: String): Result<Unit>
+    suspend fun getStoreProfile(): Result<StoreProfileResponseDTO>
 }

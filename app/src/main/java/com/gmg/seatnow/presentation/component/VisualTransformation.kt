@@ -109,3 +109,39 @@ class NumberVisualTransformation : VisualTransformation {
         return TransformedText(AnnotatedString(out), offsetMapping)
     }
 }
+
+/**
+ * 사업자 등록번호 포매팅 (0000000000 -> 000-00-00000)
+ */
+fun formatBusinessNumber(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    // 이미 하이픈이 있으면 그대로 반환
+    if (raw.contains("-")) return raw
+
+    val trimmed = if (raw.length >= 10) raw.substring(0..9) else raw
+    if (trimmed.length != 10) return trimmed // 길이가 안 맞으면 원본
+
+    return "${trimmed.substring(0, 3)}-${trimmed.substring(3, 5)}-${trimmed.substring(5)}"
+}
+
+/**
+ * 전화번호 포매팅 (01012345678 -> 010-1234-5678)
+ */
+fun formatPhoneNumber(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    if (raw.contains("-")) return raw
+
+    return when (raw.length) {
+        8 -> "${raw.substring(0, 4)}-${raw.substring(4)}"
+        9 -> "${raw.substring(0, 2)}-${raw.substring(2, 5)}-${raw.substring(5)}"
+        10 -> {
+            if (raw.startsWith("02")) {
+                "${raw.substring(0, 2)}-${raw.substring(2, 6)}-${raw.substring(6)}"
+            } else {
+                "${raw.substring(0, 3)}-${raw.substring(3, 6)}-${raw.substring(6)}"
+            }
+        }
+        11 -> "${raw.substring(0, 3)}-${raw.substring(3, 7)}-${raw.substring(7)}"
+        else -> raw
+    }
+}

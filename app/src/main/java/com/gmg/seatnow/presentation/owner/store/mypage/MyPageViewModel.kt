@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.usecase.auth.ChangeOwnerPasswordUseCase
 import com.gmg.seatnow.domain.usecase.auth.GetOwnerAccountUseCase
+import com.gmg.seatnow.domain.usecase.auth.GetStoreProfileUseCase
 import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
+import com.gmg.seatnow.domain.usecase.auth.UpdateStorePhoneUseCase
 import com.gmg.seatnow.domain.usecase.auth.VerifyOwnerPasswordUseCase
 import com.gmg.seatnow.domain.usecase.logic.ValidatePasswordUseCase
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel.MyPageEvent
@@ -24,7 +26,9 @@ class MyPageViewModel @Inject constructor(
     private val verifyOwnerPasswordUseCase: VerifyOwnerPasswordUseCase,
     private val getOwnerAccountUseCase: GetOwnerAccountUseCase,
     private val validatePasswordUseCase: ValidatePasswordUseCase,
-    private val changeOwnerPasswordUseCase: ChangeOwnerPasswordUseCase // ★ 주입
+    private val changeOwnerPasswordUseCase: ChangeOwnerPasswordUseCase,
+    private val updateStorePhoneUseCase: UpdateStorePhoneUseCase,
+    private val getStoreProfileUseCase: GetStoreProfileUseCase
 ) : ViewModel() {
 
     // UI State (로딩 상태 등)
@@ -40,11 +44,26 @@ class MyPageViewModel @Inject constructor(
         val newPasswordError: String? = null,
         val newPasswordCheck: String = "",
         val newPasswordCheckError: String? = null,
-        val isChangePasswordButtonEnabled: Boolean = false
+        val isChangePasswordButtonEnabled: Boolean = false,
+
+        val representativeName: String = "",
+        val businessNumber: String = "",
+        val storeName: String = "",
+        val storeAddress: String = "",
+        val universityName: String = "",
+        val licenseFileName: String = "",
+        val storeContact: String = "",
+
+        val editStoreContact: String = "",
+        val editStoreContactError: String? = null,
+        val isStoreContactUpdateSuccess: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(MyPageUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val _event = MutableSharedFlow<MyPageEvent>()
+    val event = _event.asSharedFlow()
 
     // Event (네비게이션)
     sealed interface MyPageEvent {
@@ -56,13 +75,13 @@ class MyPageViewModel @Inject constructor(
         data object NavigateToChangePassword : MyPageEvent
         data object NavigateBack : MyPageEvent // ★ 뒤로가기 이벤트
         data class ShowToast(val message: String) : MyPageEvent
+        data object NavigateToEditStoreInfo : MyPageEvent
+        data object NavigateToEditStoreContact : MyPageEvent
     }
-
-    private val _event = MutableSharedFlow<MyPageEvent>()
-    val event = _event.asSharedFlow()
 
     init {
         fetchOwnerProfile()
+        fetchStoreProfile()
     }
 
     // Action
@@ -102,6 +121,29 @@ class MyPageViewModel @Inject constructor(
             is MyPageAction.UpdateNewPassword -> validateAndUpdateNewPassword(action.password)
             is MyPageAction.UpdateNewPasswordCheck -> validateAndUpdateNewPasswordCheck(action.check)
             is MyPageAction.OnChangePasswordClick -> changePassword()
+
+            // ★ [신규] 가게 정보 수정 화면 이동
+            is MyPageAction.OnEditStoreInfoClick -> {
+                emitEvent(MyPageEvent.NavigateToEditStoreInfo)
+            }
+            // ★ [신규] 가게 연락처 수정 클릭
+            is MyPageAction.OnStoreContactClick -> {
+                emitEvent(MyPageEvent.NavigateToEditStoreContact)
+            }
+            is MyPageAction.UpdateStoreContactInput -> {
+                // 숫자만 입력받기 & 에러 초기화 (Step2 로직)
+                val filtered = action.input.filter { it.isDigit() }
+                if (filtered.length <= 11) { // 11자리 제한
+                    _uiState.update {
+                        it.copy(
+                            editStoreContact = filtered,
+                            editStoreContactError = null, // 입력 시 에러 초기화
+                            isStoreContactUpdateSuccess = false // 수정 중이면 다시 활성화
+                        )
+                    }
+                }
+            }
+            is MyPageAction.OnStoreContactConfirmClick -> updateStoreContact()
         }
     }
 
@@ -124,6 +166,29 @@ class MyPageViewModel @Inject constructor(
                 .onFailure {
                     // 실패 시 로딩만 끔 (필요 시 에러 토스트 처리 가능)
                     _uiState.update { it.copy(isLoading = false) }
+                }
+        }
+    }
+
+    private fun fetchStoreProfile() {
+        viewModelScope.launch {
+            getStoreProfileUseCase()
+                .onSuccess { data ->
+                    _uiState.update {
+                        it.copy(
+                            representativeName = data.representativeName,
+                            businessNumber = data.businessNumber,
+                            storeName = data.storeName,
+                            storeAddress = data.address,
+                            // 리스트를 문자열로 변환 (예: "연세대, 이화여대")
+                            universityName = data.universityNames?.joinToString(", ") ?: "",
+                            licenseFileName = data.businessLicenseFileName ?: "",
+                            storeContact = data.storePhone ?: ""
+                        )
+                    }
+                }
+                .onFailure {
+                    // ★ 실패 시 아무것도 하지 않음 -> UI에서 기본값("")을 감지해 "불러오기.." 표시
                 }
         }
     }
@@ -220,6 +285,42 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
+    private fun updateStoreContact() {
+        val phone = _uiState.value.editStoreContact
+
+        // 간단한 길이 검증
+        if (phone.length < 9) {
+            _uiState.update { it.copy(editStoreContactError = "유효한 전화번호를 입력해주세요.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            updateStorePhoneUseCase(phone)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isStoreContactUpdateSuccess = true, // ★ 성공 시 필드 비활성화
+                            storeContact = phone // 화면에 보여주는 기존 데이터도 갱신
+                        )
+                    }
+                    _event.emit(MyPageEvent.ShowToast("가게 연락처가 성공적으로 수정되었습니다."))
+                    // 성공 후 바로 뒤로가기를 원하시면 아래 주석 해제
+                    // _event.emit(MyPageEvent.NavigateBack)
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            editStoreContactError = error.message ?: "가게 연락처 수정에 실패했습니다."
+                        )
+                    }
+                }
+        }
+    }
+
     private fun emitEvent(event: MyPageEvent) {
         viewModelScope.launch { _event.emit(event) }
     }
@@ -249,4 +350,8 @@ sealed interface MyPageAction {
     data class UpdateNewPassword(val password: String) : MyPageAction
     data class UpdateNewPasswordCheck(val check: String) : MyPageAction
     data object OnChangePasswordClick : MyPageAction
+    data object OnEditStoreInfoClick : MyPageAction
+    data object OnStoreContactClick : MyPageAction
+    data class UpdateStoreContactInput(val input: String) : MyPageAction
+    data object OnStoreContactConfirmClick : MyPageAction
 }

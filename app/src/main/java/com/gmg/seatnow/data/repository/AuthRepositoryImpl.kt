@@ -13,10 +13,12 @@ import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
 import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import com.gmg.seatnow.domain.model.KakaoLoginResult
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.repository.AuthRepository
@@ -469,6 +471,43 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.success(Unit)
             } else {
                 // 에러 파싱
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateStorePhone(phone: String): Result<Unit> {
+        return try {
+            val response = authService.updateStorePhone(StorePhoneUpdateRequestDTO(phone))
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getStoreProfile(): Result<StoreProfileResponseDTO> {
+        return try {
+            val response = authService.getStoreProfile()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data != null) {
+                    Result.success(data)
+                } else {
+                    Result.failure(Exception("데이터가 비어있습니다."))
+                }
+            } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string())
                 Result.failure(Exception(errorMsg))
             }

@@ -27,7 +27,8 @@ fun MyPageScreen(
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToEditAccount: () -> Unit,
-    onNavigateToEditSeatConfig: () -> Unit
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -39,8 +40,10 @@ fun MyPageScreen(
                 is MyPageViewModel.MyPageEvent.NavigateToLogin -> onNavigateToLogin()
                 is MyPageViewModel.MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
                 is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
+                is MyPageViewModel.MyPageEvent.NavigateToEditStoreInfo -> onNavigateToEditStoreInfo()
                 is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {}
                 is MyPageViewModel.MyPageEvent.NavigateToChangePassword -> {}
+                is MyPageViewModel.MyPageEvent.NavigateToEditStoreContact -> {}
                 is MyPageViewModel.MyPageEvent.NavigateBack -> {}
                 is MyPageViewModel.MyPageEvent.ShowToast -> {}
             }
@@ -52,7 +55,8 @@ fun MyPageScreen(
         isLoading = uiState.isLoading,
         onAccountInfoClick = { viewModel.onAction(MyPageAction.OnAccountInfoClick) },
         onEditSeatConfigClick = { viewModel.onAction(MyPageAction.OnEditSeatConfigClick) },
-        onEditAccountInfoClick = { viewModel.onAction(MyPageAction.OnEditAccountInfoClick) }
+        onEditAccountInfoClick = { viewModel.onAction(MyPageAction.OnEditAccountInfoClick) },
+        onEditStoreInfoClick = { viewModel.onAction(MyPageAction.OnEditStoreInfoClick) }
     )
 }
 
@@ -62,7 +66,8 @@ fun MyPageContent(
     isLoading: Boolean,
     onAccountInfoClick: () -> Unit,
     onEditSeatConfigClick: () -> Unit,
-    onEditAccountInfoClick: () -> Unit
+    onEditAccountInfoClick: () -> Unit,
+    onEditStoreInfoClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -99,7 +104,7 @@ fun MyPageContent(
 
             SeatNowMenuItem(
                 text = "가게 정보 수정",
-                onClick = onAccountInfoClick
+                onClick = onEditStoreInfoClick
             )
 
             SeatNowMenuItem(
@@ -134,6 +139,7 @@ fun MyPageScreenPreview() {
         isLoading = false,
         onAccountInfoClick = { },
         onEditSeatConfigClick = { },
-        onEditAccountInfoClick = {  }
+        onEditAccountInfoClick = { },
+        onEditStoreInfoClick = { }
     )
 }

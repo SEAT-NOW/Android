@@ -8,6 +8,7 @@ import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
@@ -17,6 +18,7 @@ import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
 import com.gmg.seatnow.data.model.response.KakaoLoginResponse
 import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -94,7 +96,7 @@ interface AuthService {
     ): Response<BaseResponse<OwnerLoginResponseDTO>>
 
     // 토큰 재발급
-    @POST("/api/v1/auth/reissue") // v1 경로 확인 필요 (스웨거에는 /auth/reissue로 되어있는데 보통 /api/v1 붙음)
+    @POST("/api/auth/reissue") // v1 경로 확인 필요 (스웨거에는 /auth/reissue로 되어있는데 보통 /api/v1 붙음)
     suspend fun reissueToken(
         @Header("RefreshToken") refreshToken: String
     ): Response<BaseResponse<OwnerLoginResponseDTO>>
@@ -141,6 +143,16 @@ interface AuthService {
     @PATCH("/api/v1/stores/owner/password")
     suspend fun changeOwnerPassword(
         @Body request: ChangePasswordRequestDTO
+    ): Response<BaseResponse<Boolean>> // data: true/false
+
+    // 사장님 가게 정보 조회
+    @GET("/api/v1/stores/owner/profile")
+    suspend fun getStoreProfile(): Response<BaseResponse<StoreProfileResponseDTO>>
+
+    // 사장님 가게 연락처 수정
+    @PATCH("/api/v1/stores/operation/phone-number")
+    suspend fun updateStorePhone(
+        @Body request: StorePhoneUpdateRequestDTO
     ): Response<BaseResponse<Boolean>> // data: true/false
 
     @DELETE("/api/v1/users")

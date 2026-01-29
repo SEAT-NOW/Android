@@ -32,7 +32,8 @@ fun StoreMainRoute(
     onNavigateToLogin: () -> Unit,
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToEditAccount: () -> Unit,
-    onNavigateToEditSeatConfig: () -> Unit
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -44,7 +45,8 @@ fun StoreMainRoute(
         onNavigateToLogin = onNavigateToLogin,
         onNavigateToAccountInfo = onNavigateToAccountInfo,
         onNavigateToEditAccount = onNavigateToEditAccount,
-        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig
+        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig,
+        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo
     )
 }
 
@@ -55,7 +57,8 @@ fun StoreMainScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToEditAccount: () -> Unit,
-    onNavigateToEditSeatConfig: () -> Unit
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit
 ) {
     Scaffold(
         containerColor = White,
@@ -82,7 +85,8 @@ fun StoreMainScreen(
                         onNavigateToAccountInfo = onNavigateToAccountInfo,
                         onNavigateToLogin = onNavigateToLogin,
                         onNavigateToEditAccount = onNavigateToEditAccount,
-                        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig
+                        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig,
+                        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo
                     )
                 }
             }
