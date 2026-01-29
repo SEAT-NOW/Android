@@ -46,6 +46,7 @@ class MyPageViewModel @Inject constructor(
         val newPasswordCheckError: String? = null,
         val isChangePasswordButtonEnabled: Boolean = false,
 
+        val isStoreLoaded: Boolean = false,
         val representativeName: String = "",
         val businessNumber: String = "",
         val storeName: String = "",
@@ -176,6 +177,7 @@ class MyPageViewModel @Inject constructor(
                 .onSuccess { data ->
                     _uiState.update {
                         it.copy(
+                            isStoreLoaded = true,
                             representativeName = data.representativeName,
                             businessNumber = data.businessNumber,
                             storeName = data.storeName,
@@ -188,7 +190,7 @@ class MyPageViewModel @Inject constructor(
                     }
                 }
                 .onFailure {
-                    // ★ 실패 시 아무것도 하지 않음 -> UI에서 기본값("")을 감지해 "불러오기.." 표시
+                    _uiState.update { it.copy(isStoreLoaded = true) }
                 }
         }
     }
@@ -307,8 +309,7 @@ class MyPageViewModel @Inject constructor(
                         )
                     }
                     _event.emit(MyPageEvent.ShowToast("가게 연락처가 성공적으로 수정되었습니다."))
-                    // 성공 후 바로 뒤로가기를 원하시면 아래 주석 해제
-                    // _event.emit(MyPageEvent.NavigateBack)
+                    _event.emit(MyPageEvent.NavigateBack)
                 }
                 .onFailure { error ->
                     _uiState.update {
