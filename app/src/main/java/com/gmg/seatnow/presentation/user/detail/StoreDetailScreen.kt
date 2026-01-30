@@ -135,9 +135,31 @@ fun StoreDetailScreen(
 
             LazyRow(contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (storeDetail.images.isEmpty()) {
-                    item { Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubPaleGray, RectangleShape)) }
+                    item {
+                        Box(
+                            modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_row_logo),
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                        }
+                    }
                 } else {
-                    items(storeDetail.images) { Box(modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape)) }
+                    items(storeDetail.images) {
+                        Box(
+                            modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_row_logo),
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                        }
+                    }
                 }
             }
 

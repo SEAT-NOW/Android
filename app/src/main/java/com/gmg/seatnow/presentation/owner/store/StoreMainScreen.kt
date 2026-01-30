@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.presentation.owner.store.manage.StoreManagementScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageScreen
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementScreen
 import com.gmg.seatnow.presentation.theme.PointRed
@@ -78,6 +79,11 @@ fun StoreMainScreen(
             when (uiState.currentTab) {
                 StoreTab.SEAT_MANAGEMENT -> {
                     SeatManagementScreen()
+                }
+                StoreTab.STORE_MANAGEMENT -> {
+                    StoreManagementScreen(
+                        onEditStoreInfoClick = onNavigateToEditStoreInfo
+                    )
                 }
                 StoreTab.MY_PAGE -> {
                     // ✅ 여기서 MyPageScreen을 호출하며 콜백을 전달합니다.

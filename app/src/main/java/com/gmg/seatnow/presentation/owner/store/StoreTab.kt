@@ -8,5 +8,6 @@ enum class StoreTab (
     @DrawableRes val iconResId: Int
 ) {
     SEAT_MANAGEMENT("좌석 관리", R.drawable.ic_chair),
+    STORE_MANAGEMENT("매장 관리", R.drawable.ic_store),
     MY_PAGE("마이페이지", R.drawable.ic_mypage)
 }

@@ -21,7 +21,8 @@ import com.gmg.seatnow.presentation.util.IntentUtil
 @Composable
 fun StoreMenuItem(
     item: MenuItemUiModel,
-    onLikeClicked: () -> Unit
+    onLikeClicked: () -> Unit,
+    showLikeButton: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -50,30 +51,30 @@ fun StoreMenuItem(
         Spacer(modifier = Modifier.width(16.dp))
 
         Box(modifier = Modifier.size(100.dp).background(SubLightGray)) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(36.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null, // 물결 애니메이션 제거
-                        onClick = onLikeClicked
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                // ★ isLiked 상태에 따라 보여줄 아이콘 리소스 분기 처리
-                val likeIconRes = if (item.isLiked) {
-                    R.drawable.btn_ddabong_pressed
-                } else {
-                    R.drawable.btn_ddabong_default
-                }
+            if (showLikeButton) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(36.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onLikeClicked
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val likeIconRes = if (item.isLiked) {
+                        R.drawable.btn_ddabong_pressed
+                    } else {
+                        R.drawable.btn_ddabong_default
+                    }
 
-                Icon(
-                    painter = painterResource(likeIconRes),
-                    contentDescription = "좋아요",
-                    // ★ 아이콘 리소스 자체의 색상을 그대로 보여주기 위해 Unspecified 설정
-                    tint = Color.Unspecified
-                )
+                    Icon(
+                        painter = painterResource(likeIconRes),
+                        contentDescription = "좋아요",
+                        tint = Color.Unspecified
+                    )
+                }
             }
         }
     }
