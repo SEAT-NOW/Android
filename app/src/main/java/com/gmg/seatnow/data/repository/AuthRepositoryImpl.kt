@@ -44,6 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
+    private var cachedStoreProfile: StoreProfileResponseDTO? = null
 
     override suspend fun loginKakao(): Result<KakaoLoginResult> {
         return try {

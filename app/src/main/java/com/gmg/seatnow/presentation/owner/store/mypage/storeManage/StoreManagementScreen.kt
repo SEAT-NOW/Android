@@ -246,14 +246,34 @@ fun StoreManagementContent(
             }
 
             // [UI 동일] 탭 컨텐츠
-            Box(modifier = Modifier.fillMaxWidth().background(White).padding(vertical = 16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(White)
+                    .padding(vertical = 16.dp)
+            ) {
                 when (selectedTabIndex) {
                     0 -> StoreHomeTab(storeDetail = storeDetail)
-                    1 -> StoreMenuTab(
-                        menuCategories = menuCategories,
-                        onLikeClicked = { _, _ -> },
-                        showLikeButton = false // ★ [수정] 좋아요 버튼 숨김
-                    )
+                    1 -> {
+                        // ★ 메뉴 데이터가 비어있는지 확인
+                        if (menuCategories.isEmpty()) {
+                            Text(
+                                text = "메뉴를 입력해주세요.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = SubGray,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Start // 왼쪽 정렬
+                            )
+                        } else {
+                            StoreMenuTab(
+                                menuCategories = menuCategories,
+                                onLikeClicked = { _, _ -> },
+                                showLikeButton = false
+                            )
+                        }
+                    }
                 }
             }
 

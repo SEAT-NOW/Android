@@ -88,7 +88,7 @@ fun StoreHomeTab(storeDetail: StoreDetail) {
                         modifier = Modifier
                             .height(147.5.dp) // 기준 높이
                             .aspectRatio(imageAspectRatio) // 4:5 비율 유지 (너비 자동)
-                            .background(SubLightGray, RectangleShape),
+                            .background(SubGray, RectangleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

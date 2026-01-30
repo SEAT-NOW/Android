@@ -5,9 +5,11 @@ import com.gmg.seatnow.data.api.UserApiService
 import com.gmg.seatnow.data.repository.AuthRepositoryImpl
 import com.gmg.seatnow.data.repository.MapRepositoryImpl
 import com.gmg.seatnow.data.repository.SeatRepositoryImpl
+import com.gmg.seatnow.data.repository.StoreRepositoryImpl
 import com.gmg.seatnow.domain.repository.AuthRepository
 import com.gmg.seatnow.domain.repository.MapRepository
 import com.gmg.seatnow.domain.repository.SeatRepository
+import com.gmg.seatnow.domain.repository.StoreRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -42,6 +44,12 @@ abstract class AppModule {
     abstract fun bindMapRepository(
         mapRepositoryImpl: MapRepositoryImpl
     ): MapRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindStoreRepository(
+        storeRepositoryImpl: StoreRepositoryImpl
+    ): StoreRepository
 
     // =================================================================
     // 2. Retrofit Service 생성 (@Provides)

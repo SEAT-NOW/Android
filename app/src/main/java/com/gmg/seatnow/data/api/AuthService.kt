@@ -19,6 +19,7 @@ import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
 import com.gmg.seatnow.data.model.response.KakaoLoginResponse
 import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreMenuResponseDTO
 import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -161,6 +162,10 @@ interface AuthService {
     suspend fun updateStoreLayout(
         @Body request: List<SpaceLayoutUpdateRequest>
     ): Response<BaseResponse<Boolean>> // 성공 시 data: true
+
+    // 매장 메뉴 정보 조회
+    @GET("/api/v1/stores/menus")
+    suspend fun getStoreMenus(): Response<BaseResponse<StoreMenuResponseDTO>>
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
