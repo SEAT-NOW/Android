@@ -2,6 +2,9 @@ package com.gmg.seatnow.presentation.owner.store.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.domain.model.SignUpTableItem
+import com.gmg.seatnow.domain.model.SpaceItem
+import com.gmg.seatnow.domain.repository.SeatRepository
 import com.gmg.seatnow.domain.usecase.auth.ChangeOwnerPasswordUseCase
 import com.gmg.seatnow.domain.usecase.auth.GetOwnerAccountUseCase
 import com.gmg.seatnow.domain.usecase.auth.GetStoreProfileUseCase
@@ -28,7 +31,8 @@ class MyPageViewModel @Inject constructor(
     private val validatePasswordUseCase: ValidatePasswordUseCase,
     private val changeOwnerPasswordUseCase: ChangeOwnerPasswordUseCase,
     private val updateStorePhoneUseCase: UpdateStorePhoneUseCase,
-    private val getStoreProfileUseCase: GetStoreProfileUseCase
+    private val getStoreProfileUseCase: GetStoreProfileUseCase,
+    private val seatRepository: SeatRepository
 ) : ViewModel() {
 
     // UI State (로딩 상태 등)
@@ -57,7 +61,11 @@ class MyPageViewModel @Inject constructor(
 
         val editStoreContact: String = "",
         val editStoreContactError: String? = null,
-        val isStoreContactUpdateSuccess: Boolean = false
+        val isStoreContactUpdateSuccess: Boolean = false,
+
+        val spaceList: List<SpaceItem> = emptyList(),
+        val selectedSpaceId: Long = 0, // 현재 선택된 공간 ID
+        val isSeatConfigValid: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(MyPageUiState())
@@ -83,6 +91,7 @@ class MyPageViewModel @Inject constructor(
     init {
         fetchOwnerProfile()
         fetchStoreProfile()
+        fetchSeatConfiguration()
     }
 
     // Action
@@ -131,6 +140,8 @@ class MyPageViewModel @Inject constructor(
             is MyPageAction.OnStoreContactClick -> {
                 emitEvent(MyPageEvent.NavigateToEditStoreContact)
             }
+
+            is MyPageAction.OnStoreContactConfirmClick -> updateStoreContact()
             is MyPageAction.UpdateStoreContactInput -> {
                 // 숫자만 입력받기 & 에러 초기화 (Step2 로직)
                 val filtered = action.input.filter { it.isDigit() }
@@ -144,7 +155,25 @@ class MyPageViewModel @Inject constructor(
                     }
                 }
             }
-            is MyPageAction.OnStoreContactConfirmClick -> updateStoreContact()
+            is MyPageAction.SelectSpace -> selectSpace(action.id)
+            is MyPageAction.EditSpace -> editSpace(action.id)
+            is MyPageAction.UpdateSpaceItemInput -> updateSpaceInput(action.id, action.input)
+            is MyPageAction.SaveSpaceItem -> saveSpaceItem(action.id)
+            is MyPageAction.AddSpaceItemRow -> addSpace()
+            is MyPageAction.RemoveSpace -> removeSpace(action.id)
+
+            is MyPageAction.AddTableItemRow -> addTableItemRow()
+            is MyPageAction.RemoveTableItemRow -> removeTableItemRow(action.tableId)
+            is MyPageAction.UpdateTableItemN -> updateTableItemN(action.tableId, action.n)
+            is MyPageAction.UpdateTableItemM -> updateTableItemM(action.tableId, action.m)
+
+            is MyPageAction.OnSaveSeatConfigClick -> saveSeatConfig()
+        }
+    }
+
+    private fun calculateTotalSeats(tables: List<SignUpTableItem>): Int {
+        return tables.sumOf {
+            (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0)
         }
     }
 
@@ -322,6 +351,222 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
+    //좌석 구성 로직
+
+    private fun fetchSeatConfiguration() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            seatRepository.getSeatStatus()
+                .onSuccess { data ->
+                    // 1. "ALL" (전체) 카테고리 제거
+                    // (서버나 레포지토리에서 뷰를 위해 추가한 '전체' 항목은 수정 화면에서 제외)
+                    val realCategories = data.categories.filter { category ->
+                        category.id != "ALL" && category.name != "전체"
+                    }
+
+                    // 2. 서버 데이터 -> UI 편집용 데이터(SpaceItem)로 변환
+                    val mappedSpaces = realCategories.map { category ->
+                        // 해당 공간(category)에 속한 테이블만 필터링
+                        val tablesInSpace = data.allTables.filter { it.floorId == category.id }
+
+                        // TableItem -> SignUpTableItem 변환
+                        val signUpTables = tablesInSpace.map { table ->
+                            SignUpTableItem(
+                                id = table.id.toLongOrNull() ?: System.currentTimeMillis(),
+                                personCount = table.capacityPerTable.toString(), // tableType (인원수)
+                                tableCount = table.maxTableCount.toString()      // tableCount (개수)
+                            )
+                        }
+
+                        SpaceItem(
+                            id = category.id.toLongOrNull() ?: System.currentTimeMillis(),
+                            name = category.name,
+                            seatCount = calculateTotalSeats(signUpTables), // 총 좌석 수 계산
+                            tableList = signUpTables,
+                            isEditing = false
+                        )
+                    }
+
+                    // 3. 만약 실제 공간이 하나도 없다면 기본값 추가 (신규 가입 직후 등)
+                    val finalSpaces = if (mappedSpaces.isEmpty()) {
+                        listOf(
+                            SpaceItem(
+                                id = 1,
+                                name = "홀",
+                                seatCount = 0,
+                                tableList = listOf(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = ""))
+                            )
+                        )
+                    } else mappedSpaces
+
+                    // 4. State 업데이트
+                    val firstSpaceId = finalSpaces.firstOrNull()?.id ?: 0
+                    _uiState.update {
+                        it.copy(
+                            spaceList = finalSpaces,
+                            selectedSpaceId = firstSpaceId,
+                            isLoading = false
+                        )
+                    }
+                    checkSeatConfigValidity()
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoading = false) }
+                    // _event.emit(MyPageEvent.ShowToast("좌석 정보를 불러오지 못했습니다."))
+                }
+        }
+    }
+
+    private fun selectSpace(id: Long) {
+        _uiState.update { it.copy(selectedSpaceId = id) }
+    }
+
+    private fun editSpace(id: Long) {
+        val currentList = _uiState.value.spaceList.map {
+            if (it.id == id) it.copy(isEditing = true, editInput = it.name) else it.copy(isEditing = false) // 하나만 수정 가능
+        }
+        _uiState.update { it.copy(spaceList = currentList, selectedSpaceId = id) }
+    }
+
+    private fun updateSpaceInput(id: Long, input: String) {
+        val currentList = _uiState.value.spaceList.map {
+            if (it.id == id) it.copy(editInput = input) else it
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+    }
+
+    private fun saveSpaceItem(id: Long) {
+        val currentList = _uiState.value.spaceList.map {
+            if (it.id == id) {
+                if (it.editInput.isBlank()) return // 빈 이름 방지
+                val totalSeats = calculateTotalSeats(it.tableList)
+                it.copy(name = it.editInput, isEditing = false)
+            } else it
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+        checkSeatConfigValidity()
+    }
+
+    private fun addSpace() {
+        val currentList = _uiState.value.spaceList.toMutableList()
+        val newId = (currentList.maxOfOrNull { it.id } ?: 0) + 1
+        val newSpace = SpaceItem(
+            id = newId,
+            name = "공간 $newId",
+            tableList = listOf(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = "")),
+            isEditing = true, // 추가되자마자 수정 모드
+            editInput = ""
+        )
+        currentList.add(newSpace)
+        _uiState.update { it.copy(spaceList = currentList, selectedSpaceId = newId) }
+        checkSeatConfigValidity()
+    }
+
+    private fun removeSpace(id: Long) {
+        val currentList = _uiState.value.spaceList.toMutableList()
+        if (currentList.size > 1) {
+            currentList.removeAll { it.id == id }
+            // 삭제 후 선택된 ID 조정
+            val nextSelectedId = if (currentList.isNotEmpty()) currentList.first().id else 0
+            _uiState.update { it.copy(spaceList = currentList, selectedSpaceId = nextSelectedId) }
+            checkSeatConfigValidity()
+        }
+    }
+
+    // 테이블 로직 (현재 선택된 Space 기준)
+    private fun addTableItemRow() {
+        val spaceId = _uiState.value.selectedSpaceId
+        val currentList = _uiState.value.spaceList.map { space ->
+            if (space.id == spaceId) {
+                val newTables = space.tableList.toMutableList()
+                newTables.add(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = ""))
+                space.copy(tableList = newTables, seatCount = calculateTotalSeats(newTables))
+            } else space
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+        checkSeatConfigValidity()
+    }
+
+    private fun removeTableItemRow(tableId: Long) {
+        val spaceId = _uiState.value.selectedSpaceId
+        val currentList = _uiState.value.spaceList.map { space ->
+            if (space.id == spaceId) {
+                if (space.tableList.size > 1) {
+                    val newTables = space.tableList.filter { it.id != tableId }
+                    space.copy(tableList = newTables, seatCount = calculateTotalSeats(newTables))
+                } else space
+            } else space
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+        checkSeatConfigValidity()
+    }
+
+    private fun updateTableItemN(tableId: Long, n: String) {
+        if (n.isNotEmpty() && !n.all { it.isDigit() }) return
+        val spaceId = _uiState.value.selectedSpaceId
+        val currentList = _uiState.value.spaceList.map { space ->
+            if (space.id == spaceId) {
+                val newTables = space.tableList.map {
+                    if (it.id == tableId) it.copy(personCount = n) else it
+                }
+                space.copy(tableList = newTables, seatCount = calculateTotalSeats(newTables))
+            } else space
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+        checkSeatConfigValidity()
+    }
+
+    private fun updateTableItemM(tableId: Long, m: String) {
+        if (m.isNotEmpty() && !m.all { it.isDigit() }) return
+        val spaceId = _uiState.value.selectedSpaceId
+        val currentList = _uiState.value.spaceList.map { space ->
+            if (space.id == spaceId) {
+                val newTables = space.tableList.map {
+                    if (it.id == tableId) it.copy(tableCount = m) else it
+                }
+                space.copy(tableList = newTables, seatCount = calculateTotalSeats(newTables))
+            } else space
+        }
+        _uiState.update { it.copy(spaceList = currentList) }
+        checkSeatConfigValidity()
+    }
+
+    private fun checkSeatConfigValidity() {
+        // 모든 공간의 이름이 있고, 모든 테이블이 유효해야 함
+        val isValid = _uiState.value.spaceList.all { space ->
+            space.name.isNotBlank() && !space.isEditing && space.tableList.all { table ->
+                table.personCount.isNotEmpty() && (table.personCount.toIntOrNull() ?: 0) > 0 &&
+                        table.tableCount.isNotEmpty() && (table.tableCount.toIntOrNull() ?: 0) > 0
+            }
+        }
+        _uiState.update { it.copy(isSeatConfigValid = isValid) }
+    }
+
+    private fun saveSeatConfig() {
+        val currentSpaceList = _uiState.value.spaceList
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // 1. Repository 호출 (API 전송 + 로컬 캐시 갱신)
+            seatRepository.updateStoreLayout(currentSpaceList)
+                .onSuccess {
+                    _uiState.update { it.copy(isLoading = false) }
+                    _event.emit(MyPageEvent.ShowToast("좌석 정보가 성공적으로 수정되었습니다."))
+
+                    // 2. 뒤로가기
+                    // SeatManagementScreen은 onResume 시 getSeatStatus()를 호출하게 되는데,
+                    // Repository가 캐시된(수정된) 데이터를 즉시 반환하므로 변경사항이 바로 보임.
+                    _event.emit(MyPageEvent.NavigateBack)
+                }
+                .onFailure { e ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    _event.emit(MyPageEvent.ShowToast("수정에 실패했습니다: ${e.message}"))
+                }
+        }
+    }
+
     private fun emitEvent(event: MyPageEvent) {
         viewModelScope.launch { _event.emit(event) }
     }
@@ -355,4 +600,17 @@ sealed interface MyPageAction {
     data object OnStoreContactClick : MyPageAction
     data class UpdateStoreContactInput(val input: String) : MyPageAction
     data object OnStoreContactConfirmClick : MyPageAction
+    data class SelectSpace(val id: Long) : MyPageAction
+    data class EditSpace(val id: Long) : MyPageAction
+    data class UpdateSpaceItemInput(val id: Long, val input: String) : MyPageAction
+    data class SaveSpaceItem(val id: Long) : MyPageAction
+    data object AddSpaceItemRow : MyPageAction
+    data class RemoveSpace(val id: Long) : MyPageAction
+
+    data object AddTableItemRow : MyPageAction
+    data class RemoveTableItemRow(val tableId: Long) : MyPageAction
+    data class UpdateTableItemN(val tableId: Long, val n: String) : MyPageAction
+    data class UpdateTableItemM(val tableId: Long, val m: String) : MyPageAction
+
+    data object OnSaveSeatConfigClick : MyPageAction
 }

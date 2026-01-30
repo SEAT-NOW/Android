@@ -109,7 +109,7 @@ fun MyPageContent(
 
             SeatNowMenuItem(
                 text = "좌석 정보 구성 수정",
-                onClick = onAccountInfoClick
+                onClick = onEditSeatConfigClick
             )
 
 

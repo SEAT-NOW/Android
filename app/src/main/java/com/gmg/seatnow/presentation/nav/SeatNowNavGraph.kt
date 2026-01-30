@@ -370,7 +370,26 @@ fun SeatNowNavGraph(
 
         // 9. 좌석 정보 구성 수정 화면
         composable("edit_seat_config") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    when (event) {
+                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
+                            navController.popBackStack()
+                        }
+                        is MyPageViewModel.MyPageEvent.ShowToast -> {
+                            // Toast 처리
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
             EditSeatConfigScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
                 onBackClick = { navController.popBackStack() }
             )
         }

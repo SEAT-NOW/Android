@@ -49,7 +49,7 @@ class SeatManagementViewModel @Inject constructor(
     private var _allRawTables: List<TableItem> = emptyList()
 
     init {
-        loadSeatStatus()
+        loadData()
     }
 
     fun onAction(action: SeatManagementAction) {
@@ -63,13 +63,11 @@ class SeatManagementViewModel @Inject constructor(
             is SeatManagementAction.ToggleDisplayMode -> {
                 _uiState.update { it.copy(displayMode = action.mode) }
             }
-            // ★ [추가] 업데이트 버튼 클릭 시 -> 수정 모드 진입
             is SeatManagementAction.OnUpdateClick -> {
                 // 그냥 현재 상태에서 수정 모드만 켭니다. (ALL 탭이면 ALL 탭인 채로 수정 모드 진입)
                 _uiState.update { it.copy(isEditMode = true) }
                 updateDisplayItems() // 화면 갱신 (이때 전체 합계 섹션이 사라짐)
             }
-            // ★ [수정] 저장 버튼 클릭 시 -> API 호출 후 조회 모드로 복귀
             is SeatManagementAction.OnSaveClick -> saveSeatData()
         }
     }
@@ -103,10 +101,11 @@ class SeatManagementViewModel @Inject constructor(
         }
     }
 
-    private fun loadSeatStatus() {
+    fun loadData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) } // 로딩 표시용 플래그가 있다면 추가
+            _uiState.update { it.copy(isLoading = true) }
 
+            // Repository 캐시 덕분에 화면 복귀 시 API 호출 없이 즉시 반환됨
             getSeatStatusUseCase()
                 .onSuccess { data ->
                     // 1. 카테고리(층) 설정
@@ -116,7 +115,7 @@ class SeatManagementViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             categories = data.categories,
-                            selectedCategoryId = "ALL", // 기본 전체 선택
+                            // selectedCategoryId = "ALL", // 선택 상태 초기화 방지 (기존 선택 유지)
                             isLoading = false
                         )
                     }
@@ -124,9 +123,8 @@ class SeatManagementViewModel @Inject constructor(
                     updateDisplayItems()
                 }
                 .onFailure { e ->
-                    // 에러 처리 (토스트 등)
                     _uiState.update { it.copy(isLoading = false) }
-                    // _event.emit(ShowToast(e.message))
+                    // _event.emit(SeatManagementEvent.ShowToast(e.message ?: "로드 실패"))
                 }
         }
     }
@@ -134,7 +132,7 @@ class SeatManagementViewModel @Inject constructor(
     // ★ [핵심 로직] 현재 선택된 카테고리에 맞춰 데이터를 가공하는 함수
     private fun updateDisplayItems() {
         val state = _uiState.value
-        val resultMap = mutableMapOf<String, List<TableItem>>() // 순서 유지를 위해 LinkedHashMap 사용됨
+        val resultMap = mutableMapOf<String, List<TableItem>>()
 
         if (state.selectedCategoryId == "ALL") {
             // [ALL 탭 로직]
@@ -160,8 +158,7 @@ class SeatManagementViewModel @Inject constructor(
                 }
             }
 
-            // 2. 층별 섹션 생성 (항상 보여줌, 카테고리 순서대로)
-            // 'ALL' 카테고리를 제외한 나머지 카테고리 순회
+            // 2. 층별 섹션 생성
             val floorCategories = state.categories.filter { it.id != "ALL" }
 
             floorCategories.forEach { category ->
@@ -172,25 +169,24 @@ class SeatManagementViewModel @Inject constructor(
             }
 
         } else {
-            // [개별 층 탭 로직] 해당 층 데이터만 보여줌 (섹션 제목 없음 혹은 층 이름)
+            // [개별 층 탭 로직]
             val categoryName = state.categories.find { it.id == state.selectedCategoryId }?.name ?: ""
             val floorItems = _allRawTables.filter { it.floorId == state.selectedCategoryId }
             resultMap[categoryName] = floorItems
         }
 
-        // 전체 통계 (상단 요약용)
+        // 전체 통계
         val totalCapacity = _allRawTables.sumOf { it.capacityPerTable * it.maxTableCount }
         val usedSeats = _allRawTables.sumOf { it.capacityPerTable * it.currentCount }
 
         _uiState.update {
             it.copy(
-                groupedDisplayItems = resultMap, // Map으로 업데이트
+                groupedDisplayItems = resultMap,
                 totalSeatCapacity = totalCapacity,
                 currentUsedSeats = usedSeats
             )
         }
     }
-
     private fun processTableUpdate(itemId: String, delta: Int) {
         // 수정 모드에서는 "ALL" 탭이 진입 불가이므로, MERGED 아이템 처리는 불필요하지만
         // 안전을 위해 일반 로직만 유지합니다.

@@ -8,6 +8,7 @@ import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.SpaceLayoutUpdateRequest
 import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
@@ -154,6 +155,12 @@ interface AuthService {
     suspend fun updateStorePhone(
         @Body request: StorePhoneUpdateRequestDTO
     ): Response<BaseResponse<Boolean>> // data: true/false
+
+    // 매장 좌석 구성 정보 수정
+    @PATCH("/api/v1/stores/layout")
+    suspend fun updateStoreLayout(
+        @Body request: List<SpaceLayoutUpdateRequest>
+    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
