@@ -20,8 +20,10 @@ import javax.inject.Inject
 
 class SeatRepositoryImpl @Inject constructor(
     private val authService: AuthService,
-    private val authManager: AuthManager // 나중에 실제 API 서비스가 주입될 곳
+    private val authManager: AuthManager
 ) : SeatRepository {
+
+    // 메모리 캐시 (화면 이동 간 데이터 유지용)
     private var cachedSeatData: SeatStatusData? = null
 
     override suspend fun getSeatStatus(forceRefresh: Boolean): Result<SeatStatusData> {
@@ -42,7 +44,6 @@ class SeatRepositoryImpl @Inject constructor(
                 val data = response.body()?.data
 
                 if (data != null) {
-                    // --- [기존 로직 유지] ---
                     val categories = mutableListOf(FloorCategory("ALL", "전체"))
                     val spaces = data.spaces ?: emptyList()
 
@@ -66,11 +67,10 @@ class SeatRepositoryImpl @Inject constructor(
                             )
                         }
                     }
-                    // -----------------------
 
                     val resultData = SeatStatusData(categories, allTables)
 
-                    // ★ [추가] 조회 성공 시 캐시에 저장
+                    // 조회 성공 시 캐시 최신화
                     cachedSeatData = resultData
 
                     Result.success(resultData)
@@ -92,33 +92,46 @@ class SeatRepositoryImpl @Inject constructor(
         if (storeId == -1L) return Result.failure(Exception("로그인 정보가 없습니다."))
 
         return try {
-            // 1. 전달받은 TableItem 리스트를 floorId(spaceId)별로 그룹화
-            // (ViewModel에서 이미 1개 층만 보냈다면 그룹은 1개만 생성됨)
             val groupedByFloor = items.groupBy { it.floorId }
 
-            // 2. DTO 변환
             val spaceUpdates = groupedByFloor.map { (spaceIdStr, tables) ->
                 SpaceUpdateDTO(
                     spaceId = spaceIdStr.toLong(),
                     tableUpdates = tables.map { table ->
                         TableUpdateDTO(
                             tableConfigId = table.id.toLong(),
-                            usedCount = table.currentCount // ★ 무조건 이용중인 개수 전송
+                            usedCount = table.currentCount
                         )
                     }
                 )
             }
 
-            // 3. Request Body 생성
             val requestDto = SeatUpdateRequestDTO(
                 storeId = storeId,
                 spaceUpdates = spaceUpdates
             )
 
-            // 4. API 호출
             val response = authService.updateSeatStatus(requestDto)
 
             if (response.isSuccessful && response.body()?.success == true) {
+
+                // ★ [핵심 수정] API 성공 시 로컬 캐시(cachedSeatData)도 같이 업데이트해줍니다.
+                // 그래야 탭을 이동했다가 돌아왔을 때 서버 재조회 없이도 최신 데이터가 보입니다.
+                cachedSeatData?.let { currentCache ->
+                    val updatedTableMap = items.associateBy { it.id }
+
+                    // 기존 캐시의 테이블 리스트를 순회하며, 수정된 아이템이 있으면 교체
+                    val newAllTables = currentCache.allTables.map { existingTable ->
+                        updatedTableMap[existingTable.id]?.let { updatedItem ->
+                            // 업데이트된 사용량(currentCount) 반영
+                            existingTable.copy(currentCount = updatedItem.currentCount)
+                        } ?: existingTable
+                    }
+
+                    // 캐시 갱신
+                    cachedSeatData = currentCache.copy(allTables = newAllTables)
+                }
+
                 Result.success(Unit)
             } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string())
@@ -132,11 +145,8 @@ class SeatRepositoryImpl @Inject constructor(
 
     override suspend fun updateStoreLayout(spaces: List<SpaceItem>): Result<Unit> {
         return try {
-            // 1) Request DTO 변환 (서버 전송용)
             val requestDto = spaces.map { space ->
                 SpaceLayoutUpdateRequest(
-                    // ID가 임시값(너무 큰 숫자)이면 신규 생성이므로 null 처리 (서버 규칙에 따름)
-                    // 기존 데이터라면 ID 유지
                     id = if (space.id > 1000000000) null else space.id,
                     name = space.name,
                     tables = space.tableList.map { table ->
@@ -149,37 +159,28 @@ class SeatRepositoryImpl @Inject constructor(
                 )
             }
 
-            // 2) API 호출
             val response = authService.updateStoreLayout(requestDto)
 
             if (response.isSuccessful && response.body()?.success == true) {
-
-                // ★ 3) 성공 시 [낙관적 업데이트]: 로컬 캐시를 내가 수정한 데이터로 덮어씌움
-                // 이렇게 하면 SeatManagementScreen에서 재조회(API) 없이도 바뀐 화면이 나옴
-
-                // 3-1. 카테고리 구성 (기존 로직처럼 "ALL" 추가 필수)
+                // [기존 유지] 레이아웃 수정 성공 시에도 캐시를 갱신합니다.
                 val newCategories = mutableListOf(FloorCategory("ALL", "전체"))
                 newCategories.addAll(spaces.map {
                     FloorCategory(it.id.toString(), it.name)
                 })
 
-                // 3-2. 테이블 리스트 구성
                 val newAllTables = spaces.flatMap { space ->
                     space.tableList.map { table ->
                         TableItem(
                             id = table.id.toString(),
                             floorId = space.id.toString(),
-                            // 기존 로직과 동일한 포맷 유지
                             label = "${table.personCount}인 테이블",
                             capacityPerTable = table.personCount.toIntOrNull() ?: 0,
                             maxTableCount = table.tableCount.toIntOrNull() ?: 0,
-                            // 구성 변경 시 사용 중 좌석은 0으로 초기화된다고 가정 (서버 로직에 따름)
                             currentCount = 0
                         )
                     }
                 }
 
-                // 3-3. 캐시 갱신!
                 cachedSeatData = SeatStatusData(newCategories, newAllTables)
 
                 Result.success(Unit)

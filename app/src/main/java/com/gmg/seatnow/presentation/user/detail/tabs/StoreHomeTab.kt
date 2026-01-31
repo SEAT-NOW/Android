@@ -12,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.presentation.theme.*
@@ -67,9 +69,9 @@ fun StoreHomeTab(storeDetail: StoreDetail) {
                 item {
                     Box(
                         modifier = Modifier
-                            .height(147.5.dp) // 기준 높이만 설정
-                            .aspectRatio(imageAspectRatio) // 비율에 맞춰 너비 자동 설정
-                            .background(SubPaleGray, RectangleShape),
+                            .height(147.5.dp) // 기준 높이
+                            .aspectRatio(imageAspectRatio) // 0.8 비율
+                            .background(SubLightGray, RectangleShape), // ★ 배경색 SubLightGray로 변경
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -77,29 +79,26 @@ fun StoreHomeTab(storeDetail: StoreDetail) {
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier
-                                .fillMaxSize(iconScaleFraction) // 부모 크기의 30%만큼 채움 (비율 유지)
-                                .aspectRatio(1f) // 아이콘 1:1 비율 유지
+                                .fillMaxSize(iconScaleFraction)
+                                .aspectRatio(1f)
                         )
                     }
                 }
             } else {
-                items(storeDetail.images) {
-                    Box(
+                // ★ [수정 2] 이미지가 있을 때 AsyncImage 사용
+                items(storeDetail.images) { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "매장 사진",
                         modifier = Modifier
                             .height(147.5.dp) // 기준 높이
-                            .aspectRatio(imageAspectRatio) // 4:5 비율 유지 (너비 자동)
-                            .background(SubGray, RectangleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_row_logo),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .fillMaxSize(iconScaleFraction) // 부모 크기에 비례하여 사이즈 자동 조절
-                                .aspectRatio(1f)
-                        )
-                    }
+                            .aspectRatio(imageAspectRatio) // 0.8 비율
+                            .background(SubLightGray, RectangleShape), // 로딩 중 배경색
+                        contentScale = ContentScale.Crop,
+                        // 로딩/에러 시 보여줄 아이콘 (선택 사항)
+                        placeholder = painterResource(id = R.drawable.ic_row_logo),
+                        error = painterResource(id = R.drawable.ic_row_logo)
+                    )
                 }
             }
         }

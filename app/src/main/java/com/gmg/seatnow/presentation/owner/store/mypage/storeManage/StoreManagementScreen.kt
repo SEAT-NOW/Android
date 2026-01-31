@@ -30,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
 import com.gmg.seatnow.domain.model.MenuItemUiModel
@@ -47,6 +48,10 @@ fun StoreManagementScreen(
 ) {
     val storeDetail by viewModel.storeDetailState.collectAsState()
     val menuCategories by viewModel.menuListState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadStoreData()
+    }
 
     if (storeDetail == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -153,22 +158,19 @@ fun StoreManagementContent(
                         }
                     }
                 } else {
-                    // 이미지가 있을 때 (현재는 더미 데이터이므로 동일한 플레이스홀더 UI 적용)
-                    items(storeDetail.images) {
-                        Box(
+                    // 2. 이미지가 있을 때 (API 데이터 반영)
+                    items(storeDetail.images) { imageUrl ->
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = "매장 사진",
                             modifier = Modifier
                                 .width(265.dp)
                                 .height(150.dp)
-                                .background(SubLightGray, RectangleShape), // 배경색 변경
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_store),
-                                contentDescription = null,
-                                tint = Color.White, // 로고 하얀색
-                                modifier = Modifier.size(48.dp)
-                            )
-                        }
+                                .background(SubLightGray), // 로딩 중 배경색
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.ic_row_logo), // 로딩 중 아이콘
+                            error = painterResource(id = R.drawable.ic_row_logo) // 에러 시 아이콘
+                        )
                     }
                 }
             }

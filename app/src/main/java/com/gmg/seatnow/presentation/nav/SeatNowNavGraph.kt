@@ -32,6 +32,7 @@ import com.gmg.seatnow.presentation.owner.store.mypage.account.EditAccountInfoSc
 import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.store.EditStoreContactScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.storeInfo.EditStoreInfoScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.storeManage.storeManageEdit.StoreEditMainScreen
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -232,7 +233,7 @@ fun SeatNowNavGraph(
                     navController.navigate("edit_seat_config")
                 },
                 onNavigateToEditStoreInfo = {
-                    navController.navigate("edit_store_info")
+                    navController.navigate("store_edit_main")
                 }
             )
         }
@@ -391,6 +392,13 @@ fun SeatNowNavGraph(
                 uiState = uiState,
                 onAction = viewModel::onAction,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable("store_edit_main") {
+            // NavController pop을 위한 콜백 전달
+            StoreEditMainScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
