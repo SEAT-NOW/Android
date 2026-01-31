@@ -180,9 +180,9 @@ fun TabContentOperationInfo(
                 HorizontalDivider(thickness = 1.dp, color = SubLightGray.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- 3. 운영 정보 ---
+                // --- 3. 영업 시간 ---
                 Text(
-                    text = "운영 정보",
+                    text = "영업 시간",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = SubBlack
                 )
@@ -333,14 +333,6 @@ fun TabContentOperationInfo(
 }
 
 // =============================================================================
-// [Tab 2, 3] 더미 탭 내용
-// =============================================================================
-@Composable
-fun TabContentMenu() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("메뉴 탭 (추후 구현)", color = SubGray)
-    }
-}
 
 @Composable
 fun TabContentStorePhotos() {

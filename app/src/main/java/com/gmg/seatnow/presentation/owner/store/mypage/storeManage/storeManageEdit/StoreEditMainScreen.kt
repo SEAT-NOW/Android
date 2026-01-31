@@ -1,14 +1,17 @@
 package com.gmg.seatnow.presentation.owner.store.mypage.storeManage.storeManageEdit
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.lazy.items
 // ★ [필수] Delegate 사용을 위한 Import
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -25,6 +28,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.domain.model.StoreMenuCategory
+import com.gmg.seatnow.domain.model.StoreMenuItemData
 // ★ [필수] 공용 컴포넌트 Import
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
@@ -38,6 +43,10 @@ fun StoreEditMainScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    BackHandler(enabled = uiState.isCategoryEditMode) {
+        viewModel.onAction(StoreEditAction.SetCategoryEditMode(false))
+    }
+
     LaunchedEffect(true) {
         viewModel.event.collectLatest { event ->
             when (event) {
@@ -49,42 +58,53 @@ fun StoreEditMainScreen(
         }
     }
 
-    Scaffold(
-        containerColor = White,
-        topBar = {
-            StoreEditMainTopBar(
-                isSaveEnabled = uiState.isSaveButtonEnabled,
-                onBackClick = onNavigateBack,
-                onSaveClick = { viewModel.onSaveClick() }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // 2. Custom Tab Bar
-            Box(modifier = Modifier.zIndex(1f)) {
-                StoreEditMainTabBar(
-                    selectedTabIndex = uiState.selectedTabIndex,
-                    onTabSelected = { viewModel.onTabSelected(it) }
+    if (uiState.isCategoryEditMode) {
+        // 카테고리 편집 화면 표시
+        CategoryEditScreen(
+            viewModel = viewModel,
+            onDismiss = { viewModel.onAction(StoreEditAction.SetCategoryEditMode(false)) }
+        )
+    } else {
+        // 기존 메인 편집 화면 표시
+        Scaffold(
+            containerColor = White,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                StoreEditMainTopBar(
+                    isSaveEnabled = uiState.isSaveButtonEnabled,
+                    onBackClick = onNavigateBack,
+                    onSaveClick = { viewModel.onSaveClick() }
                 )
             }
-
-            // 3. Tab Contents
-            Box(
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(White)
+                    .padding(innerPadding)
             ) {
-                when (uiState.selectedTabIndex) {
-                    0 -> TabContentOperationInfo(
-                        uiState = uiState,
-                        onAction = viewModel::onAction
+                // 2. Custom Tab Bar
+                Box(modifier = Modifier.zIndex(1f)) {
+                    StoreEditMainTabBar(
+                        selectedTabIndex = uiState.selectedTabIndex,
+                        onTabSelected = { viewModel.onTabSelected(it) }
                     )
-                    1 -> TabContentMenu()
-                    2 -> TabContentStorePhotos()
+                }
+
+                // 3. Tab Contents
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(White)
+                ) {
+                    when (uiState.selectedTabIndex) {
+                        0 -> TabContentOperationInfo(
+                            uiState = uiState,
+                            onAction = viewModel::onAction
+                        )
+                        // ViewModel 전달
+                        1 -> TabContentMenu(viewModel = viewModel)
+                        2 -> TabContentStorePhotos()
+                    }
                 }
             }
         }
@@ -105,6 +125,7 @@ fun StoreEditMainTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .height(56.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically

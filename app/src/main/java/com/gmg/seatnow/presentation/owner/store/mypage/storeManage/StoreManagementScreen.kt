@@ -78,10 +78,10 @@ fun StoreManagementContent(
 
     Scaffold(
         containerColor = White,
-        contentWindowInsets = WindowInsets.systemBars,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         // ★ [수정] BottomBar: 가게 정보 편집 버튼
         bottomBar = {
-            Surface(shadowElevation = 8.dp, color = White, modifier = Modifier.navigationBarsPadding()) {
+            Surface(shadowElevation = 8.dp, color = White) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -122,6 +122,7 @@ fun StoreManagementContent(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(White)
+                .statusBarsPadding()
                 .verticalScroll(scrollState)
                 .padding(top = 16.dp)
         ) {
