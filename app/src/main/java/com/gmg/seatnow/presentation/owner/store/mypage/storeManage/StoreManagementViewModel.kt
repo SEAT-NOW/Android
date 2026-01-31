@@ -3,6 +3,7 @@ package com.gmg.seatnow.presentation.owner.store.mypage.storeManage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
+import com.gmg.seatnow.domain.model.MenuItemUiModel
 import com.gmg.seatnow.domain.model.OpeningHour
 import com.gmg.seatnow.domain.model.RegularHoliday
 import com.gmg.seatnow.domain.model.StoreDetail
@@ -70,8 +71,25 @@ class StoreManagementViewModel @Inject constructor(
             val operationData = operationResult.getOrNull()
             val imagesData = imagesResult.getOrNull() ?: emptyList()
 
-            if (menuData != null) {
-                _menuListState.update { menuData }
+            if (menuResult.isSuccess) {
+                val domainCategories = menuResult.getOrNull() ?: emptyList()
+                val uiMenus = domainCategories.map { category ->
+                    MenuCategoryUiModel(
+                        categoryName = category.name,
+                        menuItems = category.items.map { item ->
+                            MenuItemUiModel(
+                                id = item.id,
+                                name = item.name,
+                                // "22,000" 문자열에서 쉼표 제거 후 Int 변환
+                                price = item.price.replace(",", "").toIntOrNull() ?: 0,
+                                imageUrl = item.imageUrl ?: "",
+                                isRecommended = false,
+                                isLiked = false
+                            )
+                        }
+                    )
+                }
+                _menuListState.update { uiMenus }
             }
 
             if (storeData != null) {

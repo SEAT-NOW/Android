@@ -11,6 +11,7 @@ import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.SpaceLayoutUpdateRequest
 import com.gmg.seatnow.data.model.request.StoreOperationRequest
 import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
+import com.gmg.seatnow.data.model.request.UpdateMenuCategoriesRequest
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
@@ -178,6 +179,18 @@ interface AuthService {
 
     @PATCH("/api/v1/stores/operation")
     suspend fun updateStoreOperation(@Body request: StoreOperationRequest): Response<BaseResponse<Any?>>
+
+    @PATCH("/api/v1/stores/menus/categories")
+    suspend fun updateMenuCategories(
+        @Body request: UpdateMenuCategoriesRequest
+    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
+
+    @Multipart
+    @POST("/api/v1/stores/menus")
+    suspend fun saveMenu(
+        @Part("menuData") menuData: RequestBody,
+        @Part menuImage: MultipartBody.Part?
+    ): Response<BaseResponse<Boolean>>
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>

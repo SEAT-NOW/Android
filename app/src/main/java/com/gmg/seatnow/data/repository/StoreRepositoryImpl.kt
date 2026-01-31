@@ -1,57 +1,68 @@
 package com.gmg.seatnow.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.gmg.seatnow.data.api.AuthService
-import com.gmg.seatnow.data.model.request.HourRequest
-import com.gmg.seatnow.data.model.request.RegularHolidayRequest
+import com.gmg.seatnow.data.model.request.CategoryUpdateDto
+import com.gmg.seatnow.data.model.request.MenuDataRequest
 import com.gmg.seatnow.data.model.request.StoreOperationRequest
+import com.gmg.seatnow.data.model.request.UpdateMenuCategoriesRequest
+import com.gmg.seatnow.data.model.request.RegularHolidayRequest
 import com.gmg.seatnow.data.model.request.TemporaryHolidayRequest
-import com.gmg.seatnow.domain.model.MenuCategoryUiModel
-import com.gmg.seatnow.domain.model.MenuItemUiModel
+import com.gmg.seatnow.data.model.request.HourRequest
 import com.gmg.seatnow.domain.model.OpeningHour
 import com.gmg.seatnow.domain.model.RegularHoliday
+import com.gmg.seatnow.domain.model.StoreMenuCategory
+import com.gmg.seatnow.domain.model.StoreMenuItemData
 import com.gmg.seatnow.domain.model.StoreOperationInfo
 import com.gmg.seatnow.domain.model.TemporaryHoliday
 import com.gmg.seatnow.domain.repository.StoreRepository
+import com.google.gson.Gson
+import dagger.hilt.android.qualifiers.ApplicationContext
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import java.io.File
+import java.io.FileOutputStream
+import java.text.DecimalFormat
 import javax.inject.Inject
 
+// ★ [핵심] 이 어노테이션이 있어야 "Error: moved to extension" 오류를 무시하고 빌드됩니다.
+@Suppress("DEPRECATION", "DEPRECATION_ERROR")
 class StoreRepositoryImpl @Inject constructor(
-    private val authService: AuthService
+    private val authService: AuthService,
+    @ApplicationContext private val context: Context
 ) : StoreRepository {
 
-    // ★ 메모리 캐싱 변수
-    private var cachedMenus: List<MenuCategoryUiModel>? = null
+    private var cachedMenus: List<StoreMenuCategory>? = null
 
-    override suspend fun getStoreMenus(forceRefresh: Boolean): Result<List<MenuCategoryUiModel>> {
-        // 1. 캐시 확인
+    override suspend fun getStoreMenus(forceRefresh: Boolean): Result<List<StoreMenuCategory>> {
         if (!forceRefresh && cachedMenus != null) {
             return Result.success(cachedMenus!!)
         }
 
         return try {
-            // 2. API 호출
             val response = authService.getStoreMenus()
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
+                val decimalFormat = DecimalFormat("#,###")
 
-                // 3. DTO -> Domain Model 변환
                 val mappedData = data?.categories?.map { category ->
-                    MenuCategoryUiModel(
-                        categoryName = category.name,
-                        menuItems = category.menus?.map { menu ->
-                            MenuItemUiModel(
+                    StoreMenuCategory(
+                        id = category.id,
+                        name = category.name,
+                        items = category.menus?.map { menu ->
+                            StoreMenuItemData(
                                 id = menu.id,
                                 name = menu.name,
-                                price = menu.price,
-                                imageUrl = menu.imageUrl ?: "", // 이미지가 없으면 빈 문자열
-                                isRecommended = false, // API에 없으므로 기본값
-                                isLiked = false        // 사장님 앱에서는 불필요하므로 false
+                                price = decimalFormat.format(menu.price),
+                                imageUrl = menu.imageUrl
                             )
                         } ?: emptyList()
                     )
                 } ?: emptyList()
 
-                // 4. 캐시 저장 및 반환
                 cachedMenus = mappedData
                 Result.success(mappedData)
             } else {
@@ -69,7 +80,6 @@ class StoreRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    // DTO -> Domain Model 변환 (Mapper 로직)
                     val info = StoreOperationInfo(
                         operationStatus = data.operationStatus ?: "CLOSED",
                         regularHolidays = data.regularHolidays.map {
@@ -100,7 +110,6 @@ class StoreRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    // 메인 사진이 있다면 맨 앞으로, 나머지는 뒤로 정렬하여 URL 리스트 반환
                     val sortedImages = data.storeImages
                         .sortedByDescending { it.main }
                         .map { it.imageUrl }
@@ -123,8 +132,6 @@ class StoreRepositoryImpl @Inject constructor(
         openingHours: List<OpeningHour>
     ): Result<Unit> {
         return try {
-            // Domain Model -> Request DTO 변환
-            // (ID를 null로 보내어 기존 데이터를 덮어쓰거나(삭제 후 생성) 처리 유도)
             val request = StoreOperationRequest(
                 regularHolidays = regularHolidays.map {
                     RegularHolidayRequest(dayOfWeek = it.dayOfWeek, weekInfo = it.weekInfo)
@@ -148,6 +155,97 @@ class StoreRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    override suspend fun updateMenuCategories(categories: List<StoreMenuCategory>): Result<Boolean> {
+        return try {
+            val categoryDtos = categories.map { category ->
+                CategoryUpdateDto(
+                    id = if (category.id > 0) category.id else null,
+                    name = category.name
+                )
+            }
+
+            val request = UpdateMenuCategoriesRequest(categoryDtos)
+            val response = authService.updateMenuCategories(request)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(true)
+            } else {
+                val errorMsg = response.body()?.message ?: "카테고리 수정 실패"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun saveMenu(
+        menuId: Long?,
+        categoryId: Long,
+        name: String,
+        price: Int,
+        imageUri: String?,
+        isImageChanged: Boolean
+    ): Result<Boolean> {
+        return try {
+            val keepImage = !isImageChanged && !imageUri.isNullOrEmpty()
+
+            val requestDto = MenuDataRequest(
+                id = if (menuId != null && menuId > 0) menuId else null,
+                name = name,
+                price = price,
+                categoryId = categoryId,
+                keepImage = keepImage
+            )
+
+            val jsonString = Gson().toJson(requestDto)
+
+            // ★ [수정] 확장 함수(toMediaTypeOrNull) 대신 Static Method(parse) 강제 사용
+            // @Suppress("DEPRECATION_ERROR") 덕분에 에러가 나지 않습니다.
+            val mediaType = MediaType.parse("application/json")
+
+            // ★ [수정] 확장 함수(toRequestBody) 대신 Static Method(create) 강제 사용
+            // Ambiguity 오류를 피하는 가장 확실한 방법입니다.
+            val jsonRequestBody = RequestBody.create(mediaType, jsonString)
+
+            var imagePart: MultipartBody.Part? = null
+            if (isImageChanged && !imageUri.isNullOrEmpty()) {
+                val file = uriToFile(Uri.parse(imageUri))
+                if (file != null) {
+                    // 여기도 동일하게 수정
+                    val imageMediaType = MediaType.parse("image/*")
+                    val requestFile = RequestBody.create(imageMediaType, file)
+                    imagePart = MultipartBody.Part.createFormData("menuImage", file.name, requestFile)
+                }
+            }
+
+            val response = authService.saveMenu(jsonRequestBody, imagePart)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(true)
+            } else {
+                val errorMsg = response.body()?.message ?: "메뉴 저장 실패"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    private fun uriToFile(uri: Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val tempFile = File.createTempFile("upload", ".jpg", context.cacheDir)
+            val outputStream = FileOutputStream(tempFile)
+            inputStream.copyTo(outputStream)
+            inputStream.close()
+            outputStream.close()
+            tempFile
+        } catch (e: Exception) {
+            null
         }
     }
 }

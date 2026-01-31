@@ -53,13 +53,17 @@ fun TabContentMenu(
         items(uiState.menuCategories) { category ->
             MenuCategoryItem(
                 category = category,
-                onAddMenuItemClick = { },
+                onAddMenuItemClick = {
+                    viewModel.onAction(StoreEditAction.OpenAddMenu(category.id))
+                },
                 onCategoryEditClick = {
                     viewModel.onAction(StoreEditAction.SetCategoryEditMode(true))
                 },
-                // ★ [연결] 같은 카테고리 내에서만 순서 변경
                 onMoveItem = { from, to ->
                     viewModel.onAction(StoreEditAction.MoveMenuItem(category.id, from, to))
+                },
+                onMenuItemClick = { item ->
+                    viewModel.onAction(StoreEditAction.OpenEditMenu(category.id, item))
                 }
             )
             Spacer(modifier = Modifier.height(40.dp))
@@ -76,7 +80,8 @@ fun MenuCategoryItem(
     category: StoreMenuCategory,
     onAddMenuItemClick: () -> Unit,
     onCategoryEditClick: () -> Unit,
-    onMoveItem: (Int, Int) -> Unit
+    onMoveItem: (Int, Int) -> Unit,
+    onMenuItemClick: (StoreMenuItemData) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // 1. 카테고리 헤더
@@ -117,7 +122,8 @@ fun MenuCategoryItem(
                         item = item,
                         index = index,
                         totalCount = category.items.size,
-                        onMove = onMoveItem
+                        onMove = onMoveItem,
+                        onClick = { onMenuItemClick(item) }
                     )
                 }
             }
@@ -140,7 +146,8 @@ fun EditStoreMenuItem(
     item: StoreMenuItemData,
     index: Int,
     totalCount: Int,
-    onMove: (Int, Int) -> Unit
+    onMove: (Int, Int) -> Unit,
+    onClick: () -> Unit
 ) {
     // ★ [핵심 1] 드래그 로직 및 상태 변수 (CategoryEditScreen과 동일)
     val currentIndex by rememberUpdatedState(index)
@@ -173,7 +180,7 @@ fun EditStoreMenuItem(
             }
             .shadow(targetElevation, RoundedCornerShape(8.dp)) // 드래그 시 그림자
             .background(White, RoundedCornerShape(8.dp)) // 배경색 (그림자 위해 필수)
-            .clickable { /* 메뉴 수정 */ }
+            .clickable(onClick = onClick)
             .padding(vertical = 12.dp)
             .onGloballyPositioned { coordinates ->
                 itemHeightPx = coordinates.size.height
@@ -318,7 +325,8 @@ fun PreviewTabContentMenuWithData1() {
                     onCategoryEditClick = {},
                     onMoveItem = { from, to ->
                         println("Move: $from -> $to")
-                    }
+                    },
+                    onMenuItemClick = {}
                 )
                 Spacer(modifier = Modifier.height(40.dp))
             }

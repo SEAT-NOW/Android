@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.lazy.items
-// ★ [필수] Delegate 사용을 위한 Import
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,7 +29,6 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.domain.model.StoreMenuCategory
 import com.gmg.seatnow.domain.model.StoreMenuItemData
-// ★ [필수] 공용 컴포넌트 Import
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
 import kotlinx.coroutines.flow.collectLatest
@@ -43,8 +41,14 @@ fun StoreEditMainScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // 1. 카테고리 순서 편집 모드일 때 뒤로가기 -> 모드 종료
     BackHandler(enabled = uiState.isCategoryEditMode) {
         viewModel.onAction(StoreEditAction.SetCategoryEditMode(false))
+    }
+
+    // 2. 메뉴 추가 모드일 때 뒤로가기 -> 모드 종료
+    BackHandler(enabled = uiState.addingMenuCategoryId != null) {
+        viewModel.onAction(StoreEditAction.DismissAddMenu)
     }
 
     LaunchedEffect(true) {
@@ -58,52 +62,113 @@ fun StoreEditMainScreen(
         }
     }
 
-    if (uiState.isCategoryEditMode) {
-        // 카테고리 편집 화면 표시
-        CategoryEditScreen(
-            viewModel = viewModel,
-            onDismiss = { viewModel.onAction(StoreEditAction.SetCategoryEditMode(false)) }
-        )
-    } else {
-        // 기존 메인 편집 화면 표시
-        Scaffold(
-            containerColor = White,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                StoreEditMainTopBar(
-                    isSaveEnabled = uiState.isSaveButtonEnabled,
-                    onBackClick = onNavigateBack,
-                    onSaveClick = { viewModel.onSaveClick() }
-                )
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                // 2. Custom Tab Bar
-                Box(modifier = Modifier.zIndex(1f)) {
-                    StoreEditMainTabBar(
-                        selectedTabIndex = uiState.selectedTabIndex,
-                        onTabSelected = { viewModel.onTabSelected(it) }
+    // 화면 상태에 따른 분기 처리
+    when {
+        // [Case 1] 카테고리 편집 모드 (순서 변경 등)
+        uiState.isCategoryEditMode -> {
+            CategoryEditScreen(
+                viewModel = viewModel,
+                onDismiss = { viewModel.onAction(StoreEditAction.SetCategoryEditMode(false)) }
+            )
+        }
+
+        // [Case 2] 메뉴 상세 추가 모드 (플러스 버튼 클릭 시)
+        uiState.addingMenuCategoryId != null -> {
+            MenuEditScreen(
+                initialCategoryId = uiState.addingMenuCategoryId!!,
+                categoryList = uiState.menuCategories,
+                onBackClick = { viewModel.onAction(StoreEditAction.DismissAddMenu) },
+                onDeleteClick = { viewModel.onAction(StoreEditAction.DismissAddMenu) }, // 추가 취소
+                onSaveClick = { name, price, catId, uri ->
+                    viewModel.onAction(
+                        StoreEditAction.ConfirmAddMenu(
+                            categoryId = catId,
+                            name = name,
+                            price = price,
+                            imageUri = uri?.toString()
+                        )
                     )
                 }
+            )
+        }
 
-                // 3. Tab Contents
-                Box(
+        uiState.editingMenuItem != null -> {
+            val (categoryId, item) = uiState.editingMenuItem!!
+
+            MenuEditScreen(
+                initialCategoryId = categoryId,
+                initialName = item.name,           // ★ 기존 이름 주입
+                initialPrice = item.price,         // ★ 기존 가격 주입
+                initialImageUri = item.imageUrl,   // ★ 기존 이미지 주입
+
+                categoryList = uiState.menuCategories,
+
+                onBackClick = { viewModel.onAction(StoreEditAction.DismissEditMenu) },
+
+                // ★ 삭제 버튼 -> 실제 삭제 액션 호출
+                onDeleteClick = {
+                    viewModel.onAction(StoreEditAction.DeleteMenuItem(categoryId, item.id))
+                },
+
+                // ★ 저장 버튼 -> 수정(Update) 액션 호출
+                onSaveClick = { name, price, newCatId, uri ->
+                    val updatedItem = item.copy(
+                        name = name,
+                        price = price,
+                        imageUrl = uri?.toString()
+                    )
+                    viewModel.onAction(
+                        StoreEditAction.UpdateMenuItem(
+                            originalCategoryId = categoryId,
+                            newCategoryId = newCatId,
+                            updatedItem = updatedItem
+                        )
+                    )
+                }
+            )
+        }
+
+        // [Case 3] 기본 메인 편집 화면
+        else -> {
+            Scaffold(
+                containerColor = White,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                topBar = {
+                    StoreEditMainTopBar(
+                        isSaveEnabled = uiState.isSaveButtonEnabled,
+                        onBackClick = onNavigateBack,
+                        onSaveClick = { viewModel.onSaveClick() }
+                    )
+                }
+            ) { innerPadding ->
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(White)
+                        .padding(innerPadding)
                 ) {
-                    when (uiState.selectedTabIndex) {
-                        0 -> TabContentOperationInfo(
-                            uiState = uiState,
-                            onAction = viewModel::onAction
+                    // 2. Custom Tab Bar
+                    Box(modifier = Modifier.zIndex(1f)) {
+                        StoreEditMainTabBar(
+                            selectedTabIndex = uiState.selectedTabIndex,
+                            onTabSelected = { viewModel.onTabSelected(it) }
                         )
-                        // ViewModel 전달
-                        1 -> TabContentMenu(viewModel = viewModel)
-                        2 -> TabContentStorePhotos()
+                    }
+
+                    // 3. Tab Contents
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(White)
+                    ) {
+                        when (uiState.selectedTabIndex) {
+                            0 -> TabContentOperationInfo(
+                                uiState = uiState,
+                                onAction = viewModel::onAction
+                            )
+                            // ViewModel을 전달하여 내부에서 OpenAddMenu 액션 호출 가능
+                            1 -> TabContentMenu(viewModel = viewModel)
+                            2 -> TabContentStorePhotos()
+                        }
                     }
                 }
             }
@@ -254,29 +319,23 @@ fun PreviewStoreEditMainScreen() {
         // 1. Preview를 위한 로컬 상태 관리
         var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-        // 2. 더미 데이터 생성 (운영정보 탭 테스트용)
+        // 2. 더미 데이터 생성
         val dummyUiState = StoreEditMainViewModel.StoreEditUiState(
             selectedTabIndex = selectedTabIndex,
-            isSaveButtonEnabled = true, // 저장 버튼 활성화 상태
-            regularHolidayType = 1, // 매주 휴무
-            weeklyHolidayDays = setOf(1), // 월요일
+            isSaveButtonEnabled = true,
+            regularHolidayType = 1,
+            weeklyHolidayDays = setOf(1),
             operatingSchedules = listOf(
                 com.gmg.seatnow.domain.model.OperatingScheduleItem(
                     id = 0,
-                    selectedDays = setOf(1, 2, 3, 4, 5), // 월~금
+                    selectedDays = setOf(1, 2, 3, 4, 5),
                     startHour = 10, startMin = 0,
                     endHour = 22, endMin = 0
-                ),
-                com.gmg.seatnow.domain.model.OperatingScheduleItem(
-                    id = 1,
-                    selectedDays = setOf(0, 6), // 토, 일
-                    startHour = 12, startMin = 30,
-                    endHour = 23, endMin = 0
                 )
             )
         )
 
-        // 3. UI 레이아웃 (StoreEditMainScreen과 동일 구조)
+        // 3. UI 레이아웃
         Scaffold(
             containerColor = White,
             topBar = {
@@ -292,7 +351,6 @@ fun PreviewStoreEditMainScreen() {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Custom Tab Bar
                 Box(modifier = Modifier.zIndex(1f)) {
                     StoreEditMainTabBar(
                         selectedTabIndex = selectedTabIndex,
@@ -300,7 +358,6 @@ fun PreviewStoreEditMainScreen() {
                     )
                 }
 
-                // Tab Contents
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -309,7 +366,7 @@ fun PreviewStoreEditMainScreen() {
                     when (selectedTabIndex) {
                         0 -> TabContentOperationInfo(
                             uiState = dummyUiState,
-                            onAction = {} // Preview에서는 동작하지 않음
+                            onAction = {}
                         )
                         1 -> TabContentMenu()
                         2 -> TabContentStorePhotos()
