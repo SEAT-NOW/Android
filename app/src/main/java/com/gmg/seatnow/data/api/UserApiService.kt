@@ -2,6 +2,7 @@ package com.gmg.seatnow.data.api
 
 import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.StoreDetailResponse
+import com.gmg.seatnow.data.model.response.StoreKeptResponseDTO
 import com.gmg.seatnow.data.model.response.StoreMapResponseDTO
 import retrofit2.Response
 import retrofit2.http.GET
@@ -34,4 +35,14 @@ interface UserApiService {
     suspend fun scrapStore(
         @Path("storeId") storeId: Long
     ): Response<BaseResponse<Unit>> // 데이터가 없으면 Unit
+
+    // 킵한 매장 조회
+    @GET("/api/v1/stores/kept")
+    suspend fun getKeptStores(): Response<BaseResponse<List<StoreKeptResponseDTO>>>
+
+    // 킵 저장
+    @POST("/api/v1/stores/{storeId}/keep")
+    suspend fun keepStore(
+        @Path("storeId") storeId: Long
+    ): Response<BaseResponse<Boolean>>
 }

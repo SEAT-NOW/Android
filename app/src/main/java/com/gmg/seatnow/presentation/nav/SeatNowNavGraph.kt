@@ -233,7 +233,7 @@ fun SeatNowNavGraph(
                     navController.navigate("edit_seat_config")
                 },
                 onNavigateToEditStoreInfo = {
-                    navController.navigate("store_edit_main")
+                    navController.navigate("edit_store_info")
                 }
             )
         }

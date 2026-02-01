@@ -28,3 +28,19 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 -keep class com.google.gson.** { *; }
+
+# --- Kotlin Serialization 필수 규칙 (이게 없으면 R8이 돕니다) ---
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.SerializationException
+-keepclassmembers class kotlinx.serialization.json.internal.JsonTreeReader {
+    *** readDeepRecursive(...);
+}
+
+# DTO들은 이름과 필드를 절대 건드리지 마라
+-keep class com.gmg.seatnow.data.model.** { *; }
+-keepclassmembers class com.gmg.seatnow.data.model.** { *; }
+
+# Serialization 관련 클래스 유지
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class kotlinx.serialization.** { *; }
+-keep interface kotlinx.serialization.** { *; }

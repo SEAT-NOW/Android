@@ -4,13 +4,8 @@ import android.location.Location
 import com.gmg.seatnow.data.api.UserApiService
 
 // ★ [수정] 변경된 DTO 이름으로 정확히 Import 해야 합니다!
-import com.gmg.seatnow.data.model.response.StoreDetailResponse
-import com.gmg.seatnow.data.model.response.OpeningHourDto
-import com.gmg.seatnow.data.model.response.RegularHolidayDto
-import com.gmg.seatnow.data.model.response.TemporaryHolidayDto
-import com.gmg.seatnow.data.model.response.ImageDto
-import com.gmg.seatnow.data.model.response.SeatMenuCategory // 기존 MenuCategoryDto 제거 후 변경
-import com.gmg.seatnow.data.model.response.SeatMenuDto      // 기존 MenuDto 제거 후 변경
+import com.gmg.seatnow.data.model.response.OpeningHourItem
+import com.gmg.seatnow.data.model.response.RegularHolidayItem
 
 import com.gmg.seatnow.domain.model.*
 import com.gmg.seatnow.domain.repository.MapRepository
@@ -132,13 +127,17 @@ class MapRepositoryImpl @Inject constructor(
     // 3. 킵 토글
     override suspend fun toggleStoreKeep(storeId: Long, isKept: Boolean): Result<Unit> {
         return try {
-            val response = userApiService.scrapStore(storeId)
+            // [수정] scrapStore -> keepStore 호출로 변경
+            val response = userApiService.keepStore(storeId)
+
             if (response.isSuccessful && response.body()?.success == true) {
+                // 성공 시 Unit 반환 (ViewModel에서 UI 갱신)
                 Result.success(Unit)
             } else {
+                // 에러 처리
                 when (response.code()) {
-                    401 -> Result.failure(Exception("Unauthorized"))
-                    403 -> Result.failure(Exception("Forbidden"))
+                    401 -> Result.failure(Exception("Unauthorized")) // 토큰 만료/없음
+                    403 -> Result.failure(Exception("Forbidden"))    // 권한 없음
                     else -> Result.failure(Exception(response.message()))
                 }
             }
@@ -148,7 +147,56 @@ class MapRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getKeepStoreList(): Result<List<StoreDetail>> {
-        return Result.success(emptyList())
+        return try {
+            val response = userApiService.getKeptStores()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val dtoList = response.body()?.data ?: emptyList()
+
+                val domainList = dtoList.map { dto ->
+                    val available = (dto.totalSeatCount - dto.usedSeatCount).coerceAtLeast(0)
+
+                    // ★ [수정] 이미지가 String 하나로 오므로 리스트로 감싸줌
+                    val imageList = if (!dto.images.isNullOrEmpty()) listOf(dto.images) else emptyList()
+
+                    StoreDetail(
+                        id = dto.storeId,
+                        name = dto.storeName,
+                        images = imageList, // 수정된 이미지 처리
+
+                        // ★ [수정] List<String> -> String 변환 (콤마로 연결)
+                        universityInfo = dto.universityNames?.joinToString(", ") ?: "",
+
+                        status = mapStatusByName(dto.statusTagName),
+                        availableSeatCount = available,
+                        totalSeatCount = dto.totalSeatCount,
+                        operationStatus = "",
+                        storePhone = "",
+                        address = "",
+                        openHours = "",
+                        closedDays = "",
+                        isKept = true
+                    )
+                }
+                Result.success(domainList)
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // ★ [필수 추가] 한글 상태명("혼잡", "만석")을 Enum으로 변환하는 함수
+    private fun mapStatusByName(name: String?): StoreStatus {
+        return when (name) {
+            "여유" -> StoreStatus.SPARE
+            "보통" -> StoreStatus.NORMAL
+            "혼잡" -> StoreStatus.HARD
+            "만석" -> StoreStatus.FULL
+            else -> StoreStatus.NORMAL // 기본값
+        }
     }
 
     // --- Helper Functions ---
@@ -179,7 +227,7 @@ class MapRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun formatOpeningHours(hours: List<OpeningHourDto>): String {
+    private fun formatOpeningHours(hours: List<OpeningHourItem>): String {
         if (hours.isEmpty()) return "영업 시간 정보 없음"
         val grouped = hours.groupBy { "${it.startTime}~${it.endTime}" }
         return grouped.map { (timeRange, list) ->
@@ -192,7 +240,7 @@ class MapRepositoryImpl @Inject constructor(
         }.joinToString("\n")
     }
 
-    private fun formatClosedDays(holidays: List<RegularHolidayDto>): String {
+    private fun formatClosedDays(holidays: List<RegularHolidayItem>): String {
         if (holidays.isEmpty()) return "연중무휴"
         val weekly = holidays.filter { it.weekInfo == 0 }
             .sortedBy { dayOrder(it.dayOfWeek) }

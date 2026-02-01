@@ -1,11 +1,19 @@
 package com.gmg.seatnow.data.model.response
 
-import com.google.gson.annotations.SerializedName
+import android.annotation.SuppressLint
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-// 스웨거의 공통 응답 포맷을 처리하는 Wrapper 클래스
+@SuppressLint("UnsafeOptInUsageError")
+@Serializable
 data class BaseResponse<T>(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("data") val data: T?,
-    @SerializedName("message") val message: String?,
-    @SerializedName("code") val code: String? // 에러 발생 시 코드
+    @SerialName("success") val success: Boolean,
+
+    // data도 null일 수 있으므로 기본값 null 처리
+    @SerialName("data") val data: T? = null,
+
+    @SerialName("message") val message: String? = null,
+
+    // ★ 에러 원인 해결: 기본값(= null)을 주면 JSON에 'code'가 없어도 에러 안 남
+    @SerialName("code") val code: String? = null
 )

@@ -11,6 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
+import com.gmg.seatnow.presentation.component.formatPhoneNumber
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
@@ -42,8 +43,7 @@ fun AccountInfoScreen(
         ) {
             UserInfoRow(
                 title = "휴대폰 번호",
-                value = if (uiState.isProfileLoaded) uiState.ownerPhoneNumber else "불러오는 중..."
-            )
+                value = if (uiState.isProfileLoaded) formatPhoneNumber(uiState.ownerPhoneNumber) else "불러오는 중..."            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

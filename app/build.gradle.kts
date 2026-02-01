@@ -98,10 +98,8 @@ dependencies {
     // 5. Network (Retrofit + Serialization + Gson)
     implementation(libs.retrofit)
     implementation(libs.okhttp.logging)
-    implementation(libs.retrofit.gson)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.retrofit.serialization.converter)
-    implementation(libs.gson)
 
     // 6. Coil
     implementation(libs.coil.compose)

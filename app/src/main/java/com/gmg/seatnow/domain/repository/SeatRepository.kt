@@ -3,6 +3,7 @@ package com.gmg.seatnow.domain.repository
 import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.domain.model.TableItem
 
+
 data class SeatStatusData(
     val categories: List<FloorCategory>,
     val allTables: List<TableItem>

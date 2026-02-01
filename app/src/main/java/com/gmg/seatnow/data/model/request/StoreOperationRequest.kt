@@ -1,7 +1,13 @@
 package com.gmg.seatnow.data.model.request
 
+import android.annotation.SuppressLint
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
 
+@SuppressLint("UnsafeOptInUsageError")
+@Keep
+@Serializable
 data class StoreOperationRequest(
     @SerializedName("regularHolidays") val regularHolidays: List<RegularHolidayRequest>,
     @SerializedName("temporaryHolidays") val temporaryHolidays: List<TemporaryHolidayRequest>,
@@ -9,21 +15,30 @@ data class StoreOperationRequest(
 )
 
 // ID가 없으면 신규 추가로 처리되므로, 수정 시에는 null을 보냅니다.
+@SuppressLint("UnsafeOptInUsageError")
+@Keep
+@Serializable
 data class RegularHolidayRequest(
-    val id: Long? = null,
-    val dayOfWeek: String,
-    val weekInfo: Int
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("dayOfWeek") val dayOfWeek: String,
+    @SerializedName("weekInfo") val weekInfo: Int
 )
 
+@SuppressLint("UnsafeOptInUsageError")
+@Keep
+@Serializable
 data class TemporaryHolidayRequest(
-    val id: Long? = null,
-    val startDate: String,
-    val endDate: String
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("startDate") val startDate: String,
+    @SerializedName("endDate") val endDate: String
 )
 
+@SuppressLint("UnsafeOptInUsageError")
+@Keep
+@Serializable
 data class HourRequest(
-    val id: Long? = null,
-    val dayOfWeek: String,
-    val startTime: String,
-    val endTime: String
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("dayOfWeek") val dayOfWeek: String,
+    @SerializedName("startTime") val startTime: String,
+    @SerializedName("endTime") val endTime: String
 )

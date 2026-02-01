@@ -1,9 +1,14 @@
 package com.gmg.seatnow.data.model.response
 
+import android.annotation.SuppressLint
 import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
+@Serializable
 data class StoreDetailResponse(
     @SerializedName("storeId") val storeId: Long,
     @SerializedName("storeName") val storeName: String,
@@ -15,10 +20,10 @@ data class StoreDetailResponse(
     @SerializedName("usedSeatCount") val usedSeatCount: Int,
     @SerializedName("statusTag") val statusTag: String,
     @SerializedName("operationStatus") val operationStatus: String,
-    @SerializedName("openingHours") val openingHours: List<OpeningHourDto>,
-    @SerializedName("regularHolidays") val regularHolidays: List<RegularHolidayDto>,
-    @SerializedName("temporaryHolidays") val temporaryHolidays: List<TemporaryHolidayDto>,
-    @SerializedName("images") val images: List<ImageDto>,
+    @SerializedName("openingHours") val openingHours: List<OpeningHourItem>,
+    @SerializedName("regularHolidays") val regularHolidays: List<RegularHolidayItem>,
+    @SerializedName("temporaryHolidays") val temporaryHolidays: List<TemporaryHolidayItem>,
+    @SerializedName("images") val images: List<ImageItem>,
 
     // SeatMenuCategory 사용
     @SerializedName("menuCategories") val menuCategories: List<SeatMenuCategory>,
@@ -26,29 +31,58 @@ data class StoreDetailResponse(
     @SerializedName("kept") val kept: Boolean
 )
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
+@Serializable
 data class SeatMenuCategory(
     val id: Long,
     val name: String,
-    val menus: List<SeatMenuDto>
+    val menus: List<SeatMenuItem>
 )
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
-data class SeatMenuDto(
-    val id: Long,
-    val name: String,
-    val price: Int,
-    val imageUrl: String?
+@Serializable
+data class SeatMenuItem(
+    @SerialName("id") val id: Long,
+    @SerialName("name") val name: String,
+    @SerialName("price") val price: Int,
+    @SerialName("imageUrl") val imageUrl: String?
 )
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
-data class OpeningHourDto(val id: Long, val dayOfWeek: String, val startTime: String, val endTime: String)
+@Serializable
+data class OpeningHourItem(
+    @SerialName("id") val id: Long,
+    @SerialName("dayOfWeek") val dayOfWeek: String,
+    @SerialName("startTime") val startTime: String,
+    @SerialName("endTime") val endTime: String
+)
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
-data class RegularHolidayDto(val id: Long, val dayOfWeek: String, val weekInfo: Int)
+@Serializable
+data class RegularHolidayItem(
+    @SerialName("id") val id: Long,
+    @SerialName("dayOfWeek") val dayOfWeek: String,
+    @SerialName("weekInfo") val weekInfo: Int
+)
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
-data class TemporaryHolidayDto(val id: Long, val startDate: String, val endDate: String)
+@Serializable
+data class TemporaryHolidayItem(
+    @SerialName("id") val id: Long,
+    @SerialName("startDate") val startDate: String,
+    @SerialName("endDate") val endDate: String
+)
 
+@SuppressLint("UnsafeOptInUsageError")
 @Keep
-data class ImageDto(val id: Long, val url: String, val isMain: Boolean)
+@Serializable
+data class ImageItem(
+    @SerialName("id") val id: Long,
+    @SerialName("url") val url: String,
+    @SerialName("isMain") val isMain: Boolean
+)

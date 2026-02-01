@@ -1,7 +1,13 @@
 package com.gmg.seatnow.data.model.request
 
+import android.annotation.SuppressLint
+import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
 
+@SuppressLint("UnsafeOptInUsageError")
+@Keep
+@Serializable
 data class MenuDataRequest(
     @SerializedName("id")
     val id: Long?, // 신규는 null, 수정은 ID

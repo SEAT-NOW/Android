@@ -3,6 +3,7 @@ package com.gmg.seatnow.presentation.user.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
 import com.gmg.seatnow.domain.model.MenuItemUiModel
 import com.gmg.seatnow.domain.model.StoreDetail
@@ -22,6 +23,7 @@ import javax.inject.Inject
 class StoreDetailViewModel @Inject constructor(
     private val getStoreDetailUseCase: GetStoreDetailUseCase,
     private val mapRepository: MapRepository,
+    private val authManager: AuthManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -100,16 +102,34 @@ class StoreDetailViewModel @Inject constructor(
     }
 
     fun toggleStoreKeep() {
+        if (!authManager.hasToken()) {
+            sendEvent(UiEvent.ShowToast("해당 가게를 킵하기 위해선 로그인이 필요합니다."))
+            return
+        }
+        // 현재 데이터가 없으면 리턴
         val currentDetail = _storeDetailState.value ?: return
+
+        // 바뀔 상태 (현재가 true면 false로, false면 true로)
         val newKeptState = !currentDetail.isKept
 
         viewModelScope.launch {
+            // 1. [낙관적 업데이트] API 결과 기다리지 않고 즉시 UI 반영 (반응 속도 UP)
             _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
+
+            // 2. 실제 API 호출
             mapRepository.toggleStoreKeep(storeId, newKeptState)
-                .onSuccess { }
+                .onSuccess {
+                    // 성공 시 아무것도 안 해도 됨 (이미 UI는 바뀜)
+                }
                 .onFailure { e ->
+                    // 3. [롤백] 실패 시 원래 상태로 되돌리기
                     _storeDetailState.value = currentDetail.copy(isKept = !newKeptState)
-                    sendEvent(UiEvent.ShowToast("찜하기 실패 (테스트 모드)"))
+
+                    val msg = when (e.message) {
+                        "Unauthorized" -> "로그인이 필요한 서비스입니다."
+                        else -> "잠시 후 다시 시도해주세요."
+                    }
+                    sendEvent(UiEvent.ShowToast(msg))
                 }
         }
     }
