@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Retrofit 및 데이터 모델 강제 유지 (R8/ProGuard가 삭제하지 못하게 함)
+-keep class com.gmg.seatnow.data.model.** { *; }
+-keepclassmembers class com.gmg.seatnow.data.model.** { *; }
+
+# Gson 관련 규칙 (직렬화/역직렬화 시 필요)
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.** { *; }

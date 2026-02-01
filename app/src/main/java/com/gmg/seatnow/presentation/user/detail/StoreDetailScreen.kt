@@ -1,5 +1,6 @@
 package com.gmg.seatnow.presentation.user.detail
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
 import com.gmg.seatnow.domain.model.MenuItemUiModel
@@ -37,6 +39,7 @@ import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.user.detail.tabs.StoreHomeTab
 import com.gmg.seatnow.presentation.user.detail.tabs.StoreMenuTab
 import com.gmg.seatnow.presentation.util.IntentUtil
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun StoreDetailRoute(
@@ -45,21 +48,37 @@ fun StoreDetailRoute(
 ) {
     val storeDetail by viewModel.storeDetailState.collectAsState()
     val menuCategories by viewModel.menuListState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(true) {
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is StoreDetailViewModel.UiEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is StoreDetailViewModel.UiEvent.NavigateBack -> {
+                    onBackClick() // 데이터 로드 실패 시 화면 종료
+                }
+            }
+        }
+    }
 
     if (storeDetail != null) {
         StoreDetailScreen(
             storeDetail = storeDetail!!,
             menuCategories = menuCategories,
-            onLikeClicked = viewModel::toggleMenuLike,
-            onKeepClicked = viewModel::toggleStoreKeep, // ★ ViewModel 함수 전달
+            onLikeClicked = viewModel::onLikeClicked,
+            onKeepClicked = viewModel::toggleStoreKeep, // ★ ViewModel 함수 연결
             onBackClick = onBackClick
         )
     } else {
+        // 로딩 중 UI
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PointRed)
         }
     }
 }
+
 
 @Composable
 fun StoreDetailScreen(
@@ -133,8 +152,7 @@ fun StoreDetailScreen(
             Text(text = "가게 상세페이지", style = Body1_Medium_14, fontWeight = FontWeight.Bold, color = SubBlack, modifier = Modifier.padding(horizontal = 24.dp))
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyRow(contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (storeDetail.images.isEmpty()) {
+            LazyRow(contentPadding = PaddingValues(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {                if (storeDetail.images.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape),
@@ -148,19 +166,21 @@ fun StoreDetailScreen(
                         }
                     }
                 } else {
-                    items(storeDetail.images) {
-                        Box(
-                            modifier = Modifier.width(265.dp).height(150.dp).background(SubLightGray, RectangleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_row_logo),
-                                contentDescription = null,
-                                tint = Color.White
-                            )
-                        }
-                    }
+                // ★ 실제 이미지 로드 (AsyncImage 사용)
+                items(storeDetail.images) { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "매장 사진",
+                        modifier = Modifier
+                            .width(265.dp)
+                            .height(150.dp)
+                            .background(SubLightGray, RectangleShape),
+                        contentScale = ContentScale.Crop, // 이미지 크롭 처리
+                        placeholder = painterResource(id = R.drawable.ic_row_logo), // 로딩 중 표시
+                        error = painterResource(id = R.drawable.ic_row_logo) // 에러 시 표시
+                    )
                 }
+            }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

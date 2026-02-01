@@ -25,6 +25,8 @@ android {
         versionCode = 5
         versionName = "1.4"
 
+        multiDexEnabled = true
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // 1. 네이버 지도 키 (이미 하셨다면 유지)
@@ -39,12 +41,18 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // ★ 디버그 모드에서는 반드시 false여야 합니다.
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
         }
     }
     compileOptions {
@@ -114,4 +122,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+
+    implementation("androidx.multidex:multidex:2.0.1")
 }
