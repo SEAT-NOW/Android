@@ -26,13 +26,13 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.gmg.seatnow.presentation.login.DeveloperLoginScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.ChangePasswordScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.CheckPasswordScreen
-import com.gmg.seatnow.presentation.owner.store.mypage.account.EditAccountInfoScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.store.EditStoreContactScreen
-import com.gmg.seatnow.presentation.owner.store.mypage.storeInfo.EditStoreInfoScreen
-import com.gmg.seatnow.presentation.owner.store.mypage.storeManage.storeManageEdit.StoreEditMainScreen
+import com.gmg.seatnow.presentation.owner.store.storeManage.storeInfo.EditStoreInfoScreen
+import com.gmg.seatnow.presentation.owner.store.storeManage.storeManageEdit.StoreEditMainScreen
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -86,6 +86,20 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToTerms = { isGuest ->
                     navController.navigate("user_terms/$isGuest")
+                },
+                onNavigateToDeveloperLogin = {
+                    navController.navigate("developer_login")
+                }
+            )
+        }
+
+        composable("developer_login") {
+            DeveloperLoginScreen(
+                onNavigateToBack = { navController.popBackStack() },
+                onNavigateToUserMain = {
+                    navController.navigate("user_main") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 }
             )
         }
@@ -234,6 +248,9 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToEditStoreInfo = {
                     navController.navigate("edit_store_info")
+                },
+                onNavigateToEditStoreManagement = {
+                    navController.navigate("store_edit_main")
                 }
             )
         }

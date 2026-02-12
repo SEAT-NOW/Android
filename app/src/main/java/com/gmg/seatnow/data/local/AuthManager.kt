@@ -2,6 +2,7 @@ package com.gmg.seatnow.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.gmg.seatnow.domain.model.StoreDetail
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +21,10 @@ class AuthManager @Inject constructor(
         private const val KEY_AGREED_KAKAO = "is_agreed_kakao"
 
         private const val KEY_USER_NICKNAME = "user_nickname"
+        private const val KEY_IS_TESTER = "is_tester"
     }
+
+    private val _fakeKeepList = mutableListOf<StoreDetail>()
 
     fun saveUserInfo(nickname: String?) {
         prefs.edit()
@@ -55,6 +59,7 @@ class AuthManager @Inject constructor(
             .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_STORE_ID) // ★ 삭제
             .remove(KEY_USER_NICKNAME)
+            .remove(KEY_IS_TESTER)
             .apply()
     }
 
@@ -95,4 +100,30 @@ class AuthManager @Inject constructor(
     }
 
     fun getUserNickname(): String? = prefs.getString(KEY_USER_NICKNAME, null)
+
+    fun setTesterMode(isTester: Boolean) {
+        prefs.edit().putBoolean(KEY_IS_TESTER, isTester).apply()
+    }
+
+    // ★ [추가] 개발자 모드 확인
+    fun isTester(): Boolean {
+        return prefs.getBoolean(KEY_IS_TESTER, false)
+    }
+
+    fun addFakeKeep(store: StoreDetail) {
+        if (_fakeKeepList.none { it.id == store.id }) {
+            // 킵 목록에선 무조건 isKept = true여야 하므로 copy로 상태 강제
+            _fakeKeepList.add(store.copy(isKept = true))
+        }
+    }
+
+    // 가짜 킵 삭제
+    fun removeFakeKeep(storeId: Long) {
+        _fakeKeepList.removeAll { it.id == storeId }
+    }
+
+    // 가짜 킵 목록 조회
+    fun getFakeKeepList(): List<StoreDetail> {
+        return _fakeKeepList.toList()
+    }
 }

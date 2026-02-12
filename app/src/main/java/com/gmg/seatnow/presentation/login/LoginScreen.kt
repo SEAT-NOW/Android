@@ -35,6 +35,7 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(), // Hilt 주입
     onNavigateToUserMain: () -> Unit,
     onNavigateToOwnerLogin: () -> Unit,
+    onNavigateToDeveloperLogin: () -> Unit,
     onNavigateToTerms: (Boolean) -> Unit
 ) {
     // ViewModel 이벤트 감지
@@ -46,6 +47,7 @@ fun LoginScreen(
                 is LoginViewModel.LoginEvent.NavigateToTerms -> {
                     onNavigateToTerms(event.isGuest)
                 }
+                is LoginViewModel.LoginEvent.NavigateToDeveloperLogin -> onNavigateToDeveloperLogin()
             }
         }
     }
@@ -55,7 +57,8 @@ fun LoginScreen(
     LoginScreenContent(
         onKakaoLoginClick = viewModel::onKakaoLoginClick,
         onOwnerLoginClick = viewModel::onOwnerLoginClick,
-        onGuestLoginClick = viewModel::onGuestLoginClick
+        onGuestLoginClick = viewModel::onGuestLoginClick,
+        onDeveloperLoginClick = viewModel::onDeveloperLoginClick // 전달
     )
 }
 
@@ -63,7 +66,8 @@ fun LoginScreen(
 fun LoginScreenContent(
     onKakaoLoginClick: () -> Unit, // 카카오 로그인 버튼 눌렀을 때 동작
     onOwnerLoginClick: () -> Unit,  // 사장님 링크 눌렀을 때 동작
-    onGuestLoginClick: () -> Unit // 게스트 로그인 동작
+    onGuestLoginClick: () -> Unit ,// 게스트 로그인 동작
+    onDeveloperLoginClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -84,6 +88,20 @@ fun LoginScreenContent(
                 .padding(30.dp) // 여백
                 .clickable { onGuestLoginClick() }
         )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 48.dp, end = 24.dp) // 둘러보기 버튼 위치와 비슷하게
+        ) {
+            Text(
+                text = "개발자",
+                color = Color.White.copy(alpha = 0.5f), // 너무 튀지 않게 반투명
+                style = MaterialTheme.typography.labelSmall,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.clickable { onDeveloperLoginClick() }
+            )
+        }
 
         // 1. 중앙 내용 (로고 + 텍스트)
         Column(
@@ -158,7 +176,8 @@ fun LoginScreenPreview() {
         LoginScreenContent(
             onKakaoLoginClick = {},
             onOwnerLoginClick = {},
-            onGuestLoginClick = {}
+            onGuestLoginClick = {},
+            onDeveloperLoginClick = {}
         )
     }
 }

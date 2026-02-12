@@ -8,7 +8,6 @@ import javax.inject.Inject
 class GetStoresByHeadCountUseCase @Inject constructor(
     private val repository: MapRepository
 ) {
-    // ★ keyword 추가
     operator fun invoke(
         headCount: Int,
         keyword: String? = null,
@@ -17,9 +16,10 @@ class GetStoresByHeadCountUseCase @Inject constructor(
         radius: Double,
         userLat: Double?,
         userLng: Double?
-    ): Flow<List<Store>> {
+    ): Flow<Pair<List<Store>, List<String>>> { // ★ 반환 타입 변경
         return repository.getStores(
             keyword = keyword,
+            universityName = null,
             minPerson = headCount,
             centerLat = lat,
             centerLng = lng,

@@ -1,4 +1,4 @@
-package com.gmg.seatnow.data.model.response
+    package com.gmg.seatnow.data.model.response
 
 import android.annotation.SuppressLint
 import androidx.annotation.Keep

@@ -13,11 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.owner.store.manage.StoreManagementScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageScreen
@@ -34,7 +32,8 @@ fun StoreMainRoute(
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToEditAccount: () -> Unit,
     onNavigateToEditSeatConfig: () -> Unit,
-    onNavigateToEditStoreInfo: () -> Unit
+    onNavigateToEditStoreInfo: () -> Unit,
+    onNavigateToEditStoreManagement: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -47,7 +46,8 @@ fun StoreMainRoute(
         onNavigateToAccountInfo = onNavigateToAccountInfo,
         onNavigateToEditAccount = onNavigateToEditAccount,
         onNavigateToEditSeatConfig = onNavigateToEditSeatConfig,
-        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo
+        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo,
+        onNavigateToEditStoreManagement = onNavigateToEditStoreManagement
     )
 }
 
@@ -59,7 +59,8 @@ fun StoreMainScreen(
     onNavigateToAccountInfo: () -> Unit,
     onNavigateToEditAccount: () -> Unit,
     onNavigateToEditSeatConfig: () -> Unit,
-    onNavigateToEditStoreInfo: () -> Unit
+    onNavigateToEditStoreInfo: () -> Unit,
+    onNavigateToEditStoreManagement: () -> Unit
 ) {
     Scaffold(
         containerColor = White,
@@ -82,7 +83,7 @@ fun StoreMainScreen(
                 }
                 StoreTab.STORE_MANAGEMENT -> {
                     StoreManagementScreen(
-                        onEditStoreInfoClick = onNavigateToEditStoreInfo
+                        onEditStoreInfoClick = onNavigateToEditStoreManagement
                     )
                 }
                 StoreTab.MY_PAGE -> {

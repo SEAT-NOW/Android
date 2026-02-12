@@ -9,15 +9,17 @@ class GetStoresUseCase @Inject constructor(
     private val repository: MapRepository
 ) {
     operator fun invoke(
-        keyword: String? = null, // ★ [추가]
+        keyword: String? = null,
+        universityName: String? = null,
         lat: Double,
         lng: Double,
         radius: Double,
         userLat: Double? = null,
         userLng: Double? = null
-    ): Flow<List<Store>> {
+    ): Flow<Pair<List<Store>, List<String>>> { // ★ 반환 타입 변경
         return repository.getStores(
             keyword = keyword,
+            universityName = universityName,
             minPerson = 0,
             centerLat = lat,
             centerLng = lng,

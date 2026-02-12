@@ -209,6 +209,23 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun requestEmailCode() {
         val email = _uiState.value.email
         if (email.isBlank() || _uiState.value.emailError != null) return
+
+        if (email == "reviewer@seatnow.com" || email.startsWith("test")) {
+            startEmailTimer()
+            _uiState.update {
+                it.copy(
+                    isEmailCodeSent = true,
+                    authCode = "", // 초기화
+                    isEmailVerificationAttempted = false,
+                    emailVerifiedError = null
+                )
+            }
+            viewModelScope.launch {
+                _event.emit(SignUpEvent.ShowToast("[TEST] 인증번호 123456을 입력하세요."))
+            }
+            return // API 호출 안 하고 종료
+        }
+
         viewModelScope.launch {
             // [UseCase 적용] 이메일 인증 요청
             requestEmailAuthCodeUseCase(email)
@@ -231,6 +248,19 @@ class OwnerSignUpViewModel @Inject constructor(
         val email = _uiState.value.email
         val code = _uiState.value.authCode
         _uiState.update { it.copy(isEmailVerificationAttempted = true) }
+        if ((email == "reviewer@seatnow.com" || email.startsWith("test")) && code == "123456") {
+            stopEmailTimer()
+            _uiState.update {
+                it.copy(
+                    isEmailVerified = true,
+                    emailTimerText = null,
+                    emailVerifiedError = null
+                )
+            }
+            checkNextButtonEnabled()
+            return // API 호출 안 하고 종료
+        }
+
         stopEmailTimer()
         viewModelScope.launch {
             // [UseCase 적용] 인증번호 검증
@@ -253,6 +283,21 @@ class OwnerSignUpViewModel @Inject constructor(
         val phone = _uiState.value.phone
         // 하이픈이 섞여있어도 UseCase 혹은 로직에서 제거한다고 가정 (여기선 길이만 체크)
         if (phone.length < 10) return
+        if (phone == "01000000000") {
+            startPhoneTimer()
+            _uiState.update {
+                it.copy(
+                    isPhoneCodeSent = true,
+                    phoneAuthCode = "",
+                    isPhoneVerificationAttempted = false,
+                    phoneVerifiedError = null
+                )
+            }
+            viewModelScope.launch {
+                _event.emit(SignUpEvent.ShowToast("[TEST] 인증번호 123456을 입력하세요."))
+            }
+            return
+        }
 
         viewModelScope.launch {
             // [변경] 분리된 UseCase 호출
@@ -281,6 +326,19 @@ class OwnerSignUpViewModel @Inject constructor(
         val phone = _uiState.value.phone
         val code = _uiState.value.phoneAuthCode
         _uiState.update { it.copy(isPhoneVerificationAttempted = true) }
+        if (phone == "01000000000" && code == "123456") {
+            stopPhoneTimer()
+            _uiState.update {
+                it.copy(
+                    isPhoneVerified = true,
+                    phoneTimerText = null,
+                    phoneVerifiedError = null
+                )
+            }
+            checkNextButtonEnabled()
+            return
+        }
+
         stopPhoneTimer() // 타이머 멈춤
         viewModelScope.launch {
             // [변경] 핸드폰 전용 UseCase 호출 (실제 API)
@@ -402,6 +460,21 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun verifyBusinessNumber() {
         val num = _uiState.value.businessNumber
         if (num.length != 10) return
+
+        if (num == "0000000000") {
+            _uiState.update {
+                it.copy(
+                    isBusinessNumVerified = true,
+                    businessNumberError = null
+                )
+            }
+            checkNextButtonEnabled()
+            viewModelScope.launch {
+                _event.emit(SignUpEvent.ShowToast("[TEST] 사업자 인증 통과"))
+            }
+            return
+        }
+
         viewModelScope.launch {
             // [UseCase 적용]
             verifyBusinessNumberUseCase(num)

@@ -106,7 +106,7 @@ class SeatManagementViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             // Repository 캐시 덕분에 화면 복귀 시 API 호출 없이 즉시 반환됨
-            getSeatStatusUseCase()
+            getSeatStatusUseCase(forceRefresh = true)
                 .onSuccess { data ->
                     // 1. 카테고리(층) 설정
                     // 2. 전체 테이블 데이터 저장

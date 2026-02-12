@@ -17,13 +17,17 @@ if (localPropertiesFile.exists()) {
 android {
     namespace = "com.gmg.seatnow"
     compileSdk = 35
-
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     defaultConfig {
         applicationId = "com.gmg.seatnow"
         minSdk = 29
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 12
+        versionName = "2.4"
 
         multiDexEnabled = true
 
@@ -40,19 +44,30 @@ android {
         manifestPlaceholders["KAKAO_APP_KEY"] = kakaoKey
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(localProperties.getProperty("STORE_FILE") ?: "keystore.jks")
+            storePassword = localProperties.getProperty("STORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             // ★ 디버그 모드에서는 반드시 false여야 합니다.
             isMinifyEnabled = false
             isShrinkResources = false
         }
-        release {
-            isMinifyEnabled = false
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-
         }
     }
     compileOptions {

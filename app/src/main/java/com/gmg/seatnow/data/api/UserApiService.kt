@@ -4,6 +4,7 @@ import com.gmg.seatnow.data.model.response.BaseResponse
 import com.gmg.seatnow.data.model.response.StoreDetailResponse
 import com.gmg.seatnow.data.model.response.StoreKeptResponseDTO
 import com.gmg.seatnow.data.model.response.StoreMapResponseDTO
+import com.gmg.seatnow.data.model.response.StoreSearchResponseDTO
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -16,12 +17,13 @@ interface UserApiService {
     @GET("/api/v1/stores/search")
     suspend fun getStoresOnMap(
         @Query("keyword") keyword: String?,
+        @Query("universityName") universityName: String? = null,
         // ★ 여기가 minPerson이 아니라 "headCount"여야 합니다!
         @Query("headCount") headCount: Int?,
         @Query("lat") lat: Double,
         @Query("lng") lng: Double,
         @Query("radius") radius: Double
-    ): Response<BaseResponse<List<StoreMapResponseDTO>>>
+    ): Response<BaseResponse<StoreSearchResponseDTO>>
 
     // [상세 조회] 반환 타입을 StoreDetailResponse로 변경
     @GET("/api/v1/stores/details/{storeId}")
@@ -44,5 +46,11 @@ interface UserApiService {
     @POST("/api/v1/stores/{storeId}/keep")
     suspend fun keepStore(
         @Path("storeId") storeId: Long
+    ): Response<BaseResponse<Boolean>>
+
+    //좋아요 버튼
+    @POST("/api/v1/menus/{menuId}/like")
+    suspend fun toggleMenuLike(
+        @Path("menuId") menuId: Long
     ): Response<BaseResponse<Boolean>>
 }

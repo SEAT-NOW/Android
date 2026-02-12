@@ -9,7 +9,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -223,7 +225,7 @@ fun UserHomeScreen(
         sheetDragHandle = {
             if (!isSearchActive) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(48.dp).background(Color.Transparent)
+                    modifier = Modifier.fillMaxWidth().height(48.dp).background(Color.White)
                         .pointerInput(Unit) { // 제스처 감지기 유지
                             var dragAccumulator = 0f
                             detectVerticalDragGestures(
@@ -355,6 +357,32 @@ fun UserHomeScreen(
                                 )
                             }
                         },
+                        onUniversityClick = { uniName ->
+                            isSearchActive = false  // 1. 검색창 닫기
+                            viewModel.clearSearch() // 2. 검색어 초기화 (선택사항)
+
+                            // 3. 대학명으로 API 호출 (universityName 파라미터 사용)
+                            viewModel.fetchStoresByUniversity(
+                                uniName = uniName,
+                                lat = center.latitude,
+                                lng = center.longitude,
+                                radius = 2.0, // 대학 주변 2km 탐색
+                                userLat = currentUserLocation?.latitude,
+                                userLng = currentUserLocation?.longitude
+                            ) { firstStore ->
+                                // 4. 결과가 있으면 해당 위치로 지도 이동
+                                if (firstStore != null) {
+                                    trackingMode = LocationTrackingMode.None
+                                    coroutineScope.launch {
+                                        cameraPositionState.stop()
+                                        cameraPositionState.animate(
+                                            update = CameraUpdate.scrollTo(LatLng(firstStore.latitude, firstStore.longitude)),
+                                            durationMs = 1000
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         viewModel = viewModel,
                         currentLat = center.latitude,
                         currentLng = center.longitude,
@@ -365,7 +393,12 @@ fun UserHomeScreen(
             }
             else {
                 Column(
-                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 0.dp, start = 16.dp, end = 16.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding() // 1. 시스템 상태바 높이만큼 자동 확보 (Notch 대응)
+                        // ★ [수정] top = 0.dp -> 16.dp로 변경
+                        // 상태바 바로 아래에서 16dp만큼 더 띄워서 '떠있는 느낌'을 줍니다.
+                        .padding(top = 16.dp, start = 16.dp, end = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     HomeSearchBar(
@@ -455,6 +488,7 @@ fun UserHomeScreen(
 }
 
 // ★ [수정됨] 바텀시트 컨텐츠
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeBottomSheetContent(
     storeList: List<Store>,
@@ -465,100 +499,104 @@ fun HomeBottomSheetContent(
     onItemClick: (Store) -> Unit
 ) {
     val context = LocalContext.current
-
     val listState = rememberLazyListState()
+
     val nestedScrollConnection = remember(listState, sheetStep) {
         object : NestedScrollConnection {
+            // 1. 스크롤 되기 전 (헤더 처리 등)
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val isScrollingDown = available.y > 0
+                val delta = available.y
+                val isScrollingDown = delta > 0
                 val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
 
-                // 리스트 최상단에서 '아래로' 당길 때만 개입합니다.
-                // 위로 당길 때(available.y < 0)는 아무것도 하지 않아야 Compose가 부드럽게 FULL로 확장시킵니다.
+                // 상단에서 아래로 당길 때 바텀시트 단계 조절 (기존 로직)
                 if (isScrollingDown && isAtTop) {
                     if (sheetStep == BottomSheetStep.HALF) {
-                        // 1. HALF에서 당기기 시작하면 상태를 COLLAPSED로 변경
                         onScrollDownAtTop()
-                        return available // 드래그 이벤트 흡수
+                        return available
                     } else if (sheetStep == BottomSheetStep.COLLAPSED) {
-                        // 2. [핵심] 이미 축소되는 중에도 사용자의 손가락은 계속 드래그 중입니다.
-                        // 이 잔여 드래그가 Scaffold로 넘어가서 렉을 유발하는 것을 '완벽히 차단'합니다.
                         return available
                     }
                 }
-                // 위로 당기거나, 리스트 중간을 스크롤할 때는 Compose 기본 물리 엔진에 100% 위임
+                return Offset.Zero
+            }
+
+            // 2. ★ [핵심 해결] 스크롤 되고 난 후 (남은 스크롤 처리)
+            // 리스트가 바닥에 닿아서 더 이상 스크롤할 수 없을 때 남은 available이 들어옵니다.
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                // 사용자가 위로 드래그 중(y < 0)인데 리스트가 다 내려가서 남은 스크롤이 있다면?
+                if (available.y < 0) {
+                    // 여기서 'available'을 전부 반환하면 "내가 다 썼어"라고 거짓말을 하게 됩니다.
+                    // 결과적으로 부모(BottomSheetScaffold)에게는 스크롤이 전달되지 않아 시트가 들리지 않습니다.
+                    return available
+                }
                 return Offset.Zero
             }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (storeList.isNotEmpty()) Modifier.fillMaxHeight(0.8f)
-                else Modifier.height(260.dp)
-            )
-            .background(White)
+    // 오버스크롤(고무줄) 효과 제거
+    CompositionLocalProvider(
+        LocalOverscrollConfiguration provides null
     ) {
-        if (storeList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 64.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isLoading) {
-                    Text(
-                        text = "검색 중입니다...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = SubGray
-                    )
-                } else {
-                    val count = activeFilter
-                    if (count != null) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(bottom = 20.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.img_emptylist),
-                                contentDescription = null,
-                                modifier = Modifier.size(100.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "지금은 '${count}명'이 앉을 수 있는 술집이 없어요",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = SubGray
-                            )
-                        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                // ★ 사용자님 의도대로 0.8f 높이 유지
+                .then(
+                    if (storeList.isNotEmpty()) Modifier.fillMaxHeight(0.8f)
+                    else Modifier.height(260.dp)
+                )
+                .background(White)
+        ) {
+            if (storeList.isEmpty()) {
+                // ... (빈 화면 로직 동일) ...
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 64.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
+                        Text(text = "검색 중입니다...", style = MaterialTheme.typography.bodyMedium, color = SubGray)
                     } else {
-                        Text(
-                            text = "이 지역에 등록된 술집이 없습니다.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SubGray
-                        )
+                        val count = activeFilter
+                        if (count != null) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(bottom = 20.dp)) {
+                                Image(painter = painterResource(id = R.drawable.img_emptylist), contentDescription = null, modifier = Modifier.size(100.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(text = "지금은 '${count}명'이 앉을 수 있는 술집이 없어요", style = MaterialTheme.typography.bodyMedium, color = SubGray)
+                            }
+                        } else {
+                            Text(text = "이 지역에 등록된 술집이 없습니다.", style = MaterialTheme.typography.bodyMedium, color = SubGray)
+                        }
                     }
                 }
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(nestedScrollConnection),
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
-                itemsIndexed(storeList) { index, store ->
-                    StoreListItem(
-                        index = index + 1,
-                        store = store,
-                        onItemClick = { onItemClick(store) },
-                        onCallClick = { IntentUtil.makePhoneCall(context, store.storePhone) }
-                    )
-                    HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(nestedScrollConnection), // ★ 수정된 연결 객체 적용
+                    contentPadding = PaddingValues(bottom = 20.dp)
+                ) {
+                    itemsIndexed(storeList) { index, store ->
+                        StoreListItem(
+                            index = index + 1,
+                            store = store,
+                            onItemClick = { onItemClick(store) },
+                            onCallClick = { IntentUtil.makePhoneCall(context, store.storePhone) }
+                        )
+                        if (index < storeList.lastIndex) {
+                            HorizontalDivider(
+                                color = SubPaleGray,
+                                thickness = 1.dp,
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .padding(vertical = 10.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

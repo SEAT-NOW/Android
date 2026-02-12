@@ -18,7 +18,7 @@ data class StoreDetailResponse(
     @SerializedName("storePhone") val storePhone: String?,
     @SerializedName("totalSeatCount") val totalSeatCount: Int,
     @SerializedName("usedSeatCount") val usedSeatCount: Int,
-    @SerializedName("statusTag") val statusTag: String,
+    @SerializedName("statusTagName") val statusTagName: String,
     @SerializedName("operationStatus") val operationStatus: String,
     @SerializedName("openingHours") val openingHours: List<OpeningHourItem>,
     @SerializedName("regularHolidays") val regularHolidays: List<RegularHolidayItem>,
@@ -47,7 +47,9 @@ data class SeatMenuItem(
     @SerialName("id") val id: Long,
     @SerialName("name") val name: String,
     @SerialName("price") val price: Int,
-    @SerialName("imageUrl") val imageUrl: String?
+    @SerialName("imageUrl") val imageUrl: String?,
+    @SerializedName("isBest") val isBest: Boolean = false,
+    @SerializedName("isLiked") val isLiked: Boolean = false
 )
 
 @SuppressLint("UnsafeOptInUsageError")

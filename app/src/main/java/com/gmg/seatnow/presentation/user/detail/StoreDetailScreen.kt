@@ -68,7 +68,7 @@ fun StoreDetailRoute(
             storeDetail = storeDetail!!,
             menuCategories = menuCategories,
             onLikeClicked = viewModel::onLikeClicked,
-            onKeepClicked = viewModel::toggleStoreKeep, // ★ ViewModel 함수 연결
+            onKeepClicked = viewModel::onKeepClicked, // ★ ViewModel 함수 연결
             onBackClick = onBackClick
         )
     } else {
@@ -86,8 +86,8 @@ fun StoreDetailScreen(
     modifier: Modifier = Modifier,
     menuCategories: List<MenuCategoryUiModel>,
     initialTabIndex: Int = 0,
-    onLikeClicked: (Long, Boolean) -> Unit,
-    onKeepClicked: () -> Unit,
+    onLikeClicked: (Long) -> Unit,
+    onKeepClicked: (Long, Boolean) -> Unit,
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current // ★ 전화 걸기를 위한 Context
@@ -102,7 +102,7 @@ fun StoreDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onKeepClicked) {
+                    IconButton(onClick = { onKeepClicked(storeDetail.id, !storeDetail.isKept) }) {
                         // isKept 상태에 따라 보여줄 아이콘 리소스 결정
                         val keepIconRes = if (storeDetail.isKept) {
                             // TODO: 여기에 '눌렸을 때(빨간색/채워진)' 사용할 Drawable ID를 넣으세요.
@@ -248,126 +248,126 @@ fun StoreDetailScreen(
 
 // ======================= PREVIEWS =======================
 
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
-@Composable
-fun StoreDetailScreenPreview() {
-    SeatNowTheme {
-        val dummyMenuCategories = listOf(
-            MenuCategoryUiModel(
-                categoryName = "시그니처 메뉴",
-                menuItems = listOf(
-                    MenuItemUiModel(1, "바지락 술찜", 18000, "", true, false),
-                    MenuItemUiModel(2, "매콤 국물 떡볶이", 15000, "", false, true)
-                )
-            )
-        )
+//@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
+//@Composable
+//fun StoreDetailScreenPreview() {
+//    SeatNowTheme {
+//        val dummyMenuCategories = listOf(
+//            MenuCategoryUiModel(
+//                categoryName = "시그니처 메뉴",
+//                menuItems = listOf(
+//                    MenuItemUiModel(1, "바지락 술찜", 18000, "", true, false),
+//                    MenuItemUiModel(2, "매콤 국물 떡볶이", 15000, "", false, true)
+//                )
+//            )
+//        )
+//
+//        StoreDetailScreen(
+//            storeDetail = StoreDetail(
+//                id = 1L,
+//                name = "맛있는 술집 신촌본점",
+//                images = listOf("image1", "image2", "image3", "image4"),
+//                operationStatus = "영업 중",
+//                storePhone = "02-312-3456",
+//                availableSeatCount = 4,
+//                totalSeatCount = 15,
+//                status = StoreStatus.SPARE,
+//                universityInfo = "연세대학교 신촌캠퍼스 도보 5분",
+//                address = "서울특별시 서대문구 연세로 12길 34, 1층",
+//                openHours = "매일 17:00 ~ 03:00",
+//                closedDays = "토 · 일 휴무"
+//            ),
+//            menuCategories = dummyMenuCategories,
+//            onLikeClicked = { _, _ -> },
+//            onKeepClicked = {},
+//            onBackClick = {}
+//        )
+//    }
+//}
 
-        StoreDetailScreen(
-            storeDetail = StoreDetail(
-                id = 1L,
-                name = "맛있는 술집 신촌본점",
-                images = listOf("image1", "image2", "image3", "image4"),
-                operationStatus = "영업 중",
-                storePhone = "02-312-3456",
-                availableSeatCount = 4,
-                totalSeatCount = 15,
-                status = StoreStatus.SPARE,
-                universityInfo = "연세대학교 신촌캠퍼스 도보 5분",
-                address = "서울특별시 서대문구 연세로 12길 34, 1층",
-                openHours = "매일 17:00 ~ 03:00",
-                closedDays = "토 · 일 휴무"
-            ),
-            menuCategories = dummyMenuCategories,
-            onLikeClicked = { _, _ -> },
-            onKeepClicked = {},
-            onBackClick = {}
-        )
-    }
-}
+//@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "1. 메뉴 있는 상태")
+//@Composable
+//fun StoreMenuTabPreview_Filled() {
+//    SeatNowTheme {
+//        val dummyMenuCategories = listOf(
+//            MenuCategoryUiModel(
+//                categoryName = "시그니처 메뉴",
+//                menuItems = listOf(
+//                    MenuItemUiModel(id = 1, name = "바지락 술찜", price = 18000, imageUrl = "", isRecommended = true, isLiked = false),
+//                    MenuItemUiModel(id = 2, name = "매콤 국물 떡볶이", price = 15000, imageUrl = "", isRecommended = false, isLiked = true)
+//                )
+//            ),
+//            MenuCategoryUiModel(
+//                categoryName = "튀김/마른안주",
+//                menuItems = listOf(
+//                    MenuItemUiModel(id = 3, name = "모듬 감자튀김", price = 12000, imageUrl = "", isRecommended = false, isLiked = false)
+//                )
+//            )
+//        )
+//
+//        Box(modifier = Modifier.height(600.dp)) {
+//            // ★ 수정됨: StoreMenuContent -> StoreMenuTab
+//            StoreMenuTab(
+//                menuCategories = dummyMenuCategories,
+//                onLikeClicked = { _, _ -> }
+//            )
+//        }
+//    }
+//}
 
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "1. 메뉴 있는 상태")
-@Composable
-fun StoreMenuTabPreview_Filled() {
-    SeatNowTheme {
-        val dummyMenuCategories = listOf(
-            MenuCategoryUiModel(
-                categoryName = "시그니처 메뉴",
-                menuItems = listOf(
-                    MenuItemUiModel(id = 1, name = "바지락 술찜", price = 18000, imageUrl = "", isRecommended = true, isLiked = false),
-                    MenuItemUiModel(id = 2, name = "매콤 국물 떡볶이", price = 15000, imageUrl = "", isRecommended = false, isLiked = true)
-                )
-            ),
-            MenuCategoryUiModel(
-                categoryName = "튀김/마른안주",
-                menuItems = listOf(
-                    MenuItemUiModel(id = 3, name = "모듬 감자튀김", price = 12000, imageUrl = "", isRecommended = false, isLiked = false)
-                )
-            )
-        )
+//@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "메뉴 탭 선택된 전체 화면")
+//@Composable
+//fun StoreDetailScreenMenuTabPreview() {
+//    SeatNowTheme {
+//        val dummyMenuCategories = listOf(
+//            MenuCategoryUiModel(
+//                categoryName = "시그니처 메뉴",
+//                menuItems = listOf(
+//                    MenuItemUiModel(id = 1, name = "바지락 술찜", price = 18000, imageUrl = "", isRecommended = true, isLiked = false),
+//                    MenuItemUiModel(id = 2, name = "매콤 국물 떡볶이", price = 15000, imageUrl = "", isRecommended = false, isLiked = true)
+//                )
+//            ),
+//            MenuCategoryUiModel(
+//                categoryName = "튀김/마른안주",
+//                menuItems = listOf(
+//                    MenuItemUiModel(id = 3, name = "모듬 감자튀김", price = 12000, imageUrl = "", isRecommended = false, isLiked = false)
+//                )
+//            )
+//        )
+//        StoreDetailScreen(
+//            storeDetail = StoreDetail(
+//                id = 1L,
+//                name = "맛있는 술집 신촌본점",
+//                images = listOf("image1", "image2", "image3", "image4"),
+//                operationStatus = "영업 중",
+//                storePhone = "02-312-3456",
+//                availableSeatCount = 4,
+//                totalSeatCount = 15,
+//                status = StoreStatus.SPARE,
+//                universityInfo = "연세대학교 신촌캠퍼스 도보 5분",
+//                address = "서울특별시 서대문구 연세로 12길 34, 1층",
+//                openHours = "매일 17:00 ~ 03:00",
+//                closedDays = "토 · 일 휴무"
+//            ),
+//            menuCategories = dummyMenuCategories,
+//            onLikeClicked = { _, _ -> },
+//            onKeepClicked = {},
+//            onBackClick = {},
+//            initialTabIndex = 1
+//        )
+//    }
+//}
 
-        Box(modifier = Modifier.height(600.dp)) {
-            // ★ 수정됨: StoreMenuContent -> StoreMenuTab
-            StoreMenuTab(
-                menuCategories = dummyMenuCategories,
-                onLikeClicked = { _, _ -> }
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "메뉴 탭 선택된 전체 화면")
-@Composable
-fun StoreDetailScreenMenuTabPreview() {
-    SeatNowTheme {
-        val dummyMenuCategories = listOf(
-            MenuCategoryUiModel(
-                categoryName = "시그니처 메뉴",
-                menuItems = listOf(
-                    MenuItemUiModel(id = 1, name = "바지락 술찜", price = 18000, imageUrl = "", isRecommended = true, isLiked = false),
-                    MenuItemUiModel(id = 2, name = "매콤 국물 떡볶이", price = 15000, imageUrl = "", isRecommended = false, isLiked = true)
-                )
-            ),
-            MenuCategoryUiModel(
-                categoryName = "튀김/마른안주",
-                menuItems = listOf(
-                    MenuItemUiModel(id = 3, name = "모듬 감자튀김", price = 12000, imageUrl = "", isRecommended = false, isLiked = false)
-                )
-            )
-        )
-        StoreDetailScreen(
-            storeDetail = StoreDetail(
-                id = 1L,
-                name = "맛있는 술집 신촌본점",
-                images = listOf("image1", "image2", "image3", "image4"),
-                operationStatus = "영업 중",
-                storePhone = "02-312-3456",
-                availableSeatCount = 4,
-                totalSeatCount = 15,
-                status = StoreStatus.SPARE,
-                universityInfo = "연세대학교 신촌캠퍼스 도보 5분",
-                address = "서울특별시 서대문구 연세로 12길 34, 1층",
-                openHours = "매일 17:00 ~ 03:00",
-                closedDays = "토 · 일 휴무"
-            ),
-            menuCategories = dummyMenuCategories,
-            onLikeClicked = { _, _ -> },
-            onKeepClicked = {},
-            onBackClick = {},
-            initialTabIndex = 1
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "2. 데이터 없는 상태")
-@Composable
-fun StoreMenuTabPreview_Empty() {
-    SeatNowTheme {
-        Box(modifier = Modifier.height(300.dp)) {
-            // ★ 수정됨: StoreMenuContent -> StoreMenuTab
-            StoreMenuTab(
-                menuCategories = emptyList(),
-                onLikeClicked = { _, _ -> }
-            )
-        }
-    }
-}
+//@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "2. 데이터 없는 상태")
+//@Composable
+//fun StoreMenuTabPreview_Empty() {
+//    SeatNowTheme {
+//        Box(modifier = Modifier.height(300.dp)) {
+//            // ★ 수정됨: StoreMenuContent -> StoreMenuTab
+//            StoreMenuTab(
+//                menuCategories = emptyList(),
+//                onLikeClicked = { _, _ -> }
+//            )
+//        }
+//    }
+//}

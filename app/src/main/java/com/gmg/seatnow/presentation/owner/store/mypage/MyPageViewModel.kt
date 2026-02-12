@@ -392,10 +392,10 @@ class MyPageViewModel @Inject constructor(
                     val finalSpaces = if (mappedSpaces.isEmpty()) {
                         listOf(
                             SpaceItem(
-                                id = 1,
+                                id = -System.currentTimeMillis(),
                                 name = "홀",
                                 seatCount = 0,
-                                tableList = listOf(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = ""))
+                                tableList = listOf(SignUpTableItem(id = -System.currentTimeMillis(), personCount = "", tableCount = ""))
                             )
                         )
                     } else mappedSpaces
@@ -448,14 +448,19 @@ class MyPageViewModel @Inject constructor(
         checkSeatConfigValidity()
     }
 
+    // ★ [핵심 수정] 공간 추가 시 음수 ID 사용
     private fun addSpace() {
         val currentList = _uiState.value.spaceList.toMutableList()
-        val newId = (currentList.maxOfOrNull { it.id } ?: 0) + 1
+
+        // ★ currentTimeMillis의 음수값을 사용하여 신규 아이템임을 표시 (겹칠 확률 극히 낮음)
+        val newId = -System.currentTimeMillis()
+
         val newSpace = SpaceItem(
             id = newId,
-            name = "공간 $newId",
-            tableList = listOf(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = "")),
-            isEditing = true, // 추가되자마자 수정 모드
+            name = "",
+            // ★ 테이블 ID도 음수로 생성
+            tableList = listOf(SignUpTableItem(id = -System.currentTimeMillis() - 1, personCount = "", tableCount = "")),
+            isEditing = true,
             editInput = ""
         )
         currentList.add(newSpace)
@@ -480,7 +485,8 @@ class MyPageViewModel @Inject constructor(
         val currentList = _uiState.value.spaceList.map { space ->
             if (space.id == spaceId) {
                 val newTables = space.tableList.toMutableList()
-                newTables.add(SignUpTableItem(id = System.currentTimeMillis(), personCount = "", tableCount = ""))
+                // ★ 음수 ID 생성
+                newTables.add(SignUpTableItem(id = -System.currentTimeMillis(), personCount = "", tableCount = ""))
                 space.copy(tableList = newTables, seatCount = calculateTotalSeats(newTables))
             } else space
         }
@@ -549,15 +555,13 @@ class MyPageViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // 1. Repository 호출 (API 전송 + 로컬 캐시 갱신)
+            // ★ 여기서 Repository를 호출할 때,
+            // Repository 내부에서 "ID < 0"이면 API 전송 시 null로 변환하는 로직이 필요합니다.
+            // (ViewModel은 UI용 음수 ID를 그대로 전달합니다)
             seatRepository.updateStoreLayout(currentSpaceList)
                 .onSuccess {
                     _uiState.update { it.copy(isLoading = false) }
                     _event.emit(MyPageEvent.ShowToast("좌석 정보가 성공적으로 수정되었습니다."))
-
-                    // 2. 뒤로가기
-                    // SeatManagementScreen은 onResume 시 getSeatStatus()를 호출하게 되는데,
-                    // Repository가 캐시된(수정된) 데이터를 즉시 반환하므로 변경사항이 바로 보임.
                     _event.emit(MyPageEvent.NavigateBack)
                 }
                 .onFailure { e ->

@@ -14,7 +14,7 @@ import com.gmg.seatnow.presentation.user.detail.components.StoreMenuItem // ★ 
 @Composable
 fun StoreMenuTab(
     menuCategories: List<MenuCategoryUiModel>,
-    onLikeClicked: (Long, Boolean) -> Unit,
+    onLikeClicked: (Long) -> Unit,
     showLikeButton: Boolean = true
 ) {
     if (menuCategories.isEmpty() || menuCategories.all { it.menuItems.isEmpty() }) {
@@ -41,7 +41,7 @@ fun StoreMenuTab(
                     // ★ 분리된 StoreMenuItem 호출
                     StoreMenuItem(
                         item = item,
-                        onLikeClicked = { onLikeClicked(item.id, !item.isLiked) },
+                        onLikeClicked = { onLikeClicked(item.id) },
                         showLikeButton = showLikeButton
                     )
                 }

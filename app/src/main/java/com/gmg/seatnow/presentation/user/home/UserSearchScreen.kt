@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import com.gmg.seatnow.presentation.theme.*
 fun UserSearchScreen(
     onBackClick: () -> Unit,
     onStoreClick: (Store) -> Unit,
+    onUniversityClick: (String) -> Unit,
     viewModel: UserHomeViewModel,
     currentLat: Double,
     currentLng: Double,
@@ -50,11 +52,13 @@ fun UserSearchScreen(
 ) {
     val query by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
+    val relatedUniversities by viewModel.relatedUniversities.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     UserSearchContent(
         query = query,
         searchResults = searchResults,
+        relatedUniversities = relatedUniversities,
         isLoading = isLoading,
         onBackClick = onBackClick,
         onQueryChange = { newQuery ->
@@ -66,7 +70,8 @@ fun UserSearchScreen(
         onClearQuery = {
             viewModel.onSearchQueryChanged("", currentLat, currentLng, userLat, userLng)
         },
-        onStoreClick = onStoreClick
+        onStoreClick = onStoreClick,
+        onUniversityClick = onUniversityClick
     )
 }
 
@@ -75,12 +80,14 @@ fun UserSearchScreen(
 fun UserSearchContent(
     query: String,
     searchResults: List<Store>,
+    relatedUniversities: List<String>,
     isLoading: Boolean,
     onBackClick: () -> Unit,
     onQueryChange: (String) -> Unit,
     onSearchAction: () -> Unit,
     onClearQuery: () -> Unit,
-    onStoreClick: (Store) -> Unit
+    onStoreClick: (Store) -> Unit,
+    onUniversityClick: (String) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -180,7 +187,7 @@ fun UserSearchContent(
         Box(modifier = Modifier.fillMaxSize()) {
 
             // 1. 검색 결과가 없을 때 (검색어 O, 로딩 X, 결과 0개)
-            if (searchResults.isEmpty() && query.isNotEmpty() && !isLoading) {
+            if (searchResults.isEmpty() && query.isNotEmpty() && query.isNotEmpty() && !isLoading) {
                 Column(
                     // ★ [핵심] 정중앙(0,0)보다 y축으로 -0.3f만큼 위로 올림
                     modifier = Modifier.align(BiasAlignment(0f, -0.75f)),
@@ -203,6 +210,26 @@ fun UserSearchContent(
             // 2. 검색 결과가 있을 때
             else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
+                    // ★ [Step 1] 관련 대학 리스트 (최상단)
+                    if (relatedUniversities.isNotEmpty()) {
+                        items(relatedUniversities) { university ->
+                            RelatedUniversityItem(
+                                name = university,
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    onUniversityClick(university)
+                                }
+                            )
+                            HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+                        }
+
+                        // ★ [Step 2] 영역 구분선 (2dp) - 대학 리스트가 있을 때만 표시
+                        item {
+                            HorizontalDivider(color = SubLightGray, thickness = 2.dp)
+                        }
+                    }
+
+                    // ★ [Step 3] 실질적인 검색 결과 (Store) 리스트
                     items(searchResults) { store ->
                         SearchStoreListItem(
                             store = store,
@@ -223,6 +250,38 @@ fun UserSearchContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun RelatedUniversityItem(
+    name: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp, horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 돋보기 아이콘 등 적절한 아이콘 사용 (기존 리소스 활용 또는 기본 아이콘)
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = SubGray,
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+            color = SubBlack,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -274,24 +333,6 @@ fun SearchStoreListItem(
             text = store.distance,
             style = MaterialTheme.typography.bodySmall,
             color = SubGray
-        )
-    }
-}
-
-// [Preview] 빈 화면 테스트
-@Preview(showBackground = true, name = "검색 결과 없음")
-@Composable
-fun PreviewUserSearchContentNoResults() {
-    SeatNowTheme {
-        UserSearchContent(
-            query = "악악", // 검색어 입력됨
-            searchResults = emptyList(), // 결과 없음
-            isLoading = false, // 로딩 끝남
-            onBackClick = {},
-            onQueryChange = {},
-            onSearchAction = {},
-            onClearQuery = {},
-            onStoreClick = {}
         )
     }
 }

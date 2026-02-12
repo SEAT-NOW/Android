@@ -22,16 +22,18 @@ class MapRepositoryImpl @Inject constructor(
     // 1. [홈] 지도 위 매장 검색
     override fun getStores(
         keyword: String?,
+        universityName: String?,
         minPerson: Int,
         centerLat: Double,
         centerLng: Double,
         radius: Double,
         userLat: Double?,
         userLng: Double?
-    ): Flow<List<Store>> = flow {
+    ): Flow<Pair<List<Store>, List<String>>> = flow {
         try {
             val response = userApiService.getStoresOnMap(
                 keyword = keyword,
+                universityName = universityName,
                 headCount = if (minPerson > 0) minPerson else null,
                 lat = centerLat,
                 lng = centerLng,
@@ -39,9 +41,17 @@ class MapRepositoryImpl @Inject constructor(
             )
 
             if (response.isSuccessful && response.body()?.success == true) {
-                val dtoList = response.body()?.data ?: emptyList()
+                // ★ [수정 포인트] data 객체 안의 stores 리스트를 꺼내야 함
+                val data = response.body()?.data
+                val dtoList = data?.stores ?: emptyList()
+                // ★ [추가] 관련 대학 리스트 추출
+                val relatedUniversities = data?.relatedUniversities ?: emptyList()
+
                 val domainList = dtoList.map { dto ->
-                    val distStr = calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
+                    // 거리: API가 준 값을 우선 사용하되, 없으면 직접 계산 (Fallback)
+                    val distStr = dto.distance ?: calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
+
+                    // 이미지: null이면 빈 리스트
                     val imageList = dto.images ?: emptyList()
 
                     Store(
@@ -49,6 +59,7 @@ class MapRepositoryImpl @Inject constructor(
                         name = dto.storeName,
                         latitude = dto.latitude,
                         longitude = dto.longitude,
+                        // statusTag("CROWDED")를 Enum으로 변환
                         status = mapStatus(dto.statusTag),
                         imageUrl = imageList.firstOrNull(),
                         neighborhood = dto.neighborhood ?: "",
@@ -60,14 +71,16 @@ class MapRepositoryImpl @Inject constructor(
                         totalSeatCount = dto.totalSeatCount
                     )
                 }
+
+                // 캐시 저장 및 방출
                 domainList.forEach { storeCache[it.id] = it }
-                emit(domainList)
+                emit(domainList to relatedUniversities)
             } else {
-                emit(emptyList())
+                emit(emptyList<Store>() to emptyList<String>())
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emit(emptyList())
+            emit(emptyList<Store>() to emptyList<String>())
         }
     }
 
@@ -90,7 +103,7 @@ class MapRepositoryImpl @Inject constructor(
                     storePhone = data.storePhone ?: "전화번호 없음",
                     availableSeatCount = (data.totalSeatCount - data.usedSeatCount).coerceAtLeast(0),
                     totalSeatCount = data.totalSeatCount,
-                    status = mapStatus(data.statusTag),
+                    status = mapStatus(data.statusTagName),
                     universityInfo = data.universityNames?.joinToString(", ") ?: "주변 대학 정보 없음",
                     address = "${data.address} ${data.neighborhood}",
                     openHours = formatOpeningHours(data.openingHours),
@@ -108,8 +121,8 @@ class MapRepositoryImpl @Inject constructor(
                                 name = menu.name,
                                 price = menu.price,
                                 imageUrl = menu.imageUrl ?: "",
-                                isRecommended = false,
-                                isLiked = false
+                                isRecommended = menu.isBest,
+                                isLiked = menu.isLiked
                             )
                         }
                     )
@@ -181,6 +194,23 @@ class MapRepositoryImpl @Inject constructor(
                 Result.success(domainList)
             } else {
                 Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun toggleMenuLike(menuId: Long): Result<Boolean> {
+        return try {
+            val response = userApiService.toggleMenuLike(menuId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // API 명세상 data가 true/false로 오거나 null일 수 있음
+                Result.success(response.body()?.data ?: true)
+            } else {
+                val errorMsg = response.body()?.message ?: "좋아요 요청 실패"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             e.printStackTrace()

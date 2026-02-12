@@ -147,11 +147,14 @@ class SeatRepositoryImpl @Inject constructor(
         return try {
             val requestDto = spaces.map { space ->
                 SpaceLayoutUpdateRequest(
-                    id = if (space.id > 1000000000) null else space.id,
+                    // ★ [수정] ID가 0보다 작으면(음수) 신규 생성이므로 null을 보냅니다.
+                    // 기존 ID(양수)는 그대로 보냅니다.
+                    id = if (space.id < 0) null else space.id,
                     name = space.name,
                     tables = space.tableList.map { table ->
                         TableLayoutUpdateRequest(
-                            tableConfigId = if (table.id > 1000000000) null else table.id,
+                            // ★ [수정] 테이블 ID도 마찬가지로 음수면 null로 보냅니다.
+                            tableConfigId = if (table.id < 0) null else table.id,
                             tableType = table.personCount.toIntOrNull() ?: 0,
                             tableCount = table.tableCount.toIntOrNull() ?: 0
                         )
@@ -162,26 +165,10 @@ class SeatRepositoryImpl @Inject constructor(
             val response = authService.updateStoreLayout(requestDto)
 
             if (response.isSuccessful && response.body()?.success == true) {
-                // [기존 유지] 레이아웃 수정 성공 시에도 캐시를 갱신합니다.
-                val newCategories = mutableListOf(FloorCategory("ALL", "전체"))
-                newCategories.addAll(spaces.map {
-                    FloorCategory(it.id.toString(), it.name)
-                })
-
-                val newAllTables = spaces.flatMap { space ->
-                    space.tableList.map { table ->
-                        TableItem(
-                            id = table.id.toString(),
-                            floorId = space.id.toString(),
-                            label = "${table.personCount}인 테이블",
-                            capacityPerTable = table.personCount.toIntOrNull() ?: 0,
-                            maxTableCount = table.tableCount.toIntOrNull() ?: 0,
-                            currentCount = 0
-                        )
-                    }
-                }
-
-                cachedSeatData = SeatStatusData(newCategories, newAllTables)
+                // ★ [중요] 구조가 변경되면(추가/삭제) 서버에서 새로운 ID가 발급됩니다.
+                // 현재 클라이언트가 가진 음수 ID는 더 이상 유효하지 않으므로
+                // 캐시를 비워버려서 다음 조회 때 서버에서 최신 데이터(진짜 ID)를 받아오도록 강제합니다.
+                cachedSeatData = null
 
                 Result.success(Unit)
             } else {

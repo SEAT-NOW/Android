@@ -3,6 +3,7 @@ package com.gmg.seatnow.data.api
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.MenuOrderRequest
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
@@ -178,7 +179,9 @@ interface AuthService {
     suspend fun getStoreImages(): Response<BaseResponse<StoreImageResponse>>
 
     @PATCH("/api/v1/stores/operation")
-    suspend fun updateStoreOperation(@Body request: StoreOperationRequest): Response<BaseResponse<Any?>>
+    suspend fun updateStoreOperation(
+        @Body request: StoreOperationRequest
+    ): Response<BaseResponse<Boolean?>>
 
     @PATCH("/api/v1/stores/menus/categories")
     suspend fun updateMenuCategories(
@@ -194,4 +197,21 @@ interface AuthService {
 
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
+
+    @Multipart
+    @PATCH("/api/v1/stores/operation/images")
+    suspend fun updateStoreImages(
+        @Part("updateData") updateData: RequestBody, // JSON
+        @Part newImages: List<MultipartBody.Part>    // Files
+    ): Response<BaseResponse<Boolean?>>
+
+    @PATCH("/api/v1/stores/menus/order")
+    suspend fun updateMenuOrders(
+        @Body request: MenuOrderRequest
+    ): Response<BaseResponse<Boolean>>
+
+    @DELETE("/api/v1/stores/menus/{menuId}")
+    suspend fun deleteMenu(
+        @Path("menuId") menuId: Long
+    ): Response<BaseResponse<Boolean>>
 }
