@@ -26,6 +26,7 @@ import com.google.gson.Gson
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -33,6 +34,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
+import javax.inject.Provider
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -40,11 +42,14 @@ import kotlin.coroutines.suspendCoroutine
 class AuthRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authManager: AuthManager,
-    private val authService: AuthService
+    private val authServiceProvider: Provider<AuthService>
 ) : AuthRepository {
 
     private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
     private var cachedStoreProfile: StoreProfileResponseDTO? = null
+
+    private val authService: AuthService
+        get() = authServiceProvider.get()
 
     override suspend fun loginKakao(): Result<KakaoLoginResult> {
         return try {
@@ -133,32 +138,18 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun reissueToken(): Result<Unit> {
-        val refreshToken = authManager.getRefreshToken() ?: return Result.failure(Exception("Refresh Token 없음"))
+        val newToken = performTokenRefreshCore()
+        return if (newToken != null) {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception("토큰 만료"))
+        }
+    }
 
-        return try {
-            // 헤더에 RefreshToken 실어서 요청
-            val response = authService.reissueToken(refreshToken)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data
-                data?.let {
-                    // 새 토큰들 저장
-                    val newAccessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
-                    val newRefreshToken = it.refreshToken
-
-                    authManager.saveTokens(newAccessToken, newRefreshToken)
-                }
-                Log.d("AuthRepo", "토큰 재발급 성공")
-                Result.success(Unit)
-            } else {
-                // 재발급 실패 (Refresh Token 만료 등) -> 로그아웃 처리
-                authManager.clearTokens()
-                Log.e("AuthRepo", "토큰 재발급 실패: ${response.code()}")
-                Result.failure(Exception("토큰 만료"))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
+    override fun refreshTokenBlocking(): String? {
+        // OkHttp의 백그라운드 스레드에서 코루틴을 동기적으로 묶어서 실행합니다.
+        return runBlocking {
+            performTokenRefreshCore()
         }
     }
 
@@ -544,6 +535,36 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    private suspend fun performTokenRefreshCore(): String? {
+        val refreshToken = authManager.getRefreshToken() ?: return null
+
+        return try {
+            val response = authService.reissueToken(refreshToken)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data != null) {
+                    val newAccessToken = if (data.accessToken.startsWith("Bearer")) data.accessToken else "Bearer ${data.accessToken}"
+                    val newRefreshToken = data.refreshToken
+
+                    authManager.saveTokens(newAccessToken, newRefreshToken)
+                    Log.d("AuthRepo", "토큰 재발급 성공")
+                    return newAccessToken
+                }
+            }
+
+            // 재발급 실패 처리
+            authManager.clearTokens()
+            Log.e("AuthRepo", "토큰 재발급 실패: ${response.code()}")
+            null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            authManager.clearTokens()
+            Log.e("AuthRepo", "토큰 재발급 통신 에러")
+            null
         }
     }
 

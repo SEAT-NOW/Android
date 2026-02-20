@@ -36,6 +36,7 @@ interface AuthRepository {
 
     // OwnerStore & User
     suspend fun reissueToken(): Result<Unit> // 토큰 재발급
+    fun refreshTokenBlocking(): String? // Interceptor를 위한 토큰 재발급
     suspend fun ownerLogout(): Result<Unit> // 로그아웃
     suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> // 회원탈퇴
     suspend fun withdrawUser(): Result<Unit>
