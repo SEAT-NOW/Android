@@ -86,6 +86,7 @@ class SeatSearchViewModel @Inject constructor(
             // ★ [수정] UseCase에 내 위치 정보 전달
             getStoresByHeadCountUseCase(
                 headCount = count,
+                keyword = null,
                 lat = lat,
                 lng = lng,
                 radius = radius,
@@ -102,7 +103,7 @@ class SeatSearchViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     e.printStackTrace()
                 }
-                .collect { stores ->
+                .collect { (stores, _) ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         filteredStoreList = stores

@@ -2,11 +2,13 @@ package com.gmg.seatnow.data.repository
 
 import android.location.Location
 import com.gmg.seatnow.data.api.UserApiService
-import com.gmg.seatnow.domain.model.Store
-import com.gmg.seatnow.domain.model.StoreDetail
-import com.gmg.seatnow.domain.model.StoreStatus
+
+// ★ [수정] 변경된 DTO 이름으로 정확히 Import 해야 합니다!
+import com.gmg.seatnow.data.model.response.OpeningHourItem
+import com.gmg.seatnow.data.model.response.RegularHolidayItem
+
+import com.gmg.seatnow.domain.model.*
 import com.gmg.seatnow.domain.repository.MapRepository
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -15,159 +17,219 @@ class MapRepositoryImpl @Inject constructor(
     private val userApiService: UserApiService
 ) : MapRepository {
 
-    // ★ [핵심 1] 홈 화면에서 받아온 데이터를 저장하는 캐시 (DB 역할 대행)
-    // Key: StoreId, Value: Store(홈 화면 데이터)
     private val storeCache = mutableMapOf<Long, Store>()
 
-    // ★ [핵심 2] 내가 킵한 가게의 ID 목록
-    private val keptStoreIds = mutableSetOf<Long>()
-
-    // 1. [홈 화면] API 호출 및 데이터 캐싱
+    // 1. [홈] 지도 위 매장 검색
     override fun getStores(
         keyword: String?,
+        universityName: String?,
         minPerson: Int,
         centerLat: Double,
         centerLng: Double,
         radius: Double,
         userLat: Double?,
         userLng: Double?
-    ): Flow<List<Store>> = flow {
+    ): Flow<Pair<List<Store>, List<String>>> = flow {
         try {
             val response = userApiService.getStoresOnMap(
                 keyword = keyword,
+                universityName = universityName,
+                headCount = if (minPerson > 0) minPerson else null,
                 lat = centerLat,
                 lng = centerLng,
-                headCount = minPerson,
                 radius = radius
             )
 
             if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data ?: emptyList()
+                // ★ [수정 포인트] data 객체 안의 stores 리스트를 꺼내야 함
+                val data = response.body()?.data
+                val dtoList = data?.stores ?: emptyList()
+                // ★ [추가] 관련 대학 리스트 추출
+                val relatedUniversities = data?.relatedUniversities ?: emptyList()
 
-                val stores = data.map { dto ->
-                    val calculatedDistance = calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
+                val domainList = dtoList.map { dto ->
+                    // 거리: API가 준 값을 우선 사용하되, 없으면 직접 계산 (Fallback)
+                    val distStr = dto.distance ?: calculateDistance(userLat, userLng, dto.latitude, dto.longitude)
 
-                    // Domain Model 생성
-                    val store = Store(
+                    // 이미지: null이면 빈 리스트
+                    val imageList = dto.images ?: emptyList()
+
+                    Store(
                         id = dto.storeId,
                         name = dto.storeName,
                         latitude = dto.latitude,
                         longitude = dto.longitude,
+                        // statusTag("CROWDED")를 Enum으로 변환
                         status = mapStatus(dto.statusTag),
-                        neighborhood = dto.neighborhood ?: "정보 없음",
-                        images = dto.images ?: emptyList(),
-                        distance = calculatedDistance,
-                        operationStatus = dto.operationStatus ?: "영업 정보 없음",
-                        storePhone = dto.storePhone
+                        imageUrl = imageList.firstOrNull(),
+                        neighborhood = dto.neighborhood ?: "",
+                        images = imageList,
+                        distance = distStr,
+                        operationStatus = dto.operationStatus ?: "정보 없음",
+                        storePhone = dto.storePhone,
+                        availableSeatCount = dto.availableSeatCount,
+                        totalSeatCount = dto.totalSeatCount
                     )
-
-                    // ★ [중요] 받아온 데이터를 캐시에 저장 (나중에 Detail/Keep에서 쓰기 위해)
-                    storeCache[store.id] = store
-
-                    store
                 }
-                emit(stores)
+
+                // 캐시 저장 및 방출
+                domainList.forEach { storeCache[it.id] = it }
+                emit(domainList to relatedUniversities)
             } else {
-                emit(emptyList())
+                emit(emptyList<Store>() to emptyList<String>())
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emit(emptyList())
+            emit(emptyList<Store>() to emptyList<String>())
         }
     }
 
-    // 2. [상세 화면] 캐시된 실제 데이터를 기반으로 상세 정보 생성
-    override suspend fun getStoreDetail(storeId: Long): StoreDetail {
-        delay(100) // UI 반응성 확인용 딜레이
+    // 2. [상세] 매장 상세 정보 조회
+    override suspend fun getStoreDetail(storeId: Long): Result<Pair<StoreDetail, List<MenuCategoryUiModel>>> {
+        return try {
+            val response = userApiService.getStoreDetail(storeId)
 
-        // (1) 캐시에서 홈 화면 데이터를 찾음 (실제 DB 데이터)
-        val cachedStore = storeCache[storeId]
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data!!
 
-        // (2) 캐시된 데이터가 있으면 그걸 쓰고, 없으면(혹시 모를 예외) 더미 생성
-        val detail = if (cachedStore != null) {
-            StoreDetail(
-                id = cachedStore.id,
-                name = cachedStore.name, // ★ 실제 가게 이름 사용!
-                images = cachedStore.images, // ★ 실제 이미지 사용!
-                operationStatus = cachedStore.operationStatus,
-                storePhone = cachedStore.storePhone ?: "010-0000-0000",
-                availableSeatCount = cachedStore.availableSeatCount,
-                totalSeatCount = cachedStore.totalSeatCount,
-                status = cachedStore.status,
-                universityInfo = cachedStore.neighborhood, // 대학 정보 대신 동네 정보라도 우선 매핑
-                address = cachedStore.neighborhood, // 상세 주소가 없으니 동네로 대체
-                // ▼ 아래 정보는 홈 API에 없으므로 여기만 Mocking (추후 상세 API 생기면 교체)
-                openHours = "17:00 ~ 03:00 (정보 없음)",
-                closedDays = "연중무휴"
-            )
-        } else {
-            // 캐시에 없는 경우 (거의 없겠지만 방어 코드)
-            StoreDetail(
-                id = storeId,
-                name = "알 수 없는 가게 (ID: $storeId)",
-                images = emptyList(),
-                operationStatus = "-",
-                storePhone = "-",
-                availableSeatCount = 0,
-                totalSeatCount = 0,
-                status = StoreStatus.NORMAL,
-                universityInfo = "-",
-                address = "-",
-                openHours = "-",
-                closedDays = "-"
-            )
-        }
+                // 상세 API의 images는 List<ImageDto> 이므로 변환 필요
+                val detailImages = data.images.sortedByDescending { it.isMain }.map { it.url }
 
-        // (3) 킵 상태 동기화
-        return detail.copy(isKept = keptStoreIds.contains(storeId))
-    }
-
-    // 3. [킵 화면] 킵한 ID들에 해당하는 데이터를 캐시에서 꺼내 반환
-    override suspend fun getKeepStoreList(): Result<List<StoreDetail>> {
-        delay(100)
-
-        // keptStoreIds를 순회하며 캐시된 정보를 바탕으로 리스트 생성
-        val myKeeps = keptStoreIds.mapNotNull { id ->
-            val cachedStore = storeCache[id]
-
-            if (cachedStore != null) {
-                StoreDetail(
-                    id = cachedStore.id,
-                    name = cachedStore.name, // ★ 실제 이름
-                    images = cachedStore.images,
-                    operationStatus = cachedStore.operationStatus,
-                    storePhone = cachedStore.storePhone ?: "",
-                    availableSeatCount = cachedStore.availableSeatCount,
-                    totalSeatCount = cachedStore.totalSeatCount,
-                    status = cachedStore.status,
-                    universityInfo = cachedStore.neighborhood,
-                    address = cachedStore.neighborhood,
-                    openHours = "17:00 ~ 03:00", // Mock
-                    closedDays = "연중무휴", // Mock
-                    isKept = true // 킵 목록이므로 true
+                val storeDetail = StoreDetail(
+                    id = data.storeId,
+                    name = data.storeName,
+                    images = detailImages,
+                    operationStatus = mapOperationStatus(data.operationStatus),
+                    storePhone = data.storePhone ?: "전화번호 없음",
+                    availableSeatCount = (data.totalSeatCount - data.usedSeatCount).coerceAtLeast(0),
+                    totalSeatCount = data.totalSeatCount,
+                    status = mapStatus(data.statusTagName),
+                    universityInfo = data.universityNames?.joinToString(", ") ?: "주변 대학 정보 없음",
+                    address = "${data.address} ${data.neighborhood}",
+                    openHours = formatOpeningHours(data.openingHours),
+                    closedDays = formatClosedDays(data.regularHolidays),
+                    isKept = data.kept
                 )
+
+                // ★ [수정 확인] SeatMenuCategory -> MenuCategoryUiModel 매핑
+                val menus = data.menuCategories.map { category ->
+                    MenuCategoryUiModel(
+                        categoryName = category.name,
+                        menuItems = category.menus.map { menu ->
+                            MenuItemUiModel(
+                                id = menu.id,
+                                name = menu.name,
+                                price = menu.price,
+                                imageUrl = menu.imageUrl ?: "",
+                                isRecommended = menu.isBest,
+                                isLiked = menu.isLiked
+                            )
+                        }
+                    )
+                }
+
+                Result.success(storeDetail to menus)
             } else {
-                // 캐시가 비워졌는데 ID만 남은 경우 (앱 재실행 등 이슈) -> 제외하거나 처리 필요
-                // 여기선 일단 제외 (mapNotNull)
-                null
+                Result.failure(Exception(response.body()?.message ?: "상세 정보를 불러오지 못했습니다."))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-
-        return Result.success(myKeeps)
     }
 
-    // 4. [킵 토글]
+    // 3. 킵 토글
     override suspend fun toggleStoreKeep(storeId: Long, isKept: Boolean): Result<Unit> {
-        delay(50)
-        if (isKept) {
-            keptStoreIds.add(storeId)
-        } else {
-            keptStoreIds.remove(storeId)
+        return try {
+            // [수정] scrapStore -> keepStore 호출로 변경
+            val response = userApiService.keepStore(storeId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // 성공 시 Unit 반환 (ViewModel에서 UI 갱신)
+                Result.success(Unit)
+            } else {
+                // 에러 처리
+                when (response.code()) {
+                    401 -> Result.failure(Exception("Unauthorized")) // 토큰 만료/없음
+                    403 -> Result.failure(Exception("Forbidden"))    // 권한 없음
+                    else -> Result.failure(Exception(response.message()))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        return Result.success(Unit)
     }
 
-    // [Helper] 거리 계산
+    override suspend fun getKeepStoreList(): Result<List<StoreDetail>> {
+        return try {
+            val response = userApiService.getKeptStores()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val dtoList = response.body()?.data ?: emptyList()
+
+                val domainList = dtoList.map { dto ->
+                    val available = (dto.totalSeatCount - dto.usedSeatCount).coerceAtLeast(0)
+
+                    // ★ [수정] 이미지가 String 하나로 오므로 리스트로 감싸줌
+                    val imageList = if (!dto.images.isNullOrEmpty()) listOf(dto.images) else emptyList()
+
+                    StoreDetail(
+                        id = dto.storeId,
+                        name = dto.storeName,
+                        images = imageList, // 수정된 이미지 처리
+
+                        // ★ [수정] List<String> -> String 변환 (콤마로 연결)
+                        universityInfo = dto.universityNames?.joinToString(", ") ?: "",
+
+                        status = mapStatusByName(dto.statusTagName),
+                        availableSeatCount = available,
+                        totalSeatCount = dto.totalSeatCount,
+                        operationStatus = "",
+                        storePhone = "",
+                        address = "",
+                        openHours = "",
+                        closedDays = "",
+                        isKept = true
+                    )
+                }
+                Result.success(domainList)
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun toggleMenuLike(menuId: Long): Result<Boolean> {
+        return try {
+            val response = userApiService.toggleMenuLike(menuId)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                // API 명세상 data가 true/false로 오거나 null일 수 있음
+                Result.success(response.body()?.data ?: true)
+            } else {
+                val errorMsg = response.body()?.message ?: "좋아요 요청 실패"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // ★ [필수 추가] 한글 상태명("혼잡", "만석")을 Enum으로 변환하는 함수
+    private fun mapStatusByName(name: String?): StoreStatus {
+        return when (name) {
+            "여유" -> StoreStatus.SPARE
+            "보통" -> StoreStatus.NORMAL
+            "혼잡" -> StoreStatus.HARD
+            "만석" -> StoreStatus.FULL
+            else -> StoreStatus.NORMAL // 기본값
+        }
+    }
+
+    // --- Helper Functions ---
     private fun calculateDistance(userLat: Double?, userLng: Double?, storeLat: Double, storeLng: Double): String {
         if (userLat == null || userLng == null) return "0.0km"
         val results = FloatArray(1)
@@ -176,15 +238,53 @@ class MapRepositoryImpl @Inject constructor(
         return if (dist >= 1000) String.format("%.1fkm", dist / 1000) else "${dist.toInt()}m"
     }
 
-    // [Helper] 상태 매핑
     private fun mapStatus(tag: String?): StoreStatus {
-        if (tag.isNullOrBlank()) return StoreStatus.NORMAL
-        return when (tag.uppercase().trim()) {
-            "FREE", "SPACIOUS", "여유" -> StoreStatus.SPARE
-            "NORMAL", "보통" -> StoreStatus.NORMAL
-            "CROWDED", "혼잡" -> StoreStatus.HARD
-            "FULL", "만석" -> StoreStatus.FULL
+        return when (tag) {
+            "FREE" -> StoreStatus.SPARE
+            "NORMAL" -> StoreStatus.NORMAL
+            "BUSY", "CROWDED" -> StoreStatus.HARD
+            "FULL" -> StoreStatus.FULL
             else -> StoreStatus.NORMAL
         }
+    }
+
+    private fun mapOperationStatus(status: String): String {
+        return when (status) {
+            "OPEN" -> "영업 중"
+            "CLOSED" -> "영업 종료"
+            "BREAK_TIME" -> "브레이크 타임"
+            else -> "정보 없음"
+        }
+    }
+
+    private fun formatOpeningHours(hours: List<OpeningHourItem>): String {
+        if (hours.isEmpty()) return "영업 시간 정보 없음"
+        val grouped = hours.groupBy { "${it.startTime}~${it.endTime}" }
+        return grouped.map { (timeRange, list) ->
+            val days = list.sortedBy { dayOrder(it.dayOfWeek) }
+                .joinToString(", ") { mapDayToKorean(it.dayOfWeek) }
+            val (start, end) = timeRange.split("~")
+            val s = if (start.length >= 5) start.substring(0, 5) else start
+            val e = if (end.length >= 5) end.substring(0, 5) else end
+            "$days $s ~ $e"
+        }.joinToString("\n")
+    }
+
+    private fun formatClosedDays(holidays: List<RegularHolidayItem>): String {
+        if (holidays.isEmpty()) return "연중무휴"
+        val weekly = holidays.filter { it.weekInfo == 0 }
+            .sortedBy { dayOrder(it.dayOfWeek) }
+            .joinToString(", ") { "${mapDayToKorean(it.dayOfWeek)}요일" }
+        return if (weekly.isNotEmpty()) "매주 $weekly 휴무" else "휴무 없음"
+    }
+
+    private fun mapDayToKorean(day: String) = when (day) {
+        "MONDAY" -> "월"; "TUESDAY" -> "화"; "WEDNESDAY" -> "수"; "THURSDAY" -> "목"
+        "FRIDAY" -> "금"; "SATURDAY" -> "토"; "SUNDAY" -> "일"; else -> ""
+    }
+
+    private fun dayOrder(day: String) = when (day) {
+        "MONDAY" -> 1; "TUESDAY" -> 2; "WEDNESDAY" -> 3; "THURSDAY" -> 4
+        "FRIDAY" -> 5; "SATURDAY" -> 6; "SUNDAY" -> 7; else -> 8
     }
 }

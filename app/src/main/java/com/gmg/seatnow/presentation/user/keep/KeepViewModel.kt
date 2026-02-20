@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.user.keep
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.usecase.store.GetKeepStoresUseCase
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class KeepViewModel @Inject constructor(
     private val getKeepStoresUseCase: GetKeepStoresUseCase,   // ★ 추가
-    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase // ★ 추가
+    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase, // ★ 추가
+    private val authManager: AuthManager
 ) : ViewModel() {
 
     // UI에서 사용할 데이터 모델 리스트
@@ -28,6 +30,13 @@ class KeepViewModel @Inject constructor(
     }
 
     fun fetchKeepList() {
+        // ★ [분기] 테스터라면 AuthManager의 가짜 리스트 사용
+        if (authManager.isTester()) {
+            val fakeList = authManager.getFakeKeepList()
+            _keepList.value = fakeList.map { it.toUiModel() }
+            return
+        }
+
         viewModelScope.launch {
             // 1. Repository에서 실제 킵 목록을 가져옴
             getKeepStoresUseCase().onSuccess { stores ->
@@ -40,19 +49,27 @@ class KeepViewModel @Inject constructor(
     }
 
     fun toggleKeep(item: KeepStoreUiModel) {
+        // 1. [UI 즉시 반영] 리스트에서 해당 아이템을 바로 제거하여 화면에서 사라지게 함
         val currentList = _keepList.value.toMutableList()
-
-        // 1. [Optimistic Update] 리스트에서 즉시 제거
         currentList.remove(item)
         _keepList.value = currentList
 
-        // 2. [API Sync] Repository에 변경 사항 전송 (그래야 상세화면 가도 반영됨)
-        viewModelScope.launch {
-            val result = toggleStoreKeepUseCase(item.storeId, false) // 킵 해제(false)
+        // 2. [데이터 반영] 테스터 vs 일반 유저 분기
+        if (authManager.isTester()) {
+            // 테스터: 메모리 상의 가짜 리스트에서 삭제
+            authManager.removeFakeKeep(item.storeId)
+        } else {
+            // 일반 유저: 실제 서버 API 호출 (킵 해제)
+            viewModelScope.launch {
+                val result = toggleStoreKeepUseCase(item.storeId, false) // isKept = false
 
-            if (result.isFailure) {
-                // 실패 시 롤백 로직 (생략 가능하지만 정석은 다시 추가해주는 것)
-                fetchKeepList()
+                if (result.isFailure) {
+                    // 실패 시 롤백 (삭제했던 아이템 다시 복구)
+                    val rollbackList = _keepList.value.toMutableList()
+                    rollbackList.add(item)
+                    _keepList.value = rollbackList
+                    // 필요한 경우 에러 토스트 메시지 전송 로직 추가
+                }
             }
         }
     }

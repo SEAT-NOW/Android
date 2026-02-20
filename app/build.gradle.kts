@@ -17,13 +17,19 @@ if (localPropertiesFile.exists()) {
 android {
     namespace = "com.gmg.seatnow"
     compileSdk = 35
-
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     defaultConfig {
         applicationId = "com.gmg.seatnow"
         minSdk = 29
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 12
+        versionName = "2.4"
+
+        multiDexEnabled = true
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -38,9 +44,26 @@ android {
         manifestPlaceholders["KAKAO_APP_KEY"] = kakaoKey
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(localProperties.getProperty("STORE_FILE") ?: "keystore.jks")
+            storePassword = localProperties.getProperty("STORE_PASSWORD")
+            keyAlias = localProperties.getProperty("KEY_ALIAS")
+            keyPassword = localProperties.getProperty("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
-        release {
+        getByName("debug") {
+            // ★ 디버그 모드에서는 반드시 false여야 합니다.
             isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -90,10 +113,8 @@ dependencies {
     // 5. Network (Retrofit + Serialization + Gson)
     implementation(libs.retrofit)
     implementation(libs.okhttp.logging)
-    implementation(libs.retrofit.gson)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.retrofit.serialization.converter)
-    implementation(libs.gson)
 
     // 6. Coil
     implementation(libs.coil.compose)
@@ -114,4 +135,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+
+    implementation("androidx.multidex:multidex:2.0.1")
 }

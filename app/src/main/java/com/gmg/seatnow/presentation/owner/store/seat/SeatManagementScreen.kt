@@ -35,6 +35,10 @@ fun SeatManagementScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(true) {
+        viewModel.loadData()
+    }
+
     LaunchedEffect(key1 = true) {
         viewModel.event.collectLatest { event ->
             when(event) {

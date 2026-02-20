@@ -43,8 +43,23 @@ fun KeepItem(
                 .aspectRatio(308f / 180f)
                 .background(SubLightGray)
         ) {
-            // TODO: 추후 Coil 라이브러리 등으로 실제 이미지 로드
-            // AsyncImage( model = item.imageUrl, contentScale = ContentScale.Crop, ... )
+            if (item.imageUrl.isNotEmpty()) {
+                coil.compose.AsyncImage(
+                    model = item.imageUrl,
+                    contentDescription = "가게 이미지",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            } else {
+                // 이미지가 없을 때 보여줄 플레이스홀더 (로고 등)
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_row_logo),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -133,7 +148,7 @@ fun KeepItem(
             )
         }
     }
-}
+
 
 @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF, name = "기본 상태")
 @Composable

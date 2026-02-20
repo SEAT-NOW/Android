@@ -14,7 +14,7 @@ import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
-import com.gmg.seatnow.presentation.owner.store.mypage.AccountInfoScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.AccountInfoScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
@@ -26,6 +26,13 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.gmg.seatnow.presentation.login.DeveloperLoginScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.ChangePasswordScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.CheckPasswordScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScreen
+import com.gmg.seatnow.presentation.owner.store.mypage.store.EditStoreContactScreen
+import com.gmg.seatnow.presentation.owner.store.storeManage.storeInfo.EditStoreInfoScreen
+import com.gmg.seatnow.presentation.owner.store.storeManage.storeManageEdit.StoreEditMainScreen
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -79,6 +86,20 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToTerms = { isGuest ->
                     navController.navigate("user_terms/$isGuest")
+                },
+                onNavigateToDeveloperLogin = {
+                    navController.navigate("developer_login")
+                }
+            )
+        }
+
+        composable("developer_login") {
+            DeveloperLoginScreen(
+                onNavigateToBack = { navController.popBackStack() },
+                onNavigateToUserMain = {
+                    navController.navigate("user_main") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 }
             )
         }
@@ -218,6 +239,18 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToAccountInfo = {
                     navController.navigate("account_info")
+                },
+                onNavigateToEditAccount = {
+                    navController.navigate("edit_account_info")
+                },
+                onNavigateToEditSeatConfig = {
+                    navController.navigate("edit_seat_config")
+                },
+                onNavigateToEditStoreInfo = {
+                    navController.navigate("edit_store_info")
+                },
+                onNavigateToEditStoreManagement = {
+                    navController.navigate("store_edit_main")
                 }
             )
         }
@@ -225,24 +258,81 @@ fun SeatNowNavGraph(
         // 7. 계정 정보 수정 (AccountInfo)
         composable("account_info") {
             val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
-                    if (event is MyPageViewModel.MyPageEvent.NavigateToLogin) {
-                        navController.navigate("login") {
-                            popUpTo("store_main") { inclusive = true }
+                    when(event) {
+                        is MyPageViewModel.MyPageEvent.NavigateToLogin -> {
+                            navController.navigate("login") { popUpTo("store_main") { inclusive = true } }
                         }
+                        // ★ 비밀번호 확인 화면으로 이동
+                        is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {
+                            navController.navigate("check_password")
+                        }
+                        else -> {}
                     }
                 }
             }
 
             AccountInfoScreen(
+                uiState = uiState, // 이제 정상적으로 전달됨
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
-                onNavigateToWithdraw = { navController.navigate("owner_withdraw") }
+                onNavigateToWithdraw = { navController.navigate("owner_withdraw") },
+                onCheckPasswordClick = { viewModel.onAction(MyPageAction.OnCheckPasswordClick) }
             )
         }
 
+        // 7-1 계정 정보 수정-패스워드 변경 전 체크화면
+        composable("check_password") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    if (event is MyPageViewModel.MyPageEvent.NavigateToChangePassword) {
+                        navController.navigate("change_password")
+                    }
+                }
+            }
+
+            CheckPasswordScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 7-2 계정 정보 수정-패스워드 변경 화면
+        composable("change_password") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    when (event) {
+                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
+                            // 변경 완료 후 이전 화면(계정 정보 수정)으로 돌아가기
+                            // check_password 화면도 건너뛰고 account_info로 가는 게 UX상 좋음
+                            navController.popBackStack("account_info", inclusive = false)
+                        }
+                        is MyPageViewModel.MyPageEvent.ShowToast -> {
+                            // Toast 메시지 처리 (MainActivity 등에서 처리하거나 여기서 Context로 띄움)
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
+            ChangePasswordScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 7-3 계정 정보 - 회원탈퇴 화면
         composable("owner_withdraw") {
             OwnerWithdrawScreen(
                 onBackClick = { navController.popBackStack() },
@@ -251,6 +341,81 @@ fun SeatNowNavGraph(
                         popUpTo("store_main") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // 8. 가게 정보 구성 수정 화면
+        composable("edit_store_info") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    if (event is MyPageViewModel.MyPageEvent.NavigateToEditStoreContact) {
+                         navController.navigate("edit_store_contact")
+                    }
+                }
+            }
+
+            EditStoreInfoScreen(
+                uiState = uiState,
+                onBackClick = { navController.popBackStack() },
+                onEditContactClick = { viewModel.onAction(MyPageAction.OnStoreContactClick) }
+            )
+        }
+
+        // ★ [신규] 8-1. 가게 연락처 수정 화면
+        composable("edit_store_contact") {
+            // ViewModel 공유 (같은 마이페이지 흐름) 또는 새로 생성
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    // 완료 후 뒤로가기 이벤트 처리
+                    if (event is MyPageViewModel.MyPageEvent.NavigateBack) {
+                        navController.popBackStack()
+                    }
+                }
+            }
+
+            EditStoreContactScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 9. 좌석 정보 구성 수정 화면
+        composable("edit_seat_config") {
+            val viewModel = hiltViewModel<MyPageViewModel>()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(true) {
+                viewModel.event.collectLatest { event ->
+                    when (event) {
+                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
+                            navController.popBackStack()
+                        }
+                        is MyPageViewModel.MyPageEvent.ShowToast -> {
+                            // Toast 처리
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
+            EditSeatConfigScreen(
+                uiState = uiState,
+                onAction = viewModel::onAction,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable("store_edit_main") {
+            // NavController pop을 위한 콜백 전달
+            StoreEditMainScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

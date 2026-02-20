@@ -5,22 +5,27 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.presentation.theme.*
-import com.gmg.seatnow.presentation.component.InfoRow // ★ 공통 컴포넌트 임포트
+import com.gmg.seatnow.presentation.component.InfoRow
 
 @Composable
 fun StoreHomeTab(storeDetail: StoreDetail) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            // ★ SeatNowComponents.kt의 InfoRow 재사용
             InfoRow(iconRes = R.drawable.ic_school, text = storeDetail.universityInfo)
             Spacer(modifier = Modifier.height(8.dp))
             InfoRow(iconRes = R.drawable.ic_itempin, text = storeDetail.address, iconSize = 18.dp)
@@ -55,11 +60,45 @@ fun StoreHomeTab(storeDetail: StoreDetail) {
             contentPadding = PaddingValues(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
+            // 비율 상수 정의 (118 / 147.5 = 0.8)
+            val imageAspectRatio = 0.8f
+            // 아이콘이 박스 내에서 차지할 비율 (0.3 = 30%)
+            val iconScaleFraction = 0.8f
+
             if (storeDetail.images.isEmpty()) {
-                item { Box(modifier = Modifier.width(118.dp).height(147.5.dp).background(SubPaleGray, RectangleShape)) }
+                item {
+                    Box(
+                        modifier = Modifier
+                            .height(147.5.dp) // 기준 높이
+                            .aspectRatio(imageAspectRatio) // 0.8 비율
+                            .background(SubLightGray, RectangleShape), // ★ 배경색 SubLightGray로 변경
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_row_logo),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier
+                                .fillMaxSize(iconScaleFraction)
+                                .aspectRatio(1f)
+                        )
+                    }
+                }
             } else {
-                items(storeDetail.images) {
-                    Box(modifier = Modifier.width(118.dp).height(147.5.dp).background(SubLightGray, RectangleShape))
+                // ★ [수정 2] 이미지가 있을 때 AsyncImage 사용
+                items(storeDetail.images) { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "매장 사진",
+                        modifier = Modifier
+                            .height(147.5.dp) // 기준 높이
+                            .aspectRatio(imageAspectRatio) // 0.8 비율
+                            .background(SubLightGray, RectangleShape), // 로딩 중 배경색
+                        contentScale = ContentScale.Crop,
+                        // 로딩/에러 시 보여줄 아이콘 (선택 사항)
+                        placeholder = painterResource(id = R.drawable.ic_row_logo),
+                        error = painterResource(id = R.drawable.ic_row_logo)
+                    )
                 }
             }
         }

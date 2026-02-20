@@ -13,12 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gmg.seatnow.presentation.owner.store.manage.StoreManagementScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageScreen
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementScreen
 import com.gmg.seatnow.presentation.theme.PointRed
@@ -30,7 +29,11 @@ import com.gmg.seatnow.presentation.theme.White
 fun StoreMainRoute(
     viewModel: StoreMainViewModel = hiltViewModel(),
     onNavigateToLogin: () -> Unit,
-    onNavigateToAccountInfo: () -> Unit
+    onNavigateToAccountInfo: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit,
+    onNavigateToEditStoreManagement: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -40,7 +43,11 @@ fun StoreMainRoute(
         uiState = uiState,
         onAction = viewModel::onAction,
         onNavigateToLogin = onNavigateToLogin,
-        onNavigateToAccountInfo = onNavigateToAccountInfo
+        onNavigateToAccountInfo = onNavigateToAccountInfo,
+        onNavigateToEditAccount = onNavigateToEditAccount,
+        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig,
+        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo,
+        onNavigateToEditStoreManagement = onNavigateToEditStoreManagement
     )
 }
 
@@ -49,7 +56,11 @@ fun StoreMainScreen(
     uiState: StoreMainViewModel.StoreMainUiState,
     onAction: (StoreMainAction) -> Unit,
     onNavigateToLogin: () -> Unit,
-    onNavigateToAccountInfo: () -> Unit
+    onNavigateToAccountInfo: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit,
+    onNavigateToEditStoreManagement: () -> Unit
 ) {
     Scaffold(
         containerColor = White,
@@ -70,11 +81,19 @@ fun StoreMainScreen(
                 StoreTab.SEAT_MANAGEMENT -> {
                     SeatManagementScreen()
                 }
+                StoreTab.STORE_MANAGEMENT -> {
+                    StoreManagementScreen(
+                        onEditStoreInfoClick = onNavigateToEditStoreManagement
+                    )
+                }
                 StoreTab.MY_PAGE -> {
                     // ✅ 여기서 MyPageScreen을 호출하며 콜백을 전달합니다.
                     MyPageScreen(
                         onNavigateToAccountInfo = onNavigateToAccountInfo,
-                        onNavigateToLogin = onNavigateToLogin
+                        onNavigateToLogin = onNavigateToLogin,
+                        onNavigateToEditAccount = onNavigateToEditAccount,
+                        onNavigateToEditSeatConfig = onNavigateToEditSeatConfig,
+                        onNavigateToEditStoreInfo = onNavigateToEditStoreInfo
                     )
                 }
             }

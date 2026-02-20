@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowMenuItem
 import com.gmg.seatnow.presentation.theme.SubGray
+import com.gmg.seatnow.presentation.theme.SubPaleGray
 import com.gmg.seatnow.presentation.theme.White
 import kotlinx.coroutines.flow.collectLatest
 
@@ -24,7 +25,10 @@ import kotlinx.coroutines.flow.collectLatest
 fun MyPageScreen(
     viewModel: MyPageViewModel = hiltViewModel(),
     onNavigateToAccountInfo: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToEditAccount: () -> Unit,
+    onNavigateToEditSeatConfig: () -> Unit,
+    onNavigateToEditStoreInfo: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -34,6 +38,14 @@ fun MyPageScreen(
             when (event) {
                 is MyPageViewModel.MyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
                 is MyPageViewModel.MyPageEvent.NavigateToLogin -> onNavigateToLogin()
+                is MyPageViewModel.MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
+                is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
+                is MyPageViewModel.MyPageEvent.NavigateToEditStoreInfo -> onNavigateToEditStoreInfo()
+                is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {}
+                is MyPageViewModel.MyPageEvent.NavigateToChangePassword -> {}
+                is MyPageViewModel.MyPageEvent.NavigateToEditStoreContact -> {}
+                is MyPageViewModel.MyPageEvent.NavigateBack -> {}
+                is MyPageViewModel.MyPageEvent.ShowToast -> {}
             }
         }
     }
@@ -41,7 +53,10 @@ fun MyPageScreen(
     // 순수 UI 컴포넌트 호출
     MyPageContent(
         isLoading = uiState.isLoading,
-        onAccountInfoClick = { viewModel.onAction(MyPageAction.OnAccountInfoClick) }
+        onAccountInfoClick = { viewModel.onAction(MyPageAction.OnAccountInfoClick) },
+        onEditSeatConfigClick = { viewModel.onAction(MyPageAction.OnEditSeatConfigClick) },
+        onEditAccountInfoClick = { viewModel.onAction(MyPageAction.OnEditAccountInfoClick) },
+        onEditStoreInfoClick = { viewModel.onAction(MyPageAction.OnEditStoreInfoClick) }
     )
 }
 
@@ -49,7 +64,10 @@ fun MyPageScreen(
 @Composable
 fun MyPageContent(
     isLoading: Boolean,
-    onAccountInfoClick: () -> Unit
+    onAccountInfoClick: () -> Unit,
+    onEditSeatConfigClick: () -> Unit,
+    onEditAccountInfoClick: () -> Unit,
+    onEditStoreInfoClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -76,7 +94,26 @@ fun MyPageContent(
             )
 
             // 구분선이나 추가 메뉴가 필요하면 여기에 배치
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            SectionHeader("운영 설정")
+
+            SeatNowMenuItem(
+                text = "가게 정보 수정",
+                onClick = onEditStoreInfoClick
+            )
+
+            SeatNowMenuItem(
+                text = "좌석 정보 구성 수정",
+                onClick = onEditSeatConfigClick
+            )
+
+
+
         }
 
         if (isLoading) {
@@ -89,9 +126,8 @@ fun MyPageContent(
 fun SectionHeader(text: String) {
     Text(
         text,
-        fontSize = 18.sp,
+        style = MaterialTheme.typography.bodyLarge,
         color = SubGray,
-        modifier = Modifier.padding(bottom = 8.dp)
     )
 }
 
@@ -101,6 +137,9 @@ fun SectionHeader(text: String) {
 fun MyPageScreenPreview() {
     MyPageContent(
         isLoading = false,
-        onAccountInfoClick = {}
+        onAccountInfoClick = { },
+        onEditSeatConfigClick = { },
+        onEditAccountInfoClick = { },
+        onEditStoreInfoClick = { }
     )
 }

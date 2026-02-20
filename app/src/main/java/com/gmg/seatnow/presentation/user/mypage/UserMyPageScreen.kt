@@ -64,7 +64,7 @@ fun UserMyPageContent(
             )
 
             // 계정 섹션 헤더
-            Text("계정", style = MaterialTheme.typography.bodyLarge, color = SubGray, modifier = Modifier.padding(bottom = 8.dp))
+            Text("계정", style = MaterialTheme.typography.bodyLarge, color = SubGray)
 
             // 계정 정보 조회 메뉴
             SeatNowMenuItem(text = "계정 정보 조회", onClick = onAccountInfoClick)

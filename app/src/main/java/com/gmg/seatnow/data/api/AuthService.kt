@@ -3,17 +3,29 @@ package com.gmg.seatnow.data.api
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.MenuOrderRequest
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.SpaceLayoutUpdateRequest
+import com.gmg.seatnow.data.model.request.StoreOperationRequest
+import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
+import com.gmg.seatnow.data.model.request.UpdateMenuCategoriesRequest
+import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.BaseResponse
+import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.OwnerLoginResponseDTO
 import com.gmg.seatnow.data.model.response.OwnerSignUpResponse
 import com.gmg.seatnow.data.model.response.PlaceSearchResponseDTO
 import com.gmg.seatnow.data.model.response.SeatStatusResponseDTO
 import com.gmg.seatnow.data.model.response.KakaoLoginResponse
+import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreImageResponse
+import com.gmg.seatnow.data.model.response.StoreMenuResponseDTO
+import com.gmg.seatnow.data.model.response.StoreOperationResponse
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -91,7 +103,7 @@ interface AuthService {
     ): Response<BaseResponse<OwnerLoginResponseDTO>>
 
     // 토큰 재발급
-    @POST("/api/v1/auth/reissue") // v1 경로 확인 필요 (스웨거에는 /auth/reissue로 되어있는데 보통 /api/v1 붙음)
+    @POST("/api/auth/reissue") // v1 경로 확인 필요 (스웨거에는 /auth/reissue로 되어있는데 보통 /api/v1 붙음)
     suspend fun reissueToken(
         @Header("RefreshToken") refreshToken: String
     ): Response<BaseResponse<OwnerLoginResponseDTO>>
@@ -124,6 +136,82 @@ interface AuthService {
         @Query("kakaoAccessToken") kakaoAccessToken: String
     ): Response<BaseResponse<KakaoLoginResponse>>
 
+    // 사장님 계정정보 조회
+    @GET("/api/v1/stores/owner/account")
+    suspend fun getOwnerAccount(): Response<BaseResponse<OwnerAccountResponseDTO>>
+
+    // 사장님 계정정보 비밀번호 수정 전 체크
+    @POST("/api/v1/stores/owner/verify-password")
+    suspend fun verifyOwnerPassword(
+        @Body request: VerifyPasswordRequestDTO
+    ): Response<BaseResponse<Boolean>> // Data가 Boolean 혹은 Any일 수 있음
+
+    // 사장님 계정정보 비밀번호 수정
+    @PATCH("/api/v1/stores/owner/password")
+    suspend fun changeOwnerPassword(
+        @Body request: ChangePasswordRequestDTO
+    ): Response<BaseResponse<Boolean>> // data: true/false
+
+    // 사장님 가게 정보 조회
+    @GET("/api/v1/stores/owner/profile")
+    suspend fun getStoreProfile(): Response<BaseResponse<StoreProfileResponseDTO>>
+
+    // 사장님 가게 연락처 수정
+    @PATCH("/api/v1/stores/operation/phone-number")
+    suspend fun updateStorePhone(
+        @Body request: StorePhoneUpdateRequestDTO
+    ): Response<BaseResponse<Boolean>> // data: true/false
+
+    // 매장 좌석 구성 정보 수정
+    @PATCH("/api/v1/stores/layout")
+    suspend fun updateStoreLayout(
+        @Body request: List<SpaceLayoutUpdateRequest>
+    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
+
+    // 매장 메뉴 정보 조회
+    @GET("/api/v1/stores/menus")
+    suspend fun getStoreMenus(): Response<BaseResponse<StoreMenuResponseDTO>>
+
+    @GET("/api/v1/stores/operation")
+    suspend fun getStoreOperations(): Response<BaseResponse<StoreOperationResponse>>
+
+    @GET("/api/v1/stores/operation/images")
+    suspend fun getStoreImages(): Response<BaseResponse<StoreImageResponse>>
+
+    @PATCH("/api/v1/stores/operation")
+    suspend fun updateStoreOperation(
+        @Body request: StoreOperationRequest
+    ): Response<BaseResponse<Boolean?>>
+
+    @PATCH("/api/v1/stores/menus/categories")
+    suspend fun updateMenuCategories(
+        @Body request: UpdateMenuCategoriesRequest
+    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
+
+    @Multipart
+    @POST("/api/v1/stores/menus")
+    suspend fun saveMenu(
+        @Part("menuData") menuData: RequestBody,
+        @Part menuImage: MultipartBody.Part?
+    ): Response<BaseResponse<Boolean>>
+
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
+
+    @Multipart
+    @PATCH("/api/v1/stores/operation/images")
+    suspend fun updateStoreImages(
+        @Part("updateData") updateData: RequestBody, // JSON
+        @Part newImages: List<MultipartBody.Part>    // Files
+    ): Response<BaseResponse<Boolean?>>
+
+    @PATCH("/api/v1/stores/menus/order")
+    suspend fun updateMenuOrders(
+        @Body request: MenuOrderRequest
+    ): Response<BaseResponse<Boolean>>
+
+    @DELETE("/api/v1/stores/menus/{menuId}")
+    suspend fun deleteMenu(
+        @Path("menuId") menuId: Long
+    ): Response<BaseResponse<Boolean>>
 }

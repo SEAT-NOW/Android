@@ -60,9 +60,19 @@ fun UserMainScreen(
                 )
             }
 
+            val overlayModifier = Modifier
+                .fillMaxSize()
+                .zIndex(2f)
+                .background(White)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null, // 클릭 시 물결 효과(Ripple) 제거
+                    onClick = { /* 아무것도 안 함 (터치 이벤트 소비) */ }
+                )
+
             // [2] 자리 찾기 화면
             if (currentTab == UserTab.SEAT_SEARCH) {
-                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
+                Box(modifier = overlayModifier) {
                     SeatSearchScreen(
                         onSearchConfirmed = { headCount ->
                             searchFilterHeadCount = headCount
@@ -74,7 +84,7 @@ fun UserMainScreen(
 
             // [3] 킵 화면
             if (currentTab == UserTab.KEEP) {
-                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
+                Box(modifier = overlayModifier) {
                     KeepScreen(
                         onNavigateToDetail = onNavigateToDetail
                     )
@@ -83,7 +93,7 @@ fun UserMainScreen(
 
             // [4] 마이페이지 화면
             if (currentTab == UserTab.MY_PAGE) {
-                Box(modifier = Modifier.fillMaxSize().zIndex(2f).background(White)) {
+                Box(modifier = overlayModifier) {
                     // [수정] NavGraph에서 받아온 콜백을 그대로 전달
                     UserMyPageScreen(
                         onNavigateToAccountInfo = onNavigateToAccountInfo,

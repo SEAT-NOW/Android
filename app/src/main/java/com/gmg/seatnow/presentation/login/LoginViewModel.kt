@@ -79,9 +79,22 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun onDeveloperLoginSuccess() {
+        authManager.setTesterMode(true) // 테스터 모드 활성화
+        // 닉네임 설정 (선택 사항)
+        authManager.saveUserInfo("개발자(Tester)")
+    }
+
+    fun onDeveloperLoginClick() {
+        viewModelScope.launch {
+            _event.emit(LoginEvent.NavigateToDeveloperLogin)
+        }
+    }
+
     sealed class LoginEvent {
         object NavigateToUserMain : LoginEvent()
         object NavigateToOwnerLogin : LoginEvent()
+        object NavigateToDeveloperLogin : LoginEvent()
         data class NavigateToTerms(val isGuest: Boolean) : LoginEvent()
     }
 }

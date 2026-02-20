@@ -67,7 +67,7 @@ fun OwnerWithdrawContent(
     Scaffold(
         topBar = {
             SeatNowTopAppBar(
-                title = "회원 탈퇴",
+                title = "회원 탈퇴(업체 삭제)",
                 onBackClick = { onAction(WithdrawAction.OnBackClick) }
             )
         },

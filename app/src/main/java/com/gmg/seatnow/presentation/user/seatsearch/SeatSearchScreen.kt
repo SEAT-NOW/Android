@@ -1,8 +1,5 @@
 package com.gmg.seatnow.presentation.user.seatsearch
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -34,23 +30,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.gmg.seatnow.presentation.component.UserMapContent
+import com.gmg.seatnow.R
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
-import com.gmg.seatnow.presentation.util.MapLogicHandler
-import com.naver.maps.map.compose.LocationTrackingMode
-import com.naver.maps.map.compose.rememberCameraPositionState
-import com.naver.maps.map.compose.rememberFusedLocationSource
-import com.gmg.seatnow.R
-import com.naver.maps.map.compose.ExperimentalNaverMapApi
 
 @Composable
 fun SeatSearchScreen(
-    onSearchConfirmed: (Int) -> Unit, // Main으로 값을 전달하는 콜백
+    onSearchConfirmed: (Int) -> Unit,
     viewModel: SeatSearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -66,8 +55,6 @@ fun SeatSearchScreen(
                 indication = null
             ) { focusManager.clearFocus() }
     ) {
-        // 입력 컨텐츠 (SearchInputContent는 기존 코드 재사용)
-        // SearchInputContent 내부의 버튼 클릭 이벤트 연결
         SearchInputContent(
             headCount = uiState.headCount,
             onCountChange = viewModel::updateHeadCount,
@@ -76,7 +63,7 @@ fun SeatSearchScreen(
             onSearchClick = {
                 val count = uiState.headCount.toIntOrNull() ?: 0
                 if (count > 0) {
-                    onSearchConfirmed(count) // Main으로 전달
+                    onSearchConfirmed(count)
                 }
             }
         )
@@ -99,14 +86,26 @@ fun SearchInputContent(
     val circleBorderColor = if (isFocused) SubGray else Color.Transparent
     val circleBorderWidth = if (isFocused) 2.dp else 0.dp
 
-    // ★ [핵심] Box 레이아웃 사용 + imePadding 제거!
-    // adjustResize로 인해 Box의 높이가 이미 "키보드 위까지"로 줄어들었습니다.
-    // 여기서 BottomCenter로 붙이면 키보드 바로 위에 붙습니다.
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp)
     ) {
+        // ★ [추가] 상단 타이틀 (KeepScreen과 동일한 위치/스타일)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .padding(top = 20.dp) // 상단 여백
+        ) {
+            Text(
+                text = "N명 자리 찾기",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = SubBlack,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
         // [중앙 컨텐츠]
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -127,6 +126,7 @@ fun SearchInputContent(
 
             Spacer(modifier = Modifier.height(30.dp))
 
+            // ... (기존 카운터 UI 유지)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -202,7 +202,7 @@ fun SearchInputContent(
         Button(
             onClick = onSearchClick,
             modifier = Modifier
-                .align(Alignment.BottomCenter) // Box 바닥(키보드 위)에 붙음
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
                 .height(56.dp),
