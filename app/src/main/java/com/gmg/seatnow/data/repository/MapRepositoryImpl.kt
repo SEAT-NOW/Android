@@ -2,7 +2,7 @@ package com.gmg.seatnow.data.repository
 
 import android.location.Location
 import com.gmg.seatnow.data.api.UserApiService
-import com.gmg.seatnow.data.local.AuthManager
+import com.gmg.seatnow.data.local.AppConfigManager
 
 // ★ [수정] 변경된 DTO 이름으로 정확히 Import 해야 합니다!
 import com.gmg.seatnow.data.model.response.OpeningHourItem
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 class MapRepositoryImpl @Inject constructor(
     private val userApiService: UserApiService,
-    private val authManager: AuthManager
+    private val appConfigManager: AppConfigManager
 ) : MapRepository {
 
     private val storeCache = mutableMapOf<Long, Store>()
@@ -115,7 +115,7 @@ class MapRepositoryImpl @Inject constructor(
                     isKept = data.kept
                 )
 
-                if (authManager.isTester()) {
+                if (appConfigManager.isTester()) {
                     val isFakeKept = fakeKeepList.any { it.id == storeId }
                     storeDetail = storeDetail.copy(isKept = isFakeKept)
                 }
@@ -150,7 +150,7 @@ class MapRepositoryImpl @Inject constructor(
 
     // 3. 킵 토글
     override suspend fun toggleStoreKeep(storeId: Long, isKept: Boolean): Result<Unit> {
-        if (authManager.isTester()) {
+        if (appConfigManager.isTester()) {
             if (isKept) {
                 // 킵 하기: 방금 조회해서 기억해둔 객체(lastFetchedDetail)를 리스트에 넣음
                 lastFetchedDetail?.let { detail ->
@@ -186,7 +186,7 @@ class MapRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getKeepStoreList(): Result<List<StoreDetail>> {
-        if (authManager.isTester()) {
+        if (appConfigManager.isTester()) {
             return Result.success(fakeKeepList.toList())
         }
 

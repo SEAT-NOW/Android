@@ -2,7 +2,8 @@ package com.gmg.seatnow.presentation.user.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.local.AuthManager
+import com.gmg.seatnow.domain.usecase.auth.CheckIsGuestUseCase
+import com.gmg.seatnow.domain.usecase.auth.GetUserNicknameUseCase
 import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UserMyPageViewModel @Inject constructor(
-    private val authManager: AuthManager,
+    private val checkIsGuestUseCase: CheckIsGuestUseCase,
+    private val getUserNicknameUseCase: GetUserNicknameUseCase,
     private val logoutUseCase: OwnerLogoutUseCase
 ) : ViewModel() {
 
@@ -38,10 +40,10 @@ class UserMyPageViewModel @Inject constructor(
     val event = _event.asSharedFlow()
 
     init {
-        val isGuestUser = authManager.getAccessToken().isNullOrBlank()
+        val isGuestUser = checkIsGuestUseCase()
         _uiState.update {
             it.copy(
-                nickname = if (isGuestUser) "게스트" else (authManager.getUserNickname() ?: "사용자"),
+                nickname = if (isGuestUser) "게스트" else (getUserNicknameUseCase() ?: "사용자"),
                 isGuest = isGuestUser
             )
         }
@@ -71,7 +73,6 @@ class UserMyPageViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             logoutUseCase()
                 .onSuccess {
-                    authManager.clearTokens()
                     _event.emit(UserMyPageEvent.NavigateToLogin)
                 }
                 .onFailure { _event.emit(UserMyPageEvent.NavigateToLogin) }

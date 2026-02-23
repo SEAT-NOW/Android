@@ -4,7 +4,9 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.local.AppConfigManager
 import com.gmg.seatnow.data.local.AuthManager
+import com.gmg.seatnow.data.local.UserManager
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
@@ -42,6 +44,8 @@ import kotlin.coroutines.suspendCoroutine
 class AuthRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authManager: AuthManager,
+    private val userManager: UserManager,
+    private val appConfigManager: AppConfigManager,
     private val authServiceProvider: Provider<AuthService>
 ) : AuthRepository {
     private val authService: AuthService
@@ -376,6 +380,8 @@ class AuthRepositoryImpl @Inject constructor(
         } finally {
             // ★ [핵심] 성공이든 실패든 앱 내부 저장소의 토큰은 무조건 삭제
             authManager.clearTokens()
+            userManager.clearUserData()
+            appConfigManager.setTesterMode(false)
         }
     }
 
@@ -401,6 +407,8 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 // 3. 성공 시 내부 토큰 삭제
                 authManager.clearTokens()
+                userManager.clearUserData()
+                appConfigManager.setTesterMode(false)
                 Log.d("AuthRepo", "회원탈퇴 성공: 토큰 삭제 완료")
                 Result.success(Unit)
             } else {
@@ -421,6 +429,9 @@ class AuthRepositoryImpl @Inject constructor(
 
             // 통신 성공 & BaseResponse의 success가 true일 때
             if (response.isSuccessful && body?.success == true) {
+                authManager.clearTokens()
+                userManager.clearUserData()
+                appConfigManager.setTesterMode(false)
                 Result.success(Unit)
             } else {
                 // 서버에서 내려준 message를 에러 메시지로 사용
@@ -493,6 +504,8 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             authManager.clearTokens()
+            userManager.clearUserData()
+            appConfigManager.setTesterMode(false)
             Log.e("AuthRepo", "토큰 재발급 통신 에러")
             null
         }
