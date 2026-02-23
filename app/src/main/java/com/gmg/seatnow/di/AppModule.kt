@@ -1,6 +1,7 @@
 package com.gmg.seatnow.di
 
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.api.StoreManageApiService
 import com.gmg.seatnow.data.api.UserApiService
 import com.gmg.seatnow.data.repository.AuthRepositoryImpl
 import com.gmg.seatnow.data.repository.MapRepositoryImpl
@@ -66,11 +67,17 @@ abstract class AppModule {
         }
 
         // [신규] 지도/가게 관련 API 서비스 제공
-        // (사용자님 코드의 UserApiService 대신 아까 만든 StoreApiService 사용)
         @Provides
         @Singleton
-        fun provideStoreApiService(retrofit: Retrofit): UserApiService {
+        fun provideUserApiService(retrofit: Retrofit): UserApiService {
             return retrofit.create(UserApiService::class.java)
+        }
+
+        // ★ [신규 추가] 사장님의 매장/좌석 관리를 모두 통괄하는 API
+        @Provides
+        @Singleton
+        fun provideStoreManageApiService(retrofit: Retrofit): StoreManageApiService {
+            return retrofit.create(StoreManageApiService::class.java)
         }
     }
 }

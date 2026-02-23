@@ -44,10 +44,6 @@ class AuthRepositoryImpl @Inject constructor(
     private val authManager: AuthManager,
     private val authServiceProvider: Provider<AuthService>
 ) : AuthRepository {
-
-    private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
-    private var cachedStoreProfile: StoreProfileResponseDTO? = null
-
     private val authService: AuthService
         get() = authServiceProvider.get()
 
@@ -463,72 +459,6 @@ class AuthRepositoryImpl @Inject constructor(
                 Result.success(Unit)
             } else {
                 // 에러 파싱
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun updateStorePhone(phone: String): Result<Unit> {
-        return try {
-            val response = authService.updateStorePhone(StorePhoneUpdateRequestDTO(phone))
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(Unit)
-            } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getStoreProfile(): Result<StoreProfileResponseDTO> {
-        return try {
-            val response = authService.getStoreProfile()
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data
-                if (data != null) {
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception("데이터가 비어있습니다."))
-                }
-            } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO> {
-        // 1. 캐시된 데이터가 있으면 바로 반환 (API 호출 X)
-        cachedOwnerAccount?.let {
-            return Result.success(it)
-        }
-
-        // 2. 캐시가 없으면 API 호출
-        return try {
-            val response = authService.getOwnerAccount()
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data
-                if (data != null) {
-                    // ★ 3. 성공 시 캐시에 저장
-                    cachedOwnerAccount = data
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception("데이터가 비어있습니다."))
-                }
-            } else {
                 val errorMsg = parseErrorMessage(response.errorBody()?.string())
                 Result.failure(Exception(errorMsg))
             }

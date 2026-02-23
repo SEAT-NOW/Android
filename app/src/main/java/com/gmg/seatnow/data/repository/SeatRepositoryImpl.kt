@@ -1,7 +1,7 @@
 package com.gmg.seatnow.data.repository
 
-import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.api.StoreManageApiService
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.model.request.SeatUpdateRequestDTO
 import com.gmg.seatnow.data.model.request.SpaceLayoutUpdateRequest
@@ -15,11 +15,10 @@ import com.gmg.seatnow.domain.model.TableItem
 import com.gmg.seatnow.domain.repository.SeatRepository
 import com.gmg.seatnow.domain.repository.SeatStatusData
 import com.google.gson.Gson
-import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 class SeatRepositoryImpl @Inject constructor(
-    private val authService: AuthService,
+    private val storeManageApiService: StoreManageApiService,
     private val authManager: AuthManager
 ) : SeatRepository {
 
@@ -38,7 +37,7 @@ class SeatRepositoryImpl @Inject constructor(
         }
 
         return try {
-            val response = authService.getSeatStatus(storeId)
+            val response = storeManageApiService.getSeatStatus(storeId)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -111,7 +110,7 @@ class SeatRepositoryImpl @Inject constructor(
                 spaceUpdates = spaceUpdates
             )
 
-            val response = authService.updateSeatStatus(requestDto)
+            val response = storeManageApiService.updateSeatStatus(requestDto)
 
             if (response.isSuccessful && response.body()?.success == true) {
 
@@ -162,7 +161,7 @@ class SeatRepositoryImpl @Inject constructor(
                 )
             }
 
-            val response = authService.updateStoreLayout(requestDto)
+            val response = storeManageApiService.updateStoreLayout(requestDto)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 // ★ [중요] 구조가 변경되면(추가/삭제) 서버에서 새로운 ID가 발급됩니다.

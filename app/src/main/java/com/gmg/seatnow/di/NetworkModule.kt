@@ -14,6 +14,7 @@ import javax.inject.Singleton
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.api.AuthInterceptor
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.api.TokenAuthenticator
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -36,17 +37,17 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        authManager: AuthManager,
-        authServiceProvider: Provider<AuthService>
-    ): OkHttpClient {
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator
+    ):OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
-        val authInterceptor = AuthInterceptor(authManager, authServiceProvider)
 
         return OkHttpClient.Builder()
             .addInterceptor(logging)
-            .addInterceptor(authInterceptor)
+            .addInterceptor(authInterceptor) // 헤더 추가 담당
+            .authenticator(tokenAuthenticator) // ★ [추가] 401 에러(토큰 만료) 전담 처리
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

@@ -1,5 +1,7 @@
 package com.gmg.seatnow.domain.repository
 
+import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import com.gmg.seatnow.domain.model.OpeningHour
 import com.gmg.seatnow.domain.model.RegularHoliday
 import com.gmg.seatnow.domain.model.StoreMenuCategory
@@ -28,6 +30,9 @@ interface StoreRepository {
         isImageChanged: Boolean // 이미지가 변경되었는지 (갤러리에서 선택했는지)
     ): Result<Boolean>
 
+    suspend fun getStoreProfile(): Result<StoreProfileResponseDTO>
+    suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO>
+    suspend fun updateStorePhone(phone: String): Result<Unit>
     suspend fun updateMenuOrders(categories: List<StoreMenuCategory>): Result<Boolean>
     suspend fun deleteMenu(menuId: Long): Result<Boolean>
 }
