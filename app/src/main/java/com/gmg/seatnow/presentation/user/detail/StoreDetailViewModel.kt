@@ -3,12 +3,8 @@ package com.gmg.seatnow.presentation.user.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
-import com.gmg.seatnow.domain.model.MenuItemUiModel
 import com.gmg.seatnow.domain.model.StoreDetail
-import com.gmg.seatnow.domain.model.StoreStatus
-import com.gmg.seatnow.domain.repository.MapRepository
 import com.gmg.seatnow.domain.usecase.store.GetStoreDetailUseCase
 import com.gmg.seatnow.domain.usecase.store.ToggleMenuLikeUseCase
 import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
@@ -27,7 +23,6 @@ class StoreDetailViewModel @Inject constructor(
     private val getStoreDetailUseCase: GetStoreDetailUseCase,
     private val toggleMenuLikeUseCase: ToggleMenuLikeUseCase,
     private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase,
-    private val authManager: AuthManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -60,18 +55,8 @@ class StoreDetailViewModel @Inject constructor(
         viewModelScope.launch {
             getStoreDetailUseCase(storeId)
                 .onSuccess { (detail, menus) ->
-                    // ★ [테스터 모드 로직 보강]
-                    // 상세 정보를 불러올 때, 이미 AuthManager의 가짜 리스트에 있는 녀석이라면
-                    // 서버에서 받은 데이터(detail.isKept)를 무시하고 true로 덮어씌워야 '계속 킵 된 상태'로 보임
-                    val isFakeKept = if (authManager.isTester()) {
-                        authManager.getFakeKeepList().any { it.id == detail.id }
-                    } else {
-                        false
-                    }
 
-                    val finalDetail = if (isFakeKept) detail.copy(isKept = true) else detail
-
-                    _storeDetailState.value = finalDetail
+                    _storeDetailState.value = detail
                     _menuListState.value = menus
                 }
                 .onFailure {
@@ -83,27 +68,7 @@ class StoreDetailViewModel @Inject constructor(
     fun onKeepClicked(id: Long, newKeptState: Boolean) {
         val currentDetail = _storeDetailState.value ?: return
 
-        // 1. 테스터 모드 (가짜 성공 & 메모리 저장)
-        if (authManager.isTester()) {
-            // UI 즉시 반영
-            _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
-
-            // ★ [복구된 로직] AuthManager 메모리 리스트에 추가/삭제
-            if (newKeptState) {
-                authManager.addFakeKeep(currentDetail)
-            } else {
-                authManager.removeFakeKeep(id)
-            }
-            return
-        }
-
-        // 2. 게스트 모드 (차단)
-        if (!authManager.hasToken()) {
-            sendEvent(UiEvent.ShowToast("로그인이 필요한 서비스입니다."))
-            return
-        }
-
-        // 3. 일반 회원 (API 호출)
+        // 2. 일반 회원 (API 호출)
         viewModelScope.launch {
             // 낙관적 업데이트
             _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
@@ -115,7 +80,9 @@ class StoreDetailViewModel @Inject constructor(
                 .onFailure { e ->
                     // 실패 시 롤백
                     _storeDetailState.value = currentDetail.copy(isKept = !newKeptState)
-                    val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다." else "오류가 발생했습니다."
+                    val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다."
+                        else if(e.message == "LOGIN_REQUIRED") ("로그인이 필요한 서비스입니다.")
+                        else "오류가 발생했습니다."
                     sendEvent(UiEvent.ShowToast(msg))
                 }
         }
@@ -128,19 +95,7 @@ class StoreDetailViewModel @Inject constructor(
         val targetItem = currentCategories.flatMap { it.menuItems }.find { it.id == menuId } ?: return
         val currentIsLiked = targetItem.isLiked
 
-        // 1. 테스터 모드
-        if (authManager.isTester()) {
-            updateMenuLikeStateInUi(menuId, !currentIsLiked)
-            return
-        }
 
-        // 2. 게스트 모드
-        if (!authManager.hasToken()) {
-            sendEvent(UiEvent.ShowToast("로그인이 필요한 서비스입니다."))
-            return
-        }
-
-        // 3. 일반 회원
         viewModelScope.launch {
             // 낙관적 업데이트
             updateMenuLikeStateInUi(menuId, !currentIsLiked)
@@ -150,7 +105,9 @@ class StoreDetailViewModel @Inject constructor(
                 .onFailure { e ->
                     // 롤백
                     updateMenuLikeStateInUi(menuId, currentIsLiked)
-                    val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다." else "오류가 발생했습니다."
+                    val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다."
+                        else if(e.message == "LOGIN_REQUIRED") ("로그인이 필요한 서비스입니다.")
+                        else "오류가 발생했습니다."
                     sendEvent(UiEvent.ShowToast(msg))
                 }
         }

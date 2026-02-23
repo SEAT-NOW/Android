@@ -24,8 +24,6 @@ class AuthManager @Inject constructor(
         private const val KEY_IS_TESTER = "is_tester"
     }
 
-    private val _fakeKeepList = mutableListOf<StoreDetail>()
-
     fun saveUserInfo(nickname: String?) {
         prefs.edit()
             .putString(KEY_USER_NICKNAME, nickname)
@@ -108,22 +106,5 @@ class AuthManager @Inject constructor(
     // ★ [추가] 개발자 모드 확인
     fun isTester(): Boolean {
         return prefs.getBoolean(KEY_IS_TESTER, false)
-    }
-
-    fun addFakeKeep(store: StoreDetail) {
-        if (_fakeKeepList.none { it.id == store.id }) {
-            // 킵 목록에선 무조건 isKept = true여야 하므로 copy로 상태 강제
-            _fakeKeepList.add(store.copy(isKept = true))
-        }
-    }
-
-    // 가짜 킵 삭제
-    fun removeFakeKeep(storeId: Long) {
-        _fakeKeepList.removeAll { it.id == storeId }
-    }
-
-    // 가짜 킵 목록 조회
-    fun getFakeKeepList(): List<StoreDetail> {
-        return _fakeKeepList.toList()
     }
 }

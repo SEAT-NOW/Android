@@ -17,8 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class KeepViewModel @Inject constructor(
     private val getKeepStoresUseCase: GetKeepStoresUseCase,   // ★ 추가
-    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase, // ★ 추가
-    private val authManager: AuthManager
+    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase
 ) : ViewModel() {
 
     // UI에서 사용할 데이터 모델 리스트
@@ -31,11 +30,6 @@ class KeepViewModel @Inject constructor(
 
     fun fetchKeepList() {
         // ★ [분기] 테스터라면 AuthManager의 가짜 리스트 사용
-        if (authManager.isTester()) {
-            val fakeList = authManager.getFakeKeepList()
-            _keepList.value = fakeList.map { it.toUiModel() }
-            return
-        }
 
         viewModelScope.launch {
             // 1. Repository에서 실제 킵 목록을 가져옴
@@ -54,24 +48,18 @@ class KeepViewModel @Inject constructor(
         currentList.remove(item)
         _keepList.value = currentList
 
-        // 2. [데이터 반영] 테스터 vs 일반 유저 분기
-        if (authManager.isTester()) {
-            // 테스터: 메모리 상의 가짜 리스트에서 삭제
-            authManager.removeFakeKeep(item.storeId)
-        } else {
-            // 일반 유저: 실제 서버 API 호출 (킵 해제)
-            viewModelScope.launch {
-                val result = toggleStoreKeepUseCase(item.storeId, false) // isKept = false
+        viewModelScope.launch {
+            val result = toggleStoreKeepUseCase(item.storeId, false) // isKept = false
 
-                if (result.isFailure) {
-                    // 실패 시 롤백 (삭제했던 아이템 다시 복구)
-                    val rollbackList = _keepList.value.toMutableList()
-                    rollbackList.add(item)
-                    _keepList.value = rollbackList
-                    // 필요한 경우 에러 토스트 메시지 전송 로직 추가
-                }
+            if (result.isFailure) {
+                // 실패 시 롤백 (삭제했던 아이템 다시 복구)
+                val rollbackList = _keepList.value.toMutableList()
+                rollbackList.add(item)
+                _keepList.value = rollbackList
+                // 필요한 경우 에러 토스트 메시지 전송 로직 추가
             }
         }
+
     }
 
     // Helper: Domain Model -> UI Model 변환
