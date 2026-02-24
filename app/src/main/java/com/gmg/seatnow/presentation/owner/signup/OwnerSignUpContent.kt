@@ -24,7 +24,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.ui.draw.shadow
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
