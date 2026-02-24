@@ -98,10 +98,25 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun verifyDeveloperCode(code: String) {
+        viewModelScope.launch {
+            if (code == "seatnow!!testID") {
+                // 성공 시 UseCase 실행 후 결과 이벤트 방출
+                setDeveloperModeUseCase()
+                _event.emit(LoginEvent.ShowToast("개발자 모드로 진입합니다."))
+                _event.emit(LoginEvent.NavigateToUserMain)
+            } else {
+                // 실패 시 실패 이벤트 방출
+                _event.emit(LoginEvent.ShowToast("코드가 올바르지 않습니다."))
+            }
+        }
+    }
+
     sealed class LoginEvent {
         object NavigateToUserMain : LoginEvent()
         object NavigateToOwnerLogin : LoginEvent()
         object NavigateToDeveloperLogin : LoginEvent()
         data class NavigateToTerms(val isGuest: Boolean) : LoginEvent()
+        data class ShowToast(val message: String) : LoginEvent()
     }
 }

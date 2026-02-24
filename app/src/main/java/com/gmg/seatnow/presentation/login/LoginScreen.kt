@@ -48,6 +48,7 @@ fun LoginScreen(
                     onNavigateToTerms(event.isGuest)
                 }
                 is LoginViewModel.LoginEvent.NavigateToDeveloperLogin -> onNavigateToDeveloperLogin()
+                is LoginViewModel.LoginEvent.ShowToast -> { }
             }
         }
     }
@@ -92,12 +93,12 @@ fun LoginScreenContent(
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 24.dp) // 둘러보기 버튼 위치와 비슷하게
+                .padding(top = 30.dp, end = 24.dp) // 둘러보기 버튼 위치와 비슷하게
         ) {
             Text(
                 text = "개발자",
                 color = Color.White.copy(alpha = 0.5f), // 너무 튀지 않게 반투명
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodyLarge,
                 textDecoration = TextDecoration.Underline,
                 modifier = Modifier.clickable { onDeveloperLoginClick() }
             )
