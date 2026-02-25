@@ -254,9 +254,7 @@ class MyPageViewModel @Inject constructor(
 
     private fun validateAndUpdateNewPassword(password: String) {
         // UseCase를 사용하여 정규식 검사 (영문, 숫자, 특수문자 포함 8~20자리)
-        val isValid = validatePasswordUseCase(password)
-        val error = if (password.isNotBlank() && !isValid) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
-
+        val error = validatePasswordUseCase(password)
         _uiState.update { it.copy(newPassword = password, newPasswordError = error) }
 
         // 비밀번호가 바뀌면 비밀번호 확인 필드도 다시 검사해야 함 (일치 여부 확인)

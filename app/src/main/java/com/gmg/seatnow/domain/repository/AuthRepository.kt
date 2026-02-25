@@ -29,7 +29,7 @@ interface AuthRepository {
 
     // OwnerSignUp
     suspend fun signUpOwner(
-        requestDto: OwnerSignUpRequestDTO,
+        info: com.gmg.seatnow.domain.model.OwnerSignUpInfo,
         licenseUri: Uri?,
         storeImageUris: List<Uri>
     ): Result<Unit>

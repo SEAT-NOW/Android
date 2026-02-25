@@ -3,6 +3,8 @@ package com.gmg.seatnow.presentation.owner.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.usecase.auth.OwnerLoginUseCase
+import com.gmg.seatnow.domain.usecase.logic.ValidateEmailUseCase
+import com.gmg.seatnow.domain.usecase.logic.ValidatePasswordUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -10,7 +12,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class OwnerLoginViewModel @Inject constructor(
-    private val ownerLoginUseCase: OwnerLoginUseCase // UseCase 주입 받음
+    private val ownerLoginUseCase: OwnerLoginUseCase, // UseCase 주입 받음
+    private val validateEmailUseCase: ValidateEmailUseCase,
+    private val validatePasswordUseCase: ValidatePasswordUseCase
 ) : ViewModel() {
 
     // 1. 입력 값
@@ -50,22 +54,14 @@ class OwnerLoginViewModel @Inject constructor(
         _email.value = newEmail
         _loginError.value = null
 
-        if (newEmail.isNotBlank() && !newEmail.matches(emailRegex)) {
-            _emailError.value = "올바른 이메일 형식이 아닙니다."
-        } else {
-            _emailError.value = null
-        }
+        _emailError.value = validateEmailUseCase(newEmail)
     }
 
     fun onPasswordChange(newPassword: String) {
         _password.value = newPassword
         _loginError.value = null
-
-        if (newPassword.isNotBlank() && !newPassword.matches(passwordRegex)) {
-            _passwordError.value = "영문, 숫자, 특수문자 포함 8~20자리여야 합니다."
-        } else {
-            _passwordError.value = null
-        }
+        // ★ 정규식이 아니라 UseCase에게 검사를 맡김
+        _passwordError.value = validatePasswordUseCase(newPassword)
     }
 
     // ★ UseCase를 통한 로그인 처리

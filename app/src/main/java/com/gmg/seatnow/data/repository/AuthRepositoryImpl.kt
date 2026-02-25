@@ -7,15 +7,23 @@ import com.gmg.seatnow.data.api.AuthService
 import com.gmg.seatnow.data.local.AppConfigManager
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.local.UserManager
+import com.gmg.seatnow.data.model.request.AccountDTO
+import com.gmg.seatnow.data.model.request.BusinessDTO
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.LayoutDTO
+import com.gmg.seatnow.data.model.request.OperatingHoursDTO
+import com.gmg.seatnow.data.model.request.OperationDTO
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
+import com.gmg.seatnow.data.model.request.RegularHolidayDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
+import com.gmg.seatnow.data.model.request.TableInfoDTO
+import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
@@ -306,11 +314,28 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signUpOwner(
-        requestDto: OwnerSignUpRequestDTO,
+        info: com.gmg.seatnow.domain.model.OwnerSignUpInfo,
         licenseUri: Uri?,
         storeImageUris: List<Uri>
     ): Result<Unit> {
         return try {
+            val requestDto = OwnerSignUpRequestDTO(
+                account = AccountDTO(info.account.email, info.account.password, info.account.phoneNumber),
+                business = BusinessDTO(
+                    info.business.representativeName, info.business.businessNumber, info.business.storeName,
+                    info.business.address, info.business.neighborhood, info.business.latitude,
+                    info.business.longitude, info.business.universityNames, info.business.storePhone
+                ),
+                layout = info.layout.map { l ->
+                    LayoutDTO(l.name, l.tables.map { t -> TableInfoDTO(t.tableType, t.tableCount) })
+                },
+                operation = OperationDTO(
+                    regularHolidays = info.operation.regularHolidays.map { RegularHolidayDTO(it.dayOfWeek, it.weekInfo) },
+                    temporaryHolidays = info.operation.temporaryHolidays.map { TemporaryHolidayDTO(it.startDate, it.endDate) },
+                    hours = info.operation.hours.map { OperatingHoursDTO(it.dayOfWeek, it.startTime, it.endTime) }
+                )
+            )
+
             val jsonString = Gson().toJson(requestDto)
             val requestBody = jsonString.toRequestBody("application/json".toMediaTypeOrNull())
 

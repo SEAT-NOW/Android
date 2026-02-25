@@ -362,9 +362,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun validateAndUpdateEmail(email: String) {
-        // [UseCase 적용] 정규식 로직 제거 -> UseCase 사용
-        val isValid = validateEmailUseCase(email)
-        val error = if (email.isNotBlank() && !isValid) "올바른 이메일 형식이 아닙니다." else null
+        val error = validateEmailUseCase(email)
 
         _uiState.update { it.copy(email = email, emailError = error, isEmailVerified = false, isEmailCodeSent = false, isEmailVerificationAttempted = false) }
         stopEmailTimer()
@@ -372,9 +370,7 @@ class OwnerSignUpViewModel @Inject constructor(
 
     private fun validateAndUpdatePassword(password: String) {
         // [UseCase 적용]
-        val isValid = validatePasswordUseCase(password)
-        val error = if (password.isNotBlank() && !isValid) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
-
+        val error = validatePasswordUseCase(password)
         _uiState.update { it.copy(password = password, passwordError = error) }
         validateAndUpdatePasswordCheck(_uiState.value.passwordCheck)
     }
@@ -774,27 +770,19 @@ class OwnerSignUpViewModel @Inject constructor(
         viewModelScope.launch {
             val state = _uiState.value
 
-            // 1. UI State -> Request DTO 매핑
-            val requestDto = mapStateToDto(state)
+            // 1. UI State -> 순수 도메인 모델로 매핑 (DTO 아님!)
+            val domainInfo = mapStateToDomain(state)
 
-            // 2. 사업자 등록증 준비
             val licenseUri = if(state.licenseImageUrl != null) Uri.parse(state.licenseImageUrl) else null
 
-            // 3. [수정] 가게 사진 리스트 재정렬 (대표 사진을 무조건 0번으로!)
             val rawList = state.storePhotoList
             val repUri = state.representativePhotoUri
-
             val sortedStoreImages = if (repUri != null && rawList.contains(repUri)) {
-                // 대표 사진이 있으면: [대표 사진] + [나머지 사진들] 순서로 재조립
-                val otherImages = rawList.filter { it != repUri }
-                listOf(repUri) + otherImages
-            } else {
-                // 대표 사진이 없으면: 그냥 원래 순서대로
-                rawList
-            }
+                listOf(repUri) + rawList.filter { it != repUri }
+            } else rawList
 
-            // 4. API 호출 (재정렬된 sortedStoreImages 전송)
-            signUpOwnerUseCase(requestDto, licenseUri, sortedStoreImages)
+            // 2. 도메인 모델을 UseCase로 전송
+            signUpOwnerUseCase(domainInfo, licenseUri, sortedStoreImages)
                 .onSuccess {
                     _uiState.update { it.copy(currentStep = SignUpStep.STEP_6_COMPLETE) }
                 }
@@ -804,40 +792,31 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
-    // [Helper] 매핑 함수
-    private fun mapStateToDto(state: OwnerSignUpUiState): OwnerSignUpRequestDTO {
-        // Account 매핑 (동일)
-        val account = AccountDTO(
-            email = state.email,
-            password = state.password,
-            phoneNumber = state.phone
-        )
+    // [Helper] 매핑 함수 (UI 상태의 찌꺼기를 버리고 알맹이만 뽑아냄)
+    private fun mapStateToDomain(state: OwnerSignUpUiState): com.gmg.seatnow.domain.model.OwnerSignUpInfo {
+        val account = com.gmg.seatnow.domain.model.AccountInfo(state.email, state.password, state.phone)
 
-        // Business 매핑
         val univList = if (state.nearbyUniv.contains("/")) {
             state.nearbyUniv.split("/").map { it.trim() }
         } else {
             if (state.nearbyUniv.isNotBlank()) listOf(state.nearbyUniv) else emptyList()
         }
 
-        val business = BusinessDTO(
-            representativeName = state.repName,
-            businessNumber = state.businessNumber,
-            storeName = state.storeName,
-            address = state.mainAddress,
+        val business = com.gmg.seatnow.domain.model.BusinessInfo(
+            representativeName = state.repName, businessNumber = state.businessNumber,
+            storeName = state.storeName, address = state.mainAddress,
             neighborhood = extractNeighborhood(state.mainAddress) ?: "정보 없음",
             latitude = state.storeSearchResults.find { it.placeName == state.storeName }?.latitude ?: 0.0,
             longitude = state.storeSearchResults.find { it.placeName == state.storeName }?.longitude ?: 0.0,
-            universityNames = univList,
-            storePhone = state.storeContact
+            universityNames = univList, storePhone = state.storeContact
         )
 
-        // Layout 매핑 (동일)
+        // ★ [핵심] SpaceItem에서 isEditing 같은 UI 상태를 버리고 순수 데이터(LayoutInfo)로 변환
         val layout = state.spaceList.map { space ->
-            LayoutDTO(
+            com.gmg.seatnow.domain.model.LayoutInfo(
                 name = space.name.ifBlank { "기본 홀" },
                 tables = space.tableList.map { table ->
-                    TableInfoDTO(
+                    com.gmg.seatnow.domain.model.TableDetail(
                         tableType = table.personCount.toIntOrNull() ?: 0,
                         tableCount = table.tableCount.toIntOrNull() ?: 0
                     )
@@ -845,45 +824,37 @@ class OwnerSignUpViewModel @Inject constructor(
             )
         }
 
-        // ★ [핵심 수정] Operation (정기 휴무일) 매핑 로직
-        // regularHolidayType -> 0: 매주(Weekly), 1: 매월 특정 주(Monthly)
-        val regularHolidays = if (state.regularHolidayType == 0) {
-            // [Case 0] 매주 선택 시 -> weekInfo를 무조건 0으로 설정
-            state.weeklyHolidayDays.map { dayIdx ->
-                RegularHolidayDTO(
-                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
-                    weekInfo = 0 // 0 = Every Week
-                )
-            }
-        } else {
-            // [Case 1] 특정 주 선택 시 -> 선택된 주차(weeks)와 요일(days)의 조합(Cartesian Product)
-            // 예: weeks=[2, 10], days=[MON] -> (MON, 2), (MON, 10)
-            state.monthlyHolidayWeeks.flatMap { week ->
-                state.monthlyHolidayDays.map { day ->
-                    RegularHolidayDTO(
-                        dayOfWeek = mapIndexToDayOfWeek(day),
-                        weekInfo = week // 1~5 or 10(Last Week)
-                    )
+        val regularHolidays = when (state.regularHolidayType) {
+            1 -> {
+                // [Case 1] 매주 휴무 (weekInfo = 0)
+                state.weeklyHolidayDays.map { dayIdx ->
+                    com.gmg.seatnow.domain.model.RegularHolidayInfo(mapIndexToDayOfWeek(dayIdx), 0)
                 }
             }
+            2 -> {
+                // [Case 2] 매월 특정 주 휴무 (weekInfo = 1,2,3,4,5,10)
+                state.monthlyHolidayWeeks.flatMap { week ->
+                    state.monthlyHolidayDays.map { day ->
+                        com.gmg.seatnow.domain.model.RegularHolidayInfo(mapIndexToDayOfWeek(day), week)
+                    }
+                }
+            }
+            else -> {
+                // [Case 0] 정기 휴무 없음 (빈 리스트 전송)
+                emptyList()
+            }
         }
 
-        // 임시 휴무일 매핑 (동일)
         val tempHolidays = if (state.isTempHolidayEnabled && state.tempHolidayStart.isNotBlank()) {
-            listOf(
-                TemporaryHolidayDTO(
-                    startDate = state.tempHolidayStart.replace("/", "-"), // ★ 여기서 replace 추가!
-                    endDate = state.tempHolidayEnd.replace("/", "-")      // ★ 여기도 추가!
-                )
-            )
-        } else {
-            emptyList()
-        }
+            listOf(com.gmg.seatnow.domain.model.TemporaryHolidayInfo(
+                startDate = state.tempHolidayStart.replace("/", "-"),
+                endDate = state.tempHolidayEnd.replace("/", "-")
+            ))
+        } else emptyList()
 
-        // 운영 시간 매핑 (동일)
         val hours = state.operatingSchedules.flatMap { schedule ->
             schedule.selectedDays.map { dayIdx ->
-                OperatingHoursDTO(
+                com.gmg.seatnow.domain.model.OperatingHoursInfo(
                     dayOfWeek = mapIndexToDayOfWeek(dayIdx),
                     startTime = "${schedule.startHour.toString().padStart(2,'0')}:${schedule.startMin.toString().padStart(2,'0')}",
                     endTime = "${schedule.endHour.toString().padStart(2,'0')}:${schedule.endMin.toString().padStart(2,'0')}"
@@ -891,15 +862,9 @@ class OwnerSignUpViewModel @Inject constructor(
             }
         }
 
-        return OwnerSignUpRequestDTO(
-            account = account,
-            business = business,
-            layout = layout,
-            operation = OperationDTO(
-                regularHolidays = regularHolidays, // 수정된 리스트 전달
-                temporaryHolidays = tempHolidays,
-                hours = hours
-            )
+        return com.gmg.seatnow.domain.model.OwnerSignUpInfo(
+            account, business, layout,
+            com.gmg.seatnow.domain.model.OperationInfo(regularHolidays, tempHolidays, hours)
         )
     }
 
