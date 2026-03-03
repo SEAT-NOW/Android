@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.owner.store.manage
+package com.gmg.seatnow.presentation.owner.store.storeManage
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,21 +44,21 @@ fun StoreManagementScreen(
     viewModel: StoreManagementViewModel = hiltViewModel(),
     onEditStoreInfoClick: () -> Unit,
 ) {
-    val storeDetail by viewModel.storeDetailState.collectAsState()
-    val menuCategories by viewModel.menuListState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.loadStoreData()
+        // viewModel.loadStoreData() is now called on init or handled manually.
+        viewModel.onAction(StoreManagementAction.ReloadData)
     }
 
-    if (storeDetail == null) {
+    if (uiState.loadState.isLoading || uiState.storeData.storeDetail == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PointRed)
         }
     } else {
         StoreManagementContent(
-            storeDetail = storeDetail!!,
-            menuCategories = menuCategories,
+            storeDetail = uiState.storeData.storeDetail!!,
+            menuCategories = uiState.storeData.menuCategories,
             onEditStoreInfoClick = onEditStoreInfoClick
         )
     }
