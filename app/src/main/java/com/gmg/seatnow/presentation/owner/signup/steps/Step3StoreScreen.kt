@@ -17,15 +17,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import com.gmg.seatnow.presentation.component.SeatNowRedPlusButton
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.SpaceItemCard
 import com.gmg.seatnow.presentation.component.TableItemCard
 import com.gmg.seatnow.domain.model.SpaceItem
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.StoreState
 
-// ★ [복구 1] Annotation 추가
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Step3StoreScreen(
@@ -68,7 +68,7 @@ fun Step3StoreScreen(
                 if (showTooltip) {
                     Popup(
                         alignment = Alignment.TopEnd,
-                        offset = IntOffset(x = 650, y = 70), // 위치는 UI에 맞게 미세조정 (기존 코드 참고)
+                        offset = IntOffset(x = 650, y = 70), // 위치는 UI에 맞게 미세조정
                         onDismissRequest = { showTooltip = false }
                     ) {
                         Surface(
@@ -93,8 +93,8 @@ fun Step3StoreScreen(
             }
         }
 
-        // 공간 리스트 (forEach 사용)
-        uiState.spaceList.forEach { item ->
+        // 공간 리스트 (uiState.store.spaceList 사용)
+        uiState.store.spaceList.forEach { item ->
             key(item.id) {
                 if (item.isEditing) {
                     SignUpTextFieldWithButton(
@@ -108,8 +108,8 @@ fun Step3StoreScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 } else {
-                    val isSelected = uiState.selectedSpaceId == item.id
-                    val isSpaceDeleteEnabled = uiState.spaceList.size > 1
+                    val isSelected = uiState.store.selectedSpaceId == item.id
+                    val isSpaceDeleteEnabled = uiState.store.spaceList.size > 1
 
                     SpaceItemCard(
                         name = item.name,
@@ -126,7 +126,7 @@ fun Step3StoreScreen(
         }
 
         // 공간 추가 버튼 (+)
-        val isAnySpaceEditing = uiState.spaceList.any { it.isEditing }
+        val isAnySpaceEditing = uiState.store.spaceList.any { it.isEditing }
 
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -143,7 +143,7 @@ fun Step3StoreScreen(
         Spacer(modifier = Modifier.height(40.dp))
 
         // --- 2. 테이블 구성 섹션 ---
-        val selectedSpace = uiState.spaceList.find { it.id == uiState.selectedSpaceId }
+        val selectedSpace = uiState.store.spaceList.find { it.id == uiState.store.selectedSpaceId }
         val isTableEditable = selectedSpace?.isEditing == true
 
         val displayTableList = selectedSpace?.tableList ?: emptyList()
@@ -191,10 +191,12 @@ fun PreviewStep3StoreScreen() {
     SeatNowTheme {
         Step3StoreScreen(
             uiState = OwnerSignUpUiState(
-                spaceList = listOf(
-                    SpaceItem(id = 1, name = "1층 홀", seatCount = 20),
-                    SpaceItem(id = 2, name = "2층 테라스", seatCount = 12),
-                    SpaceItem(id = 3, name = "별관 (수정 모드 테스트)", seatCount = 8, isEditing = true, editInput = "수정 중인 이름")
+                store = StoreState( // ★ Preview에서도 StoreState로 감싸줍니다.
+                    spaceList = listOf(
+                        SpaceItem(id = 1, name = "1층 홀", seatCount = 20),
+                        SpaceItem(id = 2, name = "2층 테라스", seatCount = 12),
+                        SpaceItem(id = 3, name = "별관 (수정 모드 테스트)", seatCount = 8, isEditing = true, editInput = "수정 중인 이름")
+                    )
                 )
             ),
             onAction = {}

@@ -24,13 +24,16 @@ import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.SpaceItemCard
 import com.gmg.seatnow.presentation.component.TableItemCard
+
+// ★ [수정됨] MyPageViewModel 종속성 제거! 순수 Contract 패키지에서 Import
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
-import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageUiState
+import com.gmg.seatnow.presentation.owner.store.mypage.SeatConfigState
 import com.gmg.seatnow.presentation.theme.*
 
 @Composable
 fun EditSeatConfigScreen(
-    uiState: MyPageViewModel.MyPageUiState,
+    uiState: MyPageUiState, // ★ [수정됨] 뷰모델 이름 제거
     onAction: (MyPageAction) -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -55,7 +58,8 @@ fun EditSeatConfigScreen(
             ) {
                 Button(
                     onClick = { onAction(MyPageAction.OnSaveSeatConfigClick) },
-                    enabled = uiState.isSeatConfigValid && !uiState.isLoading,
+                    // ★ [수정됨] uiState.seatConfig 바구니 참조 (isLoading은 최상위 유지)
+                    enabled = uiState.seatConfig.isSeatConfigValid && !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -150,7 +154,8 @@ fun EditSeatConfigScreen(
             }
 
             // 2. 공간 리스트
-            uiState.spaceList.forEach { item ->
+            // ★ [수정됨] uiState.seatConfig 바구니 참조
+            uiState.seatConfig.spaceList.forEach { item ->
                 key(item.id) {
                     if (item.isEditing) {
                         SignUpTextFieldWithButton(
@@ -164,8 +169,9 @@ fun EditSeatConfigScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                     } else {
-                        val isSelected = uiState.selectedSpaceId == item.id
-                        val isSpaceDeleteEnabled = uiState.spaceList.size > 1
+                        // ★ [수정됨] uiState.seatConfig 바구니 참조
+                        val isSelected = uiState.seatConfig.selectedSpaceId == item.id
+                        val isSpaceDeleteEnabled = uiState.seatConfig.spaceList.size > 1
 
                         SpaceItemCard(
                             name = item.name,
@@ -182,7 +188,8 @@ fun EditSeatConfigScreen(
             }
 
             // 공간 추가 버튼 (+)
-            val isAnySpaceEditing = uiState.spaceList.any { it.isEditing }
+            // ★ [수정됨] uiState.seatConfig 바구니 참조
+            val isAnySpaceEditing = uiState.seatConfig.spaceList.any { it.isEditing }
 
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -199,7 +206,8 @@ fun EditSeatConfigScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             // --- 3. 테이블 구성 섹션 ---
-            val selectedSpace = uiState.spaceList.find { it.id == uiState.selectedSpaceId }
+            // ★ [수정됨] uiState.seatConfig 바구니 참조
+            val selectedSpace = uiState.seatConfig.spaceList.find { it.id == uiState.seatConfig.selectedSpaceId }
             // ★ Step 3 로직: 공간이 수정 중일 때만 테이블도 수정 가능하게 (isEnabled = isTableEditable)
             val isTableEditable = selectedSpace?.isEditing == true
 
@@ -262,8 +270,10 @@ fun EditSeatConfigScreen(
 fun PreviewEditSeatConfigScreen() {
     SeatNowTheme {
         EditSeatConfigScreen(
-            uiState = MyPageViewModel.MyPageUiState(
-                isSeatConfigValid = true
+            uiState = MyPageUiState(
+                seatConfig = SeatConfigState( // ★ [수정됨] Preview도 바구니로 감싸주기
+                    isSeatConfigValid = true
+                )
             ),
             onAction = {},
             onBackClick = {}

@@ -35,16 +35,16 @@ fun MyPageScreen(
     LaunchedEffect(true) {
         viewModel.event.collectLatest { event ->
             when (event) {
-                is MyPageViewModel.MyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
-                is MyPageViewModel.MyPageEvent.NavigateToLogin -> onNavigateToLogin()
-                is MyPageViewModel.MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
-                is MyPageViewModel.MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
-                is MyPageViewModel.MyPageEvent.NavigateToEditStoreInfo -> onNavigateToEditStoreInfo()
-                is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {}
-                is MyPageViewModel.MyPageEvent.NavigateToChangePassword -> {}
-                is MyPageViewModel.MyPageEvent.NavigateToEditStoreContact -> {}
-                is MyPageViewModel.MyPageEvent.NavigateBack -> {}
-                is MyPageViewModel.MyPageEvent.ShowToast -> {}
+                is MyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
+                is MyPageEvent.NavigateToLogin -> onNavigateToLogin()
+                is MyPageEvent.NavigateToEditAccount -> onNavigateToEditAccount()
+                is MyPageEvent.NavigateToEditSeatConfig -> onNavigateToEditSeatConfig()
+                is MyPageEvent.NavigateToEditStoreInfo -> onNavigateToEditStoreInfo()
+                is MyPageEvent.NavigateToCheckPassword -> {}
+                is MyPageEvent.NavigateToChangePassword -> {}
+                is MyPageEvent.NavigateToEditStoreContact -> {}
+                is MyPageEvent.NavigateBack -> {}
+                is MyPageEvent.ShowToast -> {}
             }
         }
     }

@@ -12,8 +12,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.presentation.component.AddPhotoButton
 import com.gmg.seatnow.presentation.component.PhotoGridItem
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
 
 @Composable
@@ -21,7 +21,7 @@ fun Step5PhotoScreen(
     uiState: OwnerSignUpUiState,
     onAction: (SignUpAction) -> Unit
 ) {
-    // ★ [수정] 최대 5장 제한
+    // ★ 최대 5장 제한
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5)
     ) { uris ->
@@ -41,8 +41,8 @@ fun Step5PhotoScreen(
         NonLazyPhotoGrid(
             uiState = uiState,
             onAddClick = {
-                // ★ [수정] 5장 미만일 때만 갤러리 오픈
-                if (uiState.storePhotoList.size < 5) {
+                // ★ photo 바구니 참조
+                if (uiState.photo.storePhotoList.size < 5) {
                     photoPickerLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
@@ -60,7 +60,8 @@ fun NonLazyPhotoGrid(
     onAction: (SignUpAction) -> Unit
 ) {
     val columns = 3
-    val totalCount = uiState.storePhotoList.size + 1
+    // ★ photo 바구니 참조
+    val totalCount = uiState.photo.storePhotoList.size + 1
     val rows = (totalCount + columns - 1) / columns
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -73,21 +74,20 @@ fun NonLazyPhotoGrid(
                     val index = r * columns + c
 
                     if (index < totalCount) {
-                        // 3등분
                         Box(modifier = Modifier.weight(1f)) {
                             if (index == 0) {
                                 // 추가 버튼
                                 AddPhotoButton(
                                     onClick = onAddClick,
-                                    currentCount = uiState.storePhotoList.size,
-                                    maxCount = 5, // ★ [수정] 5로 표시
-                                    modifier = Modifier.fillMaxWidth() // 비율은 내부에서 처리
+                                    currentCount = uiState.photo.storePhotoList.size,
+                                    maxCount = 5,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             } else {
                                 // 사진 아이템
                                 val photoIndex = index - 1
-                                val uri = uiState.storePhotoList[photoIndex]
-                                val isRep = (uri == uiState.representativePhotoUri)
+                                val uri = uiState.photo.storePhotoList[photoIndex]
+                                val isRep = (uri == uiState.photo.representativePhotoUri)
 
                                 PhotoGridItem(
                                     uri = uri,

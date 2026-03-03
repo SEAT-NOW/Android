@@ -15,7 +15,6 @@ import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
 import com.gmg.seatnow.presentation.owner.store.mypage.account.AccountInfoScreen
-import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
 import com.gmg.seatnow.presentation.owner.store.withdraw.OwnerWithdrawScreen
 import com.gmg.seatnow.presentation.splash.SplashScreen
@@ -33,6 +32,11 @@ import com.gmg.seatnow.presentation.owner.store.mypage.account.EditSeatConfigScr
 import com.gmg.seatnow.presentation.owner.store.mypage.store.EditStoreContactScreen
 import com.gmg.seatnow.presentation.owner.store.storeManage.storeInfo.EditStoreInfoScreen
 import com.gmg.seatnow.presentation.owner.store.storeManage.storeManageEdit.StoreEditMainScreen
+
+// ★ [수정됨] Contract 파일로 분리된 Event와 Action을 최상위 패키지에서 Import
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageEvent
+
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
@@ -148,8 +152,6 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     when (event) {
-                        // [수정됨] 게스트와 일반 유저의 로그아웃이 모두 여기를 탑니다.
-                        // 메인화면(user_main)까지 백스택을 전부 비우고 로그인 화면으로 이동합니다.
                         is UserMyPageViewModel.UserMyPageEvent.NavigateToLogin -> {
                             navController.navigate("login") {
                                 popUpTo("user_main") { inclusive = true }
@@ -186,19 +188,14 @@ fun SeatNowNavGraph(
 
         // 3-3 가게 상세 화면
         composable(
-            route = "store_detail/{storeId}", // SeatNowDestinations.STORE_DETAIL_ROUTE 상수를 쓰셔도 됩니다.
+            route = "store_detail/{storeId}",
             arguments = listOf(navArgument("storeId") { type = NavType.LongType }),
-            // 딥링크가 필요하다면 유지, 아니면 생략 가능
             deepLinks = listOf(navDeepLink { uriPattern = "seatnow://seatnow.r-e.kr/store/{storeId}" }),
-
-            // ★ [요청사항 1] 애니메이션 제거 (즉시 전환)
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
             popEnterTransition = { EnterTransition.None },
             popExitTransition = { ExitTransition.None }
         ) {
-            // ★ [요청사항 2] ID 추출 로직 삭제됨 (ViewModel이 알아서 가져감)
-            // 단, 뒤로가기 처리를 위한 람다는 전달해야 합니다.
             StoreDetailRoute(
                 onBackClick = { navController.popBackStack() }
             )
@@ -262,12 +259,12 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
+                    // ★ [수정됨] MyPageViewModel.MyPageEvent 체이닝 제거
                     when(event) {
-                        is MyPageViewModel.MyPageEvent.NavigateToLogin -> {
+                        is MyPageEvent.NavigateToLogin -> {
                             navController.navigate("login") { popUpTo("store_main") { inclusive = true } }
                         }
-                        // ★ 비밀번호 확인 화면으로 이동
-                        is MyPageViewModel.MyPageEvent.NavigateToCheckPassword -> {
+                        is MyPageEvent.NavigateToCheckPassword -> {
                             navController.navigate("check_password")
                         }
                         else -> {}
@@ -276,7 +273,7 @@ fun SeatNowNavGraph(
             }
 
             AccountInfoScreen(
-                uiState = uiState, // 이제 정상적으로 전달됨
+                uiState = uiState,
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = { viewModel.onAction(MyPageAction.OnLogoutClick) },
                 onNavigateToWithdraw = { navController.navigate("owner_withdraw") },
@@ -291,7 +288,8 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
-                    if (event is MyPageViewModel.MyPageEvent.NavigateToChangePassword) {
+                    // ★ [수정됨]
+                    if (event is MyPageEvent.NavigateToChangePassword) {
                         navController.navigate("change_password")
                     }
                 }
@@ -311,14 +309,13 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
+                    // ★ [수정됨]
                     when (event) {
-                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
-                            // 변경 완료 후 이전 화면(계정 정보 수정)으로 돌아가기
-                            // check_password 화면도 건너뛰고 account_info로 가는 게 UX상 좋음
+                        is MyPageEvent.NavigateBack -> {
                             navController.popBackStack("account_info", inclusive = false)
                         }
-                        is MyPageViewModel.MyPageEvent.ShowToast -> {
-                            // Toast 메시지 처리 (MainActivity 등에서 처리하거나 여기서 Context로 띄움)
+                        is MyPageEvent.ShowToast -> {
+                            // Toast 메시지 처리
                         }
                         else -> {}
                     }
@@ -351,8 +348,9 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
-                    if (event is MyPageViewModel.MyPageEvent.NavigateToEditStoreContact) {
-                         navController.navigate("edit_store_contact")
+                    // ★ [수정됨]
+                    if (event is MyPageEvent.NavigateToEditStoreContact) {
+                        navController.navigate("edit_store_contact")
                     }
                 }
             }
@@ -364,16 +362,15 @@ fun SeatNowNavGraph(
             )
         }
 
-        // ★ [신규] 8-1. 가게 연락처 수정 화면
+        // 8-1. 가게 연락처 수정 화면
         composable("edit_store_contact") {
-            // ViewModel 공유 (같은 마이페이지 흐름) 또는 새로 생성
             val viewModel = hiltViewModel<MyPageViewModel>()
             val uiState by viewModel.uiState.collectAsState()
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
-                    // 완료 후 뒤로가기 이벤트 처리
-                    if (event is MyPageViewModel.MyPageEvent.NavigateBack) {
+                    // ★ [수정됨]
+                    if (event is MyPageEvent.NavigateBack) {
                         navController.popBackStack()
                     }
                 }
@@ -393,11 +390,12 @@ fun SeatNowNavGraph(
 
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
+                    // ★ [수정됨]
                     when (event) {
-                        is MyPageViewModel.MyPageEvent.NavigateBack -> {
+                        is MyPageEvent.NavigateBack -> {
                             navController.popBackStack()
                         }
-                        is MyPageViewModel.MyPageEvent.ShowToast -> {
+                        is MyPageEvent.ShowToast -> {
                             // Toast 처리
                         }
                         else -> {}
@@ -413,7 +411,6 @@ fun SeatNowNavGraph(
         }
 
         composable("store_edit_main") {
-            // NavController pop을 위한 콜백 전달
             StoreEditMainScreen(
                 onNavigateBack = { navController.popBackStack() }
             )

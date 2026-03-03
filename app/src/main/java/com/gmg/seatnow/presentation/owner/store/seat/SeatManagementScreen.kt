@@ -54,7 +54,7 @@ fun SeatManagementScreen(
 
 @Composable
 fun SeatManagementContent(
-    uiState: SeatManagementViewModel.SeatManagementUiState,
+    uiState: SeatManagementUiState,
     onAction: (SeatManagementAction) -> Unit
 ) {
     Box(
@@ -71,18 +71,16 @@ fun SeatManagementContent(
 
             // 1. 헤더
             SeatHeaderSection(
-                currentMode = uiState.displayMode,
+                currentMode = uiState.displayState.displayMode,
                 onModeChange = { mode -> onAction(SeatManagementAction.ToggleDisplayMode(mode)) }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // 2. 층별 필터
-            // 수정 모드여도 '전체' 탭을 유지하고 싶다면 그냥 uiState.categories 사용
-            // 하지만 사진 4처럼 "업데이트 중엔 전체 탭을 눌러도 전체 합계는 안 보이게" 처리됨
             FloorFilterRow(
-                categories = uiState.categories,
-                selectedId = uiState.selectedCategoryId,
+                categories = uiState.seatData.categories,
+                selectedId = uiState.displayState.selectedCategoryId,
                 onSelect = { id -> onAction(SeatManagementAction.SelectCategory(id)) }
             )
 
@@ -94,9 +92,9 @@ fun SeatManagementContent(
 
             // 3. 통계 요약
             SeatStatusSummary(
-                mode = uiState.displayMode,
-                totalSeats = uiState.totalSeatCapacity,
-                usedSeats = uiState.currentUsedSeats
+                mode = uiState.displayState.displayMode,
+                totalSeats = uiState.seatData.totalSeatCapacity,
+                usedSeats = uiState.seatData.currentUsedSeats
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -107,7 +105,7 @@ fun SeatManagementContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp) // 섹션 간 간격 조절
             ) {
                 // Map 순회 (섹션 제목, 아이템 리스트)
-                uiState.groupedDisplayItems.forEach { (sectionTitle, items) ->
+                uiState.seatData.groupedDisplayItems.forEach { (sectionTitle, items) ->
 
                     // (1) 섹션 헤더 ("전체", "1층" 등)
                     item {
@@ -122,8 +120,7 @@ fun SeatManagementContent(
                     // (2) 해당 섹션의 아이템들
                     items(items) { item ->
                         // 수정 모드이면서 + "전체" 섹션이 아닌 경우에만 Stepper 표시
-                        // (ViewModel에서 이미 EditMode일 때 "전체" 섹션을 뺐으므로 isEditMode만 체크하면 됨)
-                        if (uiState.isEditMode) {
+                        if (uiState.displayState.isEditMode) {
                             TableStepperItem(
                                 item = item,
                                 onIncrement = { onAction(SeatManagementAction.IncrementTableCount(item.id)) },
@@ -135,7 +132,7 @@ fun SeatManagementContent(
                         Spacer(modifier = Modifier.height(12.dp)) // 아이템 간 간격
                     }
 
-                    // 섹션 구분선 (마지막 섹션 제외하고 넣고 싶다면 인덱스 체크 필요)
+                    // 섹션 구분선
                     item {
                         HorizontalDivider(color = SubPaleGray, thickness = 1.dp)
                     }
@@ -148,7 +145,7 @@ fun SeatManagementContent(
         // 5. 하단 버튼
         Button(
             onClick = {
-                if (uiState.isEditMode) onAction(SeatManagementAction.OnSaveClick)
+                if (uiState.displayState.isEditMode) onAction(SeatManagementAction.OnSaveClick)
                 else onAction(SeatManagementAction.OnUpdateClick)
             },
             modifier = Modifier
@@ -163,7 +160,7 @@ fun SeatManagementContent(
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = if (uiState.isEditMode) "저장" else "업데이트",
+                text = if (uiState.displayState.isEditMode) "저장" else "업데이트",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
@@ -194,20 +191,23 @@ fun SeatManagementScreenViewModePreview() {
         FloorCategory("2F", "2층")
     )
 
-    // 2. 조회 모드용 Map 구성 ("전체" 섹션 포함)
     val viewModeMap = mapOf(
         "전체" to listOf(mergedItem),
         "1층" to listOf(item1F),
         "2층" to listOf(item2F)
     )
 
-    val mockState = SeatManagementViewModel.SeatManagementUiState(
-        categories = mockCategories,
-        selectedCategoryId = "ALL",
-        groupedDisplayItems = viewModeMap, // ★ Map으로 전달
-        totalSeatCapacity = 26,
-        currentUsedSeats = 10,
-        isEditMode = false // 조회 모드
+    val mockState = SeatManagementUiState(
+        displayState = SeatManagementUiState.DisplayState(
+            selectedCategoryId = "ALL",
+            isEditMode = false
+        ),
+        seatData = SeatManagementUiState.SeatDataState(
+            categories = mockCategories,
+            groupedDisplayItems = viewModeMap,
+            totalSeatCapacity = 26,
+            currentUsedSeats = 10
+        )
     )
 
     SeatNowTheme {
@@ -234,19 +234,22 @@ fun SeatManagementScreenEditModePreview() {
         FloorCategory("2F", "2층")
     )
 
-    // 2. 수정 모드용 Map 구성 (★ "전체" 키가 빠짐!)
     val editModeMap = mapOf(
         "1층" to listOf(item1F),
         "2층" to listOf(item2F)
     )
 
-    val mockState = SeatManagementViewModel.SeatManagementUiState(
-        categories = mockCategories,
-        selectedCategoryId = "ALL", // ★ 탭은 여전히 "전체" 유지
-        groupedDisplayItems = editModeMap, // ★ 데이터엔 "전체" 섹션이 없음
-        totalSeatCapacity = 26,
-        currentUsedSeats = 10,
-        isEditMode = true // 수정 모드 (Stepper 표시)
+    val mockState = SeatManagementUiState(
+        displayState = SeatManagementUiState.DisplayState(
+            selectedCategoryId = "ALL",
+            isEditMode = true
+        ),
+        seatData = SeatManagementUiState.SeatDataState(
+            categories = mockCategories,
+            groupedDisplayItems = editModeMap,
+            totalSeatCapacity = 26,
+            currentUsedSeats = 10
+        )
     )
 
     SeatNowTheme {

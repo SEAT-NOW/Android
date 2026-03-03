@@ -11,13 +11,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
+// ★ [수정됨] Contract 파일에서 Import 하도록 수정
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageAction
-import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageUiState
+import com.gmg.seatnow.presentation.owner.store.mypage.PasswordState
 import com.gmg.seatnow.presentation.theme.*
 
 @Composable
 fun ChangePasswordScreen(
-    uiState: MyPageViewModel.MyPageUiState,
+    uiState: MyPageUiState, // ★ [수정됨] MyPageViewModel 종속성 제거
     onAction: (MyPageAction) -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -41,11 +43,11 @@ fun ChangePasswordScreen(
 
             // 1. [새 비밀번호] 입력 필드
             SeatNowTextField(
-                value = uiState.newPassword,
+                value = uiState.password.newPassword, // ★ [수정됨] password 바구니 참조
                 onValueChange = { onAction(MyPageAction.UpdateNewPassword(it)) },
                 placeholder = "새 비밀번호 (8~20자리, 영문/숫자/특수기호 포함)",
                 isPassword = true,
-                errorText = uiState.newPasswordError,
+                errorText = uiState.password.newPasswordError, // ★ [수정됨] password 바구니 참조
                 imeAction = ImeAction.Next
             )
 
@@ -53,11 +55,11 @@ fun ChangePasswordScreen(
 
             // 2. [새 비밀번호 확인] 입력 필드
             SeatNowTextField(
-                value = uiState.newPasswordCheck,
+                value = uiState.password.newPasswordCheck, // ★ [수정됨]
                 onValueChange = { onAction(MyPageAction.UpdateNewPasswordCheck(it)) },
                 placeholder = "새 비밀번호 확인",
                 isPassword = true,
-                errorText = uiState.newPasswordCheckError,
+                errorText = uiState.password.newPasswordCheckError, // ★ [수정됨]
                 imeAction = ImeAction.Done
             )
 
@@ -67,7 +69,7 @@ fun ChangePasswordScreen(
             // 3. [변경] 버튼
             Button(
                 onClick = { onAction(MyPageAction.OnChangePasswordClick) },
-                enabled = uiState.isChangePasswordButtonEnabled && !uiState.isLoading,
+                enabled = uiState.password.isChangePasswordButtonEnabled && !uiState.isLoading, // ★ [수정됨] (isLoading은 최상위 유지)
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -103,7 +105,7 @@ fun ChangePasswordScreen(
 fun PreviewChangePasswordScreen() {
     SeatNowTheme {
         ChangePasswordScreen(
-            uiState = MyPageViewModel.MyPageUiState(),
+            uiState = MyPageUiState(),
             onAction = {},
             onBackClick = {}
         )
@@ -115,11 +117,13 @@ fun PreviewChangePasswordScreen() {
 fun PreviewChangePasswordScreen_Error() {
     SeatNowTheme {
         ChangePasswordScreen(
-            uiState = MyPageViewModel.MyPageUiState(
-                newPassword = "123",
-                newPasswordError = "영문, 숫자, 특수문자 포함 8~20자리여야 합니다.",
-                newPasswordCheck = "1234",
-                newPasswordCheckError = "비밀번호가 일치하지 않습니다."
+            uiState = MyPageUiState(
+                password = PasswordState( // ★ [수정됨] Preview도 바구니로 감싸주기
+                    newPassword = "123",
+                    newPasswordError = "영문, 숫자, 특수문자 포함 8~20자리여야 합니다.",
+                    newPasswordCheck = "1234",
+                    newPasswordCheckError = "비밀번호가 일치하지 않습니다."
+                )
             ),
             onAction = {},
             onBackClick = {}
@@ -132,10 +136,12 @@ fun PreviewChangePasswordScreen_Error() {
 fun PreviewChangePasswordScreen_Valid() {
     SeatNowTheme {
         ChangePasswordScreen(
-            uiState = MyPageViewModel.MyPageUiState(
-                newPassword = "Password123!",
-                newPasswordCheck = "Password123!",
-                isChangePasswordButtonEnabled = true
+            uiState = MyPageUiState(
+                password = PasswordState( // ★ [수정됨] Preview도 바구니로 감싸주기
+                    newPassword = "Password123!",
+                    newPasswordCheck = "Password123!",
+                    isChangePasswordButtonEnabled = true
+                )
             ),
             onAction = {},
             onBackClick = {}

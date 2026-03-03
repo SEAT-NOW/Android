@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.FloorCategory
 import com.gmg.seatnow.domain.model.TableItem
-import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementViewModel
+import com.gmg.seatnow.presentation.owner.store.seat.SeatDisplayMode
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubDarkGray
@@ -190,8 +190,8 @@ fun TableItemCard(
 
 @Composable
 fun SeatHeaderSection(
-    currentMode: SeatManagementViewModel.SeatDisplayMode,
-    onModeChange: (SeatManagementViewModel.SeatDisplayMode) -> Unit
+    currentMode: SeatDisplayMode,
+    onModeChange: (SeatDisplayMode) -> Unit
 ) {
     Row(
         modifier = Modifier.Companion.fillMaxWidth(),
@@ -215,8 +215,8 @@ fun SeatHeaderSection(
 
 @Composable
 private fun AnimatedSeatToggle(
-    currentMode: SeatManagementViewModel.SeatDisplayMode,
-    onModeChange: (SeatManagementViewModel.SeatDisplayMode) -> Unit
+    currentMode: SeatDisplayMode,
+    onModeChange: (SeatDisplayMode) -> Unit
 ) {
     val containerHeight = 24.dp // 디자인 비율에 맞춘 높이
     val containerWidth = 113.dp // 전체 너비
@@ -224,7 +224,7 @@ private fun AnimatedSeatToggle(
 
     // 1. 애니메이션 상태 정의
     // 이용 좌석(OCCUPIED)일 때 true
-    val isOccupied = currentMode == SeatManagementViewModel.SeatDisplayMode.OCCUPIED
+    val isOccupied = currentMode == SeatDisplayMode.OCCUPIED
 
     // [핵심] 텍스트 색상 애니메이션 (부드럽게 전환)
     val emptyTextColor by animateColorAsState(
@@ -259,8 +259,8 @@ private fun AnimatedSeatToggle(
                 indication = null // 물결 효과 제거
             ) {
                 // 클릭 시 모드 반전
-                val newMode = if (isOccupied) SeatManagementViewModel.SeatDisplayMode.EMPTY
-                else SeatManagementViewModel.SeatDisplayMode.OCCUPIED
+                val newMode = if (isOccupied) SeatDisplayMode.EMPTY
+                else SeatDisplayMode.OCCUPIED
                 onModeChange(newMode)
             }
     ) {
@@ -349,19 +349,19 @@ fun FloorFilterRow(
 
 @Composable
 fun SeatStatusSummary(
-    mode: SeatManagementViewModel.SeatDisplayMode,
+    mode: SeatDisplayMode,
     totalSeats: Int,
     usedSeats: Int
 ) {
     // 1. 표시할 텍스트 및 숫자 계산
     // 모드가 '빈 좌석' 보기여도, 태그 로직은 '이용 좌석' 비율 기준이므로 usedSeats/totalSeats로 계산합니다.
-    val targetCount = if (mode == SeatManagementViewModel.SeatDisplayMode.EMPTY) {
+    val targetCount = if (mode == SeatDisplayMode.EMPTY) {
         totalSeats - usedSeats // 빈 좌석 수
     } else {
         usedSeats // 이용 좌석 수
     }
 
-    val labelText = if (mode == SeatManagementViewModel.SeatDisplayMode.EMPTY) {
+    val labelText = if (mode == SeatDisplayMode.EMPTY) {
         "빈 좌석 수/전체 좌석 수"
     } else {
         "이용 좌석 수/전체 좌석 수"

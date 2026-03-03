@@ -11,8 +11,15 @@ class SignUpOwnerUseCase @Inject constructor(
     suspend operator fun invoke(
         info: OwnerSignUpInfo,
         licenseUri: Uri?,
-        storeImageUris: List<Uri>
+        storeImageUris: List<Uri>,
+        representativeUri: Uri?
     ): Result<Unit> {
-        return repository.signUpOwner(info, licenseUri, storeImageUris)
+        val sortedImages = if (representativeUri != null && storeImageUris.contains(representativeUri)) {
+            listOf(representativeUri) + storeImageUris.filter { it != representativeUri }
+        } else {
+            storeImageUris
+        }
+
+        return repository.signUpOwner(info, licenseUri, sortedImages)
     }
 }

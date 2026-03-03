@@ -23,8 +23,8 @@ import com.gmg.seatnow.presentation.component.BusinessNumberVisualTransformation
 import com.gmg.seatnow.presentation.component.NumberVisualTransformation
 import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.R
 
@@ -51,7 +51,7 @@ fun Step2BusinessScreen(
 
         // 1. 대표자명 (일반 텍스트)
         SeatNowTextField(
-            value = uiState.repName,
+            value = uiState.business.repName,
             onValueChange = { input ->
                 if (input.all { char -> char.isLetter() || char.isWhitespace() }) {
                     onAction(SignUpAction.UpdateRepName(input))
@@ -64,16 +64,15 @@ fun Step2BusinessScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         // 2. 사업자 등록번호 (숫자패드, 10자 제한, 확인 버튼)
-        // 확인 완료 시 TextField 및 버튼 비활성화 (isEnabled 로직 활용)
         SignUpTextFieldWithButton(
-            value = uiState.businessNumber,
+            value = uiState.business.businessNumber,
             onValueChange = { onAction(SignUpAction.UpdateBusinessNum(it)) },
             placeholder = "사업자등록번호('-' 제외)",
-            buttonText = if (uiState.isBusinessNumVerified) "인증완료" else "확인",
-            errorText = uiState.businessNumberError,
-            isEnabled = !uiState.isBusinessNumVerified, // 인증되면 입력 불가
-            isButtonEnabled = !uiState.isBusinessNumVerified && uiState.businessNumber.length == 10,
-            keyboardType = KeyboardType.NumberPassword, // 숫자만
+            buttonText = if (uiState.business.isBusinessNumVerified) "인증완료" else "확인",
+            errorText = uiState.business.businessNumberError,
+            isEnabled = !uiState.business.isBusinessNumVerified,
+            isButtonEnabled = !uiState.business.isBusinessNumVerified && uiState.business.businessNumber.length == 10,
+            keyboardType = KeyboardType.NumberPassword,
             visualTransformation = BusinessNumberVisualTransformation(), // 000-00-00000 포맷
             onButtonClick = {
                 focusManager.clearFocus()
@@ -85,15 +84,12 @@ fun Step2BusinessScreen(
 
         // 3. 상호명 (검색 Dropdown 포함)
         Box(modifier = Modifier.fillMaxWidth()) {
-
-            // UI 컴포넌트 (기존 TextFieldWithButton)
-            // isEnabled = false로 두어 입력(키보드)은 막되, 스타일은 유지
             SignUpTextFieldWithButton(
-                value = uiState.storeName,
+                value = uiState.business.storeName,
                 onValueChange = {},
                 placeholder = "상호명",
                 buttonText = "검색",
-                isEnabled = false, // 비활성화 스타일 (회색 배경 등)을 원하면 유지, 아니면 true + readOnly 조합 고려
+                isEnabled = false,
                 isButtonEnabled = true,
                 onButtonClick = {
                     onAction(SignUpAction.OpenStoreSearch)
@@ -101,12 +97,10 @@ fun Step2BusinessScreen(
             )
 
             // [핵심] 투명한 클릭 영역 오버레이
-            // TextField와 버튼 전체를 덮어서 어디를 눌러도 검색 액션 실행
-            // (버튼의 클릭 이벤트와 겹칠 수 있으나, 전체 영역 클릭이 목적이므로 상위 Box에서 처리)
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp)) // TextField 모양에 맞춰 클리핑
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable {
                         onAction(SignUpAction.OpenStoreSearch)
                     }
@@ -117,28 +111,28 @@ fun Step2BusinessScreen(
 
         // 4. 주소 (입력 불가, 클릭 시 API 호출)
         SeatNowTextField(
-            value = uiState.mainAddress,
+            value = uiState.business.mainAddress,
             onValueChange = { onAction(SignUpAction.UpdateMainAddress(it)) },
             placeholder = "주소 (상호명 검색 시 자동 입력)",
-            isEnabled = true // 수정 가능
+            isEnabled = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
         // 5. 주변 대학명 (입력 불가, 자동 채움)
         SeatNowTextField(
-            value = uiState.nearbyUniv,
-            onValueChange = {}, // 자동 입력이므로 사용자가 타이핑할 필요는 없음 (혹은 허용 가능)
+            value = uiState.business.nearbyUniv,
+            onValueChange = {},
             placeholder = "주변 대학명 (자동 입력)",
-            isEnabled = uiState.isNearbyUnivEnabled, // ★ API 호출 완료 시 true로 변경됨
-            readOnly = true // enabled 되어도 타이핑은 막고 싶다면 true, 수정 허용하려면 false
+            isEnabled = uiState.business.isNearbyUnivEnabled,
+            readOnly = true
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
         // 6. 가게 연락처 (선택 사항, 복잡한 하이픈 로직)
         SeatNowTextField(
-            value = uiState.storeContact,
+            value = uiState.business.storeContact,
             onValueChange = { onAction(SignUpAction.UpdateStoreContact(it)) },
             placeholder = "가게 연락처('-' 제외)",
             keyboardType = KeyboardType.Number,
@@ -147,46 +141,39 @@ fun Step2BusinessScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 7. 사업자등록증 파일 선택 (버튼만 활성화)
-        // 커스텀 UI: 텍스트필드처럼 보이지만 우측에 아이콘이 있고 전체가 클릭되는 형태
+        // 7. 사업자등록증 파일 선택
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // 1. 텍스트 필드 (모양 담당, 입력 불가, 읽기 전용)
             SeatNowTextField(
-                value = uiState.licenseFileName ?: "", // 파일명 표시, 없으면 빈값
+                value = uiState.business.licenseFileName ?: "", // 파일명 표시
                 onValueChange = {},
                 placeholder = "사업자등록증 파일 선택",
-                isEnabled = true, // 활성화된 색상(흰색 배경)을 유지하기 위해 true
-                readOnly = true   // 키보드 안 올라오게 설정
+                isEnabled = true,
+                readOnly = true
             )
 
-            // 2. 우측 아이콘 (링크 모양)
             Icon(
                 painter = painterResource(id = R.drawable.ic_link),
                 contentDescription = "파일 첨부",
-                tint = SubLightGray, // 색상 맞춤
+                tint = SubLightGray,
                 modifier = Modifier
-                    .align(Alignment.CenterEnd) // 오른쪽 중앙 정렬
-                    .padding(end = 16.dp)       // 우측 여백
-                    .size(20.dp)                // 아이콘 크기 조절
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp)
+                    .size(20.dp)
             )
 
-            // 3. 전체 클릭 영역 (투명 버튼 역할)
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp)) // 텍스트 필드 모양대로 클리핑
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable {
-                        // 갤러리 열기 (이미지만)
                         imagePickerLauncher.launch("image/*")
                     }
             )
         }
 
         Spacer(modifier = Modifier.height(40.dp))
-
-
     }
 }
 
