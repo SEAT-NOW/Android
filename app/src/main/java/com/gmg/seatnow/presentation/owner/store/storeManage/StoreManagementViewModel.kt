@@ -106,7 +106,7 @@ class StoreManagementViewModel @Inject constructor(
                 }
             } else {
                 storeResult.exceptionOrNull()?.printStackTrace()
-                // _event.emit(StoreManagementEvent.ShowToast("가게 정보를 불러올 수 없습니다."))
+                _event.emit(StoreManagementEvent.ShowToast("가게 정보를 불러올 수 없습니다."))
             }
 
             _uiState.update { state -> 

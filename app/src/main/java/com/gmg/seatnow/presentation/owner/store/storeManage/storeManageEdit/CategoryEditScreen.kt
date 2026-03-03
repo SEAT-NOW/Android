@@ -48,13 +48,13 @@ fun CategoryEditScreen(
     onDismiss: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isSaveEnabled = uiState.menuCategories.isNotEmpty()
+    val isSaveEnabled = uiState.menuState.menuCategories.isNotEmpty()
 
     // 드래그 중인 아이템 식별
     var draggingItemId by remember { mutableStateOf<Long?>(null) }
 
     // 1. 카테고리 이름 변경 다이얼로그
-    if (uiState.editingCategory != null) {
+    if (uiState.menuState.editingCategory != null) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onAction(StoreEditAction.DismissRenameDialog) },
             containerColor = White,
@@ -62,17 +62,17 @@ fun CategoryEditScreen(
         ) {
             CategoryInputBottomSheet(
                 title = "카테고리명 변경",
-                initialName = uiState.editingCategory!!.name,
+                initialName = uiState.menuState.editingCategory!!.name,
                 onDismiss = { viewModel.onAction(StoreEditAction.DismissRenameDialog) },
                 onConfirm = { newName ->
-                    viewModel.onAction(StoreEditAction.UpdateCategoryName(uiState.editingCategory!!.id, newName))
+                    viewModel.onAction(StoreEditAction.UpdateCategoryName(uiState.menuState.editingCategory!!.id, newName))
                 }
             )
         }
     }
 
     // ★ 2. 카테고리 추가 다이얼로그 (동일한 UI 재사용)
-    if (uiState.isAddingCategory) {
+    if (uiState.menuState.isAddingCategory) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onAction(StoreEditAction.DismissAddCategoryDialog) },
             containerColor = White,
@@ -120,7 +120,7 @@ fun CategoryEditScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 itemsIndexed(
-                    items = uiState.menuCategories,
+                    items = uiState.menuState.menuCategories,
                     key = { _, category -> category.id }
                 ) { index, category ->
 
@@ -134,7 +134,7 @@ fun CategoryEditScreen(
                         modifier = itemModifier,
                         category = category,
                         index = index,
-                        totalCount = uiState.menuCategories.size,
+                        totalCount = uiState.menuState.menuCategories.size,
                         onDragStart = { draggingItemId = category.id },
                         onDragEnd = { draggingItemId = null },
                         onMove = { from, to ->

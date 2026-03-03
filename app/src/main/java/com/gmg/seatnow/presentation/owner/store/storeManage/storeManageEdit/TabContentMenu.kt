@@ -45,7 +45,7 @@ fun TabContentMenu(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    val totalItems = uiState.menuCategories.sumOf { it.items.size }
+    val totalItems = uiState.menuState.menuCategories.sumOf { it.items.size }
     Log.d("SCREEN_TEST", "UI 상태: 총 아이템 $totalItems 개")
 
     LazyColumn(
@@ -54,7 +54,7 @@ fun TabContentMenu(
             .background(White),
         contentPadding = PaddingValues(24.dp)
     ) {
-        items(uiState.menuCategories) { category ->
+        items(uiState.menuState.menuCategories) { category ->
             MenuCategoryItem(
                 category = category,
                 onAddMenuItemClick = {
