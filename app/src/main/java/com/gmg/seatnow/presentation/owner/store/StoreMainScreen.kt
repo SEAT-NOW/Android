@@ -53,7 +53,7 @@ fun StoreMainRoute(
 
 @Composable
 fun StoreMainScreen(
-    uiState: StoreMainViewModel.StoreMainUiState,
+    uiState: StoreMainUiState,
     onAction: (StoreMainAction) -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToAccountInfo: () -> Unit,
