@@ -31,34 +31,8 @@ class KeepViewModel @Inject constructor(
     }
 
     fun fetchKeepList() {
-        if (checkDeveloperModeUseCase()) {
-            _keepList.value = listOf(
-                KeepStoreUiModel(
-                    storeId = 9991L,
-                    storeName = "테스트 킵 술집 (개발자용)",
-                    imageUrl = "",
-                    status = StoreStatus.SPARE,
-                    universityName = "가천대",
-                    availableSeats = 5,
-                    totalSeats = 20,
-                    isKept = true
-                ),
-                KeepStoreUiModel(
-                    storeId = 9992L,
-                    storeName = "테스트 혼잡 술집 (개발자용)",
-                    imageUrl = "",
-                    status = StoreStatus.HARD,
-                    universityName = "가천대",
-                    availableSeats = 1,
-                    totalSeats = 15,
-                    isKept = true
-                )
-            )
-            return
-        }
-
         viewModelScope.launch {
-            // 1. Repository에서 실제 킵 목록을 가져옴
+            // 1. Repository에서 실제 킵 목록을 가져옴 (테스터일 시 Reposittory 안에 구현된 가짜 킵 리스트 반환)
             getKeepStoresUseCase().onSuccess { stores ->
                 // 2. UI 모델로 변환
                 _keepList.value = stores.map { it.toUiModel() }
@@ -73,11 +47,6 @@ class KeepViewModel @Inject constructor(
         val currentList = _keepList.value.toMutableList()
         currentList.remove(item)
         _keepList.value = currentList
-
-        if (checkDeveloperModeUseCase()) {
-            // 개발자 모드: API 호출 건너뛰기
-            return
-        }
 
         viewModelScope.launch {
             val result = toggleStoreKeepUseCase(item.storeId, false) // isKept = false
