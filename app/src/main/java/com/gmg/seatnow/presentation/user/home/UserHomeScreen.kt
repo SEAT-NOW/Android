@@ -159,7 +159,9 @@ fun UserHomeScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineGranted || coarseGranted) {
             refreshCurrentLocation()
         }
     }
@@ -169,17 +171,23 @@ fun UserHomeScreen(
             return@LaunchedEffect
         }
 
-        val hasPermission = ContextCompat.checkSelfPermission(
+        val hasFinePermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission) refreshCurrentLocation() else showPermissionDialog = true
+        val hasCoarsePermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasFinePermission || hasCoarsePermission) refreshCurrentLocation() else showPermissionDialog = true
     }
 
     LaunchedEffect(initialHeadCount) {
         if (initialHeadCount != null) {
             viewModel.setHeadCountFilter(initialHeadCount)
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val coarseGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (fineGranted || coarseGranted) {
                 refreshCurrentLocation()
             }
         }
@@ -481,7 +489,12 @@ fun UserHomeScreen(
             onDismiss = { showPermissionDialog = false },
             onConfirm = {
                 showPermissionDialog = false
-                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         )
     }
