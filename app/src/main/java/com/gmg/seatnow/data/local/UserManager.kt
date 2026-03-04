@@ -37,6 +37,12 @@ class UserManager @Inject constructor(
     fun isKakaoTermsAgreed(): Boolean = prefs.getBoolean(KEY_AGREED_KAKAO, false)
 
     fun clearUserData() {
+        // [수정] 로그아웃 시 약관 동의 내역은 유지하고 유저 닉네임(세션 정보)만 삭제합니다.
+        prefs.edit().remove(KEY_USER_NICKNAME).apply()
+    }
+
+    // 완전히 탈퇴하거나 초기화할 때만 사용
+    fun clearAllData() {
         prefs.edit().clear().apply()
     }
 }

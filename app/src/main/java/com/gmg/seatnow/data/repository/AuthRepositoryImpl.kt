@@ -432,7 +432,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 // 3. 성공 시 내부 토큰 삭제
                 authManager.clearTokens()
-                userManager.clearUserData()
+                userManager.clearAllData()
                 appConfigManager.setTesterMode(false)
                 Log.d("AuthRepo", "회원탈퇴 성공: 토큰 삭제 완료")
                 Result.success(Unit)
@@ -455,7 +455,7 @@ class AuthRepositoryImpl @Inject constructor(
             // 통신 성공 & BaseResponse의 success가 true일 때
             if (response.isSuccessful && body?.success == true) {
                 authManager.clearTokens()
-                userManager.clearUserData()
+                userManager.clearAllData()
                 appConfigManager.setTesterMode(false)
                 Result.success(Unit)
             } else {
