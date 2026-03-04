@@ -87,6 +87,9 @@ fun UserHomeScreen(
             )
         }
     }
+    val locationSource = rememberFusedLocationSource()
+    var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
+
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
         viewModel.onAction(UserHomeAction.ClearSearch)
@@ -370,20 +373,21 @@ fun UserHomeScreen(
                                 lng = center.longitude,
                                 radius = 2.0, // 대학 주변 2km 탐색
                                 userLat = currentUserLocation?.latitude,
-                                userLng = currentUserLocation?.longitude
-                            ) { firstStore ->
-                                // 4. 결과가 있으면 해당 위치로 지도 이동
-                                if (firstStore != null) {
-                                    trackingMode = LocationTrackingMode.None
-                                    coroutineScope.launch {
-                                        cameraPositionState.stop()
-                                        cameraPositionState.animate(
-                                            update = CameraUpdate.scrollTo(LatLng(firstStore.latitude, firstStore.longitude)),
-                                            durationMs = 1000
-                                        )
+                                userLng = currentUserLocation?.longitude,
+                                onResultLoaded = { firstStore ->
+                                    // 4. 결과가 있으면 해당 위치로 지도 이동
+                                    if (firstStore != null) {
+                                        trackingMode = LocationTrackingMode.None
+                                        coroutineScope.launch {
+                                            cameraPositionState.stop()
+                                            cameraPositionState.animate(
+                                                update = CameraUpdate.scrollTo(LatLng(firstStore.latitude, firstStore.longitude)),
+                                                durationMs = 1000
+                                            )
+                                        }
                                     }
                                 }
-                            }
+                            ))
                         },
                         viewModel = viewModel,
                         currentLat = center.latitude,
