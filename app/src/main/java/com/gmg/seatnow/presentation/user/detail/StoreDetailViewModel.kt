@@ -33,13 +33,10 @@ class StoreDetailViewModel @Inject constructor(
         else -> -1L
     }
 
-    private val _storeDetailState = MutableStateFlow<StoreDetail?>(null)
-    val storeDetailState: StateFlow<StoreDetail?> = _storeDetailState.asStateFlow()
+    private val _uiState = MutableStateFlow(StoreDetailUiState())
+    val uiState: StateFlow<StoreDetailUiState> = _uiState.asStateFlow()
 
-    private val _menuListState = MutableStateFlow<List<MenuCategoryUiModel>>(emptyList())
-    val menuListState: StateFlow<List<MenuCategoryUiModel>> = _menuListState.asStateFlow()
-
-    private val _eventChannel = Channel<UiEvent>(Channel.BUFFERED)
+    private val _eventChannel = Channel<StoreDetailEvent>(Channel.BUFFERED)
     val eventFlow = _eventChannel.receiveAsFlow()
 
     init {
@@ -48,30 +45,37 @@ class StoreDetailViewModel @Inject constructor(
 
     private fun loadStoreDetail() {
         if (storeId == -1L) {
-            sendEvent(UiEvent.ShowToast("잘못된 접근입니다."))
+            sendEvent(StoreDetailEvent.ShowToast("잘못된 접근입니다."))
             return
         }
 
         viewModelScope.launch {
             getStoreDetailUseCase(storeId)
                 .onSuccess { (detail, menus) ->
-
-                    _storeDetailState.value = detail
-                    _menuListState.value = menus
+                    _uiState.update { it.copy(storeDetail = detail, menuCategories = menus, isLoading = false) }
                 }
                 .onFailure {
-                    sendEvent(UiEvent.ShowToast("가게 정보를 불러오는데 실패했습니다."))
+                    _uiState.update { it.copy(isLoading = false) }
+                    sendEvent(StoreDetailEvent.ShowToast("가게 정보를 불러오는데 실패했습니다."))
                 }
         }
     }
 
-    fun onKeepClicked(id: Long, newKeptState: Boolean) {
-        val currentDetail = _storeDetailState.value ?: return
+    fun onAction(action: StoreDetailAction) {
+        when (action) {
+            is StoreDetailAction.OnKeepClicked -> onKeepClicked(action.storeId, action.newKeptState)
+            is StoreDetailAction.OnLikeClicked -> onLikeClicked(action.menuId)
+            is StoreDetailAction.OnBackClick -> sendEvent(StoreDetailEvent.NavigateBack)
+        }
+    }
+
+    private fun onKeepClicked(id: Long, newKeptState: Boolean) {
+        val currentDetail = _uiState.value.storeDetail ?: return
 
         // 2. 일반 회원 (API 호출)
         viewModelScope.launch {
             // 낙관적 업데이트
-            _storeDetailState.value = currentDetail.copy(isKept = newKeptState)
+            _uiState.update { it.copy(storeDetail = currentDetail.copy(isKept = newKeptState)) }
 
             toggleStoreKeepUseCase(id, newKeptState)
                 .onSuccess {
@@ -79,18 +83,18 @@ class StoreDetailViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     // 실패 시 롤백
-                    _storeDetailState.value = currentDetail.copy(isKept = !newKeptState)
+                    _uiState.update { it.copy(storeDetail = currentDetail.copy(isKept = !newKeptState)) }
                     val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다."
                         else if(e.message == "LOGIN_REQUIRED") ("로그인이 필요한 서비스입니다.")
                         else "오류가 발생했습니다."
-                    sendEvent(UiEvent.ShowToast(msg))
+                    sendEvent(StoreDetailEvent.ShowToast(msg))
                 }
         }
     }
 
     // ★ [수정] 메뉴 좋아요 (Toggle 방식이므로 Boolean 파라미터 제거)
-    fun onLikeClicked(menuId: Long) {
-        val currentCategories = _menuListState.value
+    private fun onLikeClicked(menuId: Long) {
+        val currentCategories = _uiState.value.menuCategories
         // 메뉴 찾기
         val targetItem = currentCategories.flatMap { it.menuItems }.find { it.id == menuId } ?: return
         val currentIsLiked = targetItem.isLiked
@@ -108,15 +112,15 @@ class StoreDetailViewModel @Inject constructor(
                     val msg = if (e.message?.contains("Token") == true) "로그인이 만료되었습니다."
                         else if(e.message == "LOGIN_REQUIRED") ("로그인이 필요한 서비스입니다.")
                         else "오류가 발생했습니다."
-                    sendEvent(UiEvent.ShowToast(msg))
+                    sendEvent(StoreDetailEvent.ShowToast(msg))
                 }
         }
     }
 
     // [Helper] UI 상태 업데이트용 함수 (중복 제거)
     private fun updateMenuLikeStateInUi(menuId: Long, newIsLiked: Boolean) {
-        _menuListState.update { categories ->
-            categories.map { category ->
+        _uiState.update { state ->
+            val updatedCategories = state.menuCategories.map { category ->
                 // 해당 카테고리에 타겟 메뉴가 있는지 확인 후 업데이트
                 category.copy(
                     menuItems = category.menuItems.map { item ->
@@ -128,16 +132,12 @@ class StoreDetailViewModel @Inject constructor(
                     }
                 )
             }
+            state.copy(menuCategories = updatedCategories)
         }
     }
 
-    private fun sendEvent(event: UiEvent) {
+    private fun sendEvent(event: StoreDetailEvent) {
         viewModelScope.launch { _eventChannel.send(event) }
-    }
-
-    sealed class UiEvent {
-        data class ShowToast(val message: String) : UiEvent()
-        data object NavigateBack : UiEvent()
     }
 }
 
