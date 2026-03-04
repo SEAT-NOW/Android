@@ -8,6 +8,7 @@ data class UserWithdrawUiState(
 sealed interface UserWithdrawEvent {
     data object NavigateToLogin : UserWithdrawEvent
     data object PopBackStack : UserWithdrawEvent
+    data class ShowToast(val message: String) : UserWithdrawEvent
 }
 
 sealed interface UserWithdrawAction {

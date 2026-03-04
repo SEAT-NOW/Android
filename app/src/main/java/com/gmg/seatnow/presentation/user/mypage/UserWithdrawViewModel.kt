@@ -36,8 +36,9 @@ class UserWithdrawViewModel @Inject constructor(
                     withdrawUserUseCase().onSuccess {
                         authManager.clearTokens() // 성공 시 토큰 및 유저 데이터 초기화
                         _event.emit(UserWithdrawEvent.NavigateToLogin)
-                    }.onFailure {
-                        // 필요시 에러 토스트 메시지 등 처리
+                    }.onFailure { error ->
+                        val errorMessage = error.message ?: "회원탈퇴에 실패했습니다."
+                        _event.emit(UserWithdrawEvent.ShowToast(errorMessage))
                     }
 
                     _uiState.update { it.copy(isLoading = false) }

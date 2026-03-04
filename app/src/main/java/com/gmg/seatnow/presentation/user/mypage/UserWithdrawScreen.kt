@@ -17,6 +17,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.theme.*
 
@@ -27,12 +29,16 @@ fun UserWithdrawScreen(
     onBackClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(true) {
         viewModel.event.collect { event ->
             when (event) {
                 is UserWithdrawEvent.NavigateToLogin -> onNavigateToLogin()
                 is UserWithdrawEvent.PopBackStack -> onBackClick()
+                is UserWithdrawEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -79,7 +85,7 @@ fun UserWithdrawContent(
 
             // 2. 안내 문구
             val points = listOf(
-                "탈퇴 시, 킵 술집 목록과 저장된 회원 정보와 관련된 모든    데이터가 즉시 삭제되며 복구가 불가능합니다.",
+                "탈퇴 시, 회원님의 개인정보 및 서비스 이용 기록이 즉시 파기되며 복구할 수 없습니다.",
                 "부정 이용 방지 및 전자상거래법 등 관련 법령에 따라 보관이 필요한 정보는 해당 기간 동안 안전하게 보관됩니다."
             )
             points.forEach { point ->
