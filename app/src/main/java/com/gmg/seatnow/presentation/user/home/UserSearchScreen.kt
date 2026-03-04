@@ -50,25 +50,22 @@ fun UserSearchScreen(
     userLat: Double?,
     userLng: Double?
 ) {
-    val query by viewModel.searchQuery.collectAsState()
-    val searchResults by viewModel.searchResults.collectAsState()
-    val relatedUniversities by viewModel.relatedUniversities.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     UserSearchContent(
-        query = query,
-        searchResults = searchResults,
-        relatedUniversities = relatedUniversities,
-        isLoading = isLoading,
+        query = uiState.searchQuery,
+        searchResults = uiState.searchResults,
+        relatedUniversities = uiState.relatedUniversities,
+        isLoading = uiState.isLoading,
         onBackClick = onBackClick,
         onQueryChange = { newQuery ->
-            viewModel.onSearchQueryChanged(newQuery, currentLat, currentLng, userLat, userLng)
+            viewModel.onAction(UserHomeAction.OnSearchQueryChanged(newQuery, currentLat, currentLng, userLat, userLng))
         },
         onSearchAction = {
-            viewModel.onSearchQueryChanged(query, currentLat, currentLng, userLat, userLng)
+            viewModel.onAction(UserHomeAction.OnSearchQueryChanged(uiState.searchQuery, currentLat, currentLng, userLat, userLng))
         },
         onClearQuery = {
-            viewModel.onSearchQueryChanged("", currentLat, currentLng, userLat, userLng)
+            viewModel.onAction(UserHomeAction.OnSearchQueryChanged("", currentLat, currentLng, userLat, userLng))
         },
         onStoreClick = onStoreClick,
         onUniversityClick = onUniversityClick
