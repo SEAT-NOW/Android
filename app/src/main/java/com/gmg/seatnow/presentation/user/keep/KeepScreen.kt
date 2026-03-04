@@ -30,16 +30,16 @@ fun KeepScreen(
     viewModel: KeepViewModel = hiltViewModel(),
     onNavigateToDetail: (Long) -> Unit = {}
 ) {
-    val keepList by viewModel.keepList.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.fetchKeepList()
+        viewModel.onAction(KeepAction.FetchKeepList)
     }
 
     // UI를 그리는 Stateless 컴포저블 호출
     KeepScreenContent(
-        keepList = keepList,
-        onToggleKeep = { item -> viewModel.toggleKeep(item) },
+        uiState = uiState,
+        onAction = viewModel::onAction,
         onNavigateToDetail = onNavigateToDetail
     )
 }
@@ -47,8 +47,8 @@ fun KeepScreen(
 // [Stateless] 실제 UI를 그리는 컴포저블 (프리뷰 용이)
 @Composable
 fun KeepScreenContent(
-    keepList: List<KeepStoreUiModel>,
-    onToggleKeep: (KeepStoreUiModel) -> Unit,
+    uiState: KeepUiState,
+    onAction: (KeepAction) -> Unit,
     onNavigateToDetail: (Long) -> Unit
 ) {
     Column(
@@ -78,7 +78,7 @@ fun KeepScreenContent(
                 .weight(1f),
             contentAlignment = Alignment.Center
         ) {
-            if (keepList.isEmpty()) {
+            if (uiState.keepList.isEmpty()) {
                 // [빈 화면 UI]
                 KeepEmptyView()
             } else {
@@ -88,10 +88,10 @@ fun KeepScreenContent(
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    items(keepList) { item ->
+                    items(uiState.keepList) { item ->
                         KeepItem(
                             item = item,
-                            onKeepClick = { onToggleKeep(item) },
+                            onKeepClick = { onAction(KeepAction.ToggleKeep(item)) },
                             onItemClick = { onNavigateToDetail(item.storeId) }
                         )
                     }
@@ -140,8 +140,8 @@ fun KeepScreenContent_List_Preview() {
         )
 
         KeepScreenContent(
-            keepList = mockData,
-            onToggleKeep = {},
+            uiState = KeepUiState(keepList = mockData),
+            onAction = {},
             onNavigateToDetail = {}
         )
     }
@@ -152,8 +152,8 @@ fun KeepScreenContent_List_Preview() {
 fun KeepScreenContent_Empty_Preview() {
     SeatNowTheme {
         KeepScreenContent(
-            keepList = emptyList(), // 빈 리스트 전달
-            onToggleKeep = {},
+            uiState = KeepUiState(keepList = emptyList()),
+            onAction = {},
             onNavigateToDetail = {}
         )
     }
