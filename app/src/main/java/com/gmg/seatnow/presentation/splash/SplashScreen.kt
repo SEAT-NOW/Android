@@ -26,10 +26,10 @@ fun SplashScreen(
     LaunchedEffect(true) {
         viewModel.event.collect { event ->
             when (event) {
-                is SplashViewModel.SplashEvent.NavigateToLogin -> onNavigateToLogin()
-                is SplashViewModel.SplashEvent.NavigateToUserMain -> onNavigateToUserMain()
-                is SplashViewModel.SplashEvent.NavigateToOwnerMain -> onNavigateToOwnerMain() // [추가]
-                is SplashViewModel.SplashEvent.NavigateToTerms -> onNavigateToTerms(event.isGuest)
+                is SplashEvent.NavigateToLogin -> onNavigateToLogin()
+                is SplashEvent.NavigateToUserMain -> onNavigateToUserMain()
+                is SplashEvent.NavigateToOwnerMain -> onNavigateToOwnerMain()
+                is SplashEvent.NavigateToTerms -> onNavigateToTerms(event.isGuest)
             }
         }
     }

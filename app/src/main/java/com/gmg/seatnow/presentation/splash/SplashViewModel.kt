@@ -38,11 +38,4 @@ class SplashViewModel @Inject constructor(
             }
         }
     }
-
-    sealed class SplashEvent {
-        object NavigateToUserMain : SplashEvent()
-        object NavigateToOwnerMain : SplashEvent() // [추가] 사장님 메인 이벤트
-        object NavigateToLogin : SplashEvent()
-        data class NavigateToTerms(val isGuest: Boolean) : SplashEvent()
-    }
 }
