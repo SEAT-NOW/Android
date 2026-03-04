@@ -7,6 +7,7 @@ import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.domain.usecase.store.GetKeepStoresUseCase
 import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
+import com.gmg.seatnow.domain.usecase.auth.CheckDeveloperModeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,8 +17,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class KeepViewModel @Inject constructor(
-    private val getKeepStoresUseCase: GetKeepStoresUseCase,   // ★ 추가
-    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase
+    private val getKeepStoresUseCase: GetKeepStoresUseCase,
+    private val toggleStoreKeepUseCase: ToggleStoreKeepUseCase,
+    private val checkDeveloperModeUseCase: CheckDeveloperModeUseCase
 ) : ViewModel() {
 
     // UI에서 사용할 데이터 모델 리스트
@@ -29,7 +31,31 @@ class KeepViewModel @Inject constructor(
     }
 
     fun fetchKeepList() {
-        // ★ [분기] 테스터라면 AuthManager의 가짜 리스트 사용
+        if (checkDeveloperModeUseCase()) {
+            _keepList.value = listOf(
+                KeepStoreUiModel(
+                    storeId = 9991L,
+                    storeName = "테스트 킵 술집 (개발자용)",
+                    imageUrl = "",
+                    status = StoreStatus.SPARE,
+                    universityName = "가천대",
+                    availableSeats = 5,
+                    totalSeats = 20,
+                    isKept = true
+                ),
+                KeepStoreUiModel(
+                    storeId = 9992L,
+                    storeName = "테스트 혼잡 술집 (개발자용)",
+                    imageUrl = "",
+                    status = StoreStatus.HARD,
+                    universityName = "가천대",
+                    availableSeats = 1,
+                    totalSeats = 15,
+                    isKept = true
+                )
+            )
+            return
+        }
 
         viewModelScope.launch {
             // 1. Repository에서 실제 킵 목록을 가져옴
@@ -47,6 +73,11 @@ class KeepViewModel @Inject constructor(
         val currentList = _keepList.value.toMutableList()
         currentList.remove(item)
         _keepList.value = currentList
+
+        if (checkDeveloperModeUseCase()) {
+            // 개발자 모드: API 호출 건너뛰기
+            return
+        }
 
         viewModelScope.launch {
             val result = toggleStoreKeepUseCase(item.storeId, false) // isKept = false
