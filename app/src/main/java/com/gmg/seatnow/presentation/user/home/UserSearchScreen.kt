@@ -37,6 +37,8 @@ import com.gmg.seatnow.R
 import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.domain.model.StoreStatus
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.user.home.components.RelatedUniversityItem
+import com.gmg.seatnow.presentation.user.home.components.SearchStoreListItem
 
 // [1] Stateful: ViewModel 연결
 @Composable
@@ -247,89 +249,5 @@ fun UserSearchContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun RelatedUniversityItem(
-    name: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 16.dp, horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 돋보기 아이콘 등 적절한 아이콘 사용 (기존 리소스 활용 또는 기본 아이콘)
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = null,
-            tint = SubGray,
-            modifier = Modifier.size(24.dp)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
-            color = SubBlack,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-fun SearchStoreListItem(
-    store: Store,
-    onItemClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onItemClick)
-            .padding(vertical = 16.dp, horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.LocationOn,
-            contentDescription = null,
-            tint = SubGray,
-            modifier = Modifier.size(24.dp)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = store.name,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                ),
-                color = SubBlack,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = store.neighborhood.ifBlank { "주소 정보 없음" },
-                style = MaterialTheme.typography.bodySmall,
-                color = SubGray,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = store.distance,
-            style = MaterialTheme.typography.bodySmall,
-            color = SubGray
-        )
     }
 }
