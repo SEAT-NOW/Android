@@ -14,7 +14,7 @@ import com.gmg.seatnow.presentation.component.formatPhoneNumber
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageUiState
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
-import com.gmg.seatnow.presentation.user.mypage.UserInfoRow
+import com.gmg.seatnow.presentation.user.mypage.components.UserInfoRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

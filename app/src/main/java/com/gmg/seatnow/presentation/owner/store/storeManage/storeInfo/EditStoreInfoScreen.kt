@@ -20,7 +20,7 @@ import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubDarkGray
 import com.gmg.seatnow.presentation.theme.SubLightGray
 import com.gmg.seatnow.presentation.theme.White
-import com.gmg.seatnow.presentation.user.mypage.UserInfoRow
+import com.gmg.seatnow.presentation.user.mypage.components.UserInfoRow
 
 @Composable
 fun EditStoreInfoScreen(
