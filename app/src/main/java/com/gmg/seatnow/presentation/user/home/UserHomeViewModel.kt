@@ -28,27 +28,9 @@ class UserHomeViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    // For backward compatibility until UI is refactored:
-    val storeList: StateFlow<List<Store>> = MutableStateFlow(emptyList()) 
-    val isLoading: StateFlow<Boolean> = MutableStateFlow(false)
-    val activeHeadCount: StateFlow<Int?> = MutableStateFlow(null)
-    val searchQuery: StateFlow<String> = MutableStateFlow("")
-    val searchResults: StateFlow<List<Store>> = MutableStateFlow(emptyList())
-    val relatedUniversities: StateFlow<List<String>> = MutableStateFlow(emptyList())
-    
     init {
-        // bridge old individual states for easy migration
-        viewModelScope.launch {
-            _uiState.collect { state ->
-                (storeList as MutableStateFlow).value = state.storeList
-                (isLoading as MutableStateFlow).value = state.isLoading
-                (activeHeadCount as MutableStateFlow).value = state.activeHeadCount
-                (searchQuery as MutableStateFlow).value = state.searchQuery
-                (searchResults as MutableStateFlow).value = state.searchResults
-                (relatedUniversities as MutableStateFlow).value = state.relatedUniversities
-            }
-        }
     }
+
 
     fun onAction(action: UserHomeAction) {
         when (action) {
