@@ -115,16 +115,16 @@ fun SeatNowNavGraph(
             arguments = listOf(navArgument("isGuest") { type = NavType.BoolType })
         ) { backStackEntry ->
             val isGuest = backStackEntry.arguments?.getBoolean("isGuest") ?: false
-            val viewModel = hiltViewModel<UserTermsViewModel>()
+            val viewModel = hiltViewModel<com.gmg.seatnow.presentation.user.term.UserTermsViewModel>()
 
-            UserTermsScreen(
+            com.gmg.seatnow.presentation.user.term.UserTermsScreen(
                 onNavigateToBack = { navController.popBackStack() },
                 onNavigateToMain = {
-                    viewModel.saveTermsAgreement(isGuest)
                     navController.navigate("user_main") {
                         popUpTo("login") { inclusive = true }
                     }
-                }
+                },
+                isGuest = isGuest
             )
         }
 
