@@ -40,6 +40,7 @@ import com.gmg.seatnow.presentation.owner.store.mypage.MyPageEvent
 import com.gmg.seatnow.presentation.user.detail.StoreDetailRoute
 import com.gmg.seatnow.presentation.user.mypage.UserAccountInfoScreen
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageAction
+import com.gmg.seatnow.presentation.user.mypage.UserMyPageEvent
 import com.gmg.seatnow.presentation.user.mypage.UserMyPageViewModel
 import com.gmg.seatnow.presentation.user.mypage.UserWithdrawScreen
 
@@ -152,12 +153,12 @@ fun SeatNowNavGraph(
             LaunchedEffect(true) {
                 viewModel.event.collectLatest { event ->
                     when (event) {
-                        is UserMyPageViewModel.UserMyPageEvent.NavigateToLogin -> {
+                        is UserMyPageEvent.NavigateToLogin -> {
                             navController.navigate("login") {
                                 popUpTo("user_main") { inclusive = true }
                             }
                         }
-                        is UserMyPageViewModel.UserMyPageEvent.NavigateToWithdraw -> {
+                        is UserMyPageEvent.NavigateToWithdraw -> {
                             navController.navigate("user_withdraw")
                         }
                         else -> {}

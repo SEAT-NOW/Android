@@ -30,8 +30,8 @@ fun UserMyPageScreen(
     LaunchedEffect(true) {
         viewModel.event.collectLatest { event ->
             when (event) {
-                is UserMyPageViewModel.UserMyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
-                is UserMyPageViewModel.UserMyPageEvent.NavigateToLogin -> onNavigateToLogin()
+                is UserMyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
+                is UserMyPageEvent.NavigateToLogin -> onNavigateToLogin()
                 // Withdraw는 AccountInfoScreen에서 처리하므로 여기서 라우팅하지 않음
                 else -> {}
             }

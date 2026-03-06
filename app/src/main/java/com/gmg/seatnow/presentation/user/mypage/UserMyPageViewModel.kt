@@ -21,20 +21,8 @@ class UserMyPageViewModel @Inject constructor(
     private val logoutUseCase: OwnerLogoutUseCase
 ) : ViewModel() {
 
-    data class UserMyPageUiState(
-        val nickname: String = "",
-        val isGuest: Boolean = false,
-        val isLoading: Boolean = false
-    )
-
     private val _uiState = MutableStateFlow(UserMyPageUiState())
     val uiState = _uiState.asStateFlow()
-
-    sealed interface UserMyPageEvent {
-        data object NavigateToLogin : UserMyPageEvent // 게스트 & 일반유저 공용
-        data object NavigateToAccountInfo : UserMyPageEvent
-        data object NavigateToWithdraw : UserMyPageEvent
-    }
 
     private val _event = MutableSharedFlow<UserMyPageEvent>()
     val event = _event.asSharedFlow()
@@ -79,10 +67,4 @@ class UserMyPageViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = false) }
         }
     }
-}
-
-sealed interface UserMyPageAction {
-    data object OnAccountInfoClick : UserMyPageAction
-    data object OnLogoutClick : UserMyPageAction
-    data object OnWithdrawClick : UserMyPageAction
 }
