@@ -15,7 +15,7 @@ import com.gmg.seatnow.domain.usecase.common.validation.ValidatePasswordUseCase
 // ★ 도메인 UseCase들 주입 (회원가입에서 쓰던 것 재활용 포함)
 import com.gmg.seatnow.domain.usecase.owner.seat.GetSeatConfigurationUseCase
 import com.gmg.seatnow.domain.usecase.owner.seat.UpdateStoreLayoutUseCase
-import com.gmg.seatnow.domain.usecase.owner.seat.CalculateSeatCountUseCase
+import com.gmg.seatnow.domain.usecase.common.logic.CalculateSeatCountUseCase
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow

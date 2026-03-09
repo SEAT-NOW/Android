@@ -1,4 +1,4 @@
-package com.gmg.seatnow.domain.usecase.owner.store
+﻿package com.gmg.seatnow.domain.usecase.owner.auth
 
 import com.gmg.seatnow.domain.repository.AuthRepository
 import com.gmg.seatnow.domain.model.StoreSearchResult

@@ -1,4 +1,4 @@
-package com.gmg.seatnow.domain.usecase.owner.seat
+﻿package com.gmg.seatnow.domain.usecase.common.logic
 
 import com.gmg.seatnow.domain.model.SignUpTableItem
 import javax.inject.Inject

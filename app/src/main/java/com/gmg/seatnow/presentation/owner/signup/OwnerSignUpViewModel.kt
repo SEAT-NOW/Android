@@ -10,7 +10,8 @@ import com.gmg.seatnow.domain.model.SignUpTableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.gmg.seatnow.domain.usecase.common.auth.*
 import com.gmg.seatnow.domain.usecase.owner.auth.*
-import com.gmg.seatnow.domain.usecase.user.home.*
+// GetNearbyUniversityUseCase는 common.logic.*에 포함됨
+
 import com.gmg.seatnow.domain.usecase.owner.seat.*
 import com.gmg.seatnow.domain.usecase.owner.store.*
 import com.gmg.seatnow.domain.usecase.common.validation.*
@@ -38,13 +39,17 @@ class OwnerSignUpViewModel @Inject constructor(
     private val checkScheduleCollisionUseCase: CheckScheduleCollisionUseCase,
     private val limitStorePhotosUseCase: LimitStorePhotosUseCase,
 
-    // [Logic UseCases]
+    // [Logic UseCases & Validation]
     private val validateEmailUseCase: ValidateEmailUseCase,
     private val validatePasswordUseCase: ValidatePasswordUseCase,
+    private val validatePasswordCheckUseCase: ValidatePasswordCheckUseCase,
+    private val validateSignUpStepUseCase: ValidateSignUpStepUseCase,
     private val formatTimerUseCase: FormatTimerUseCase,
     private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
     private val checkTestAccountUseCase: CheckTestAccountUseCase,
-    private val extractNeighborhoodUseCase: ExtractNeighborhoodUseCase,
+
+    // [Mapper]
+    private val signUpStateToDomainMapper: SignUpStateToDomainMapper,
 
     private val signUpOwnerUseCase: SignUpOwnerUseCase
 ) : ViewModel() {
@@ -350,8 +355,7 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun validateAndUpdatePasswordCheck(check: String) {
-        val currentPassword = _uiState.value.basic.password
-        val error = if (check.isNotBlank() && check != currentPassword) "비밀번호가 일치하지 않습니다." else null
+        val error = validatePasswordCheckUseCase(_uiState.value.basic.password, check)
         _uiState.update { it.copy(basic = it.basic.copy(passwordCheck = check, passwordCheckError = error)) }
     }
 
@@ -708,25 +712,23 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun checkNextButtonEnabled() {
         val state = _uiState.value
         val isValid = when (state.currentStep) {
-            SignUpStep.STEP_1_BASIC -> {
-                state.basic.isEmailVerified && state.basic.isPhoneVerified &&
-                        state.basic.password.isNotBlank() && state.basic.passwordError == null &&
-                        state.basic.passwordCheck.isNotBlank() && state.basic.passwordCheckError == null &&
-                        state.basic.isAllTermsAgreed
-            }
-            SignUpStep.STEP_2_BUSINESS -> {
-                state.business.repName.isNotBlank() &&
-                        state.business.isBusinessNumVerified &&
-                        state.business.storeName.isNotBlank() &&
-                        state.business.mainAddress.isNotBlank()
-            }
-            SignUpStep.STEP_3_STORE -> {
-                state.store.spaceList.isNotEmpty() && state.store.spaceList.none { it.isEditing }
-            }
-            SignUpStep.STEP_4_OPERATION -> {
-                state.operation.operatingSchedules.isNotEmpty() &&
-                        state.operation.operatingSchedules.all { it.selectedDays.isNotEmpty() }
-            }
+            SignUpStep.STEP_1_BASIC -> validateSignUpStepUseCase.validateStep1(
+                isEmailVerified = state.basic.isEmailVerified,
+                isPhoneVerified = state.basic.isPhoneVerified,
+                password = state.basic.password,
+                passwordError = state.basic.passwordError,
+                passwordCheck = state.basic.passwordCheck,
+                passwordCheckError = state.basic.passwordCheckError,
+                isAllTermsAgreed = state.basic.isAllTermsAgreed
+            )
+            SignUpStep.STEP_2_BUSINESS -> validateSignUpStepUseCase.validateStep2(
+                repName = state.business.repName,
+                isBusinessNumVerified = state.business.isBusinessNumVerified,
+                storeName = state.business.storeName,
+                mainAddress = state.business.mainAddress
+            )
+            SignUpStep.STEP_3_STORE -> validateSignUpStepUseCase.validateStep3(state.store.spaceList)
+            SignUpStep.STEP_4_OPERATION -> validateSignUpStepUseCase.validateStep4(state.operation.operatingSchedules)
             SignUpStep.STEP_5_PHOTO -> true
             SignUpStep.STEP_6_COMPLETE -> true
             else -> false
@@ -737,8 +739,8 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun executeSignUp() {
         viewModelScope.launch {
             val state = _uiState.value
-            val domainInfo = mapStateToDomain(state)
-            val licenseUri = if(state.business.licenseImageUrl != null) Uri.parse(state.business.licenseImageUrl) else null
+            val domainInfo = signUpStateToDomainMapper.map(state)
+            val licenseUri = if (state.business.licenseImageUrl != null) Uri.parse(state.business.licenseImageUrl) else null
 
             signUpOwnerUseCase(
                 info = domainInfo,
@@ -751,84 +753,6 @@ class OwnerSignUpViewModel @Inject constructor(
         }
     }
 
-    private fun mapStateToDomain(state: OwnerSignUpUiState): com.gmg.seatnow.domain.model.OwnerSignUpInfo {
-        val account = com.gmg.seatnow.domain.model.AccountInfo(state.basic.email, state.basic.password, state.basic.phone)
-
-        val business = com.gmg.seatnow.domain.model.BusinessInfo(
-            representativeName = state.business.repName,
-            businessNumber = state.business.businessNumber,
-            storeName = state.business.storeName,
-            address = state.business.mainAddress,
-            neighborhood = extractNeighborhoodUseCase(state.business.mainAddress),
-            latitude = state.business.selectedLatitude,
-            longitude = state.business.selectedLongitude,
-            universityNames = state.business.nearbyUnivList,
-            storePhone = state.business.storeContact
-        )
-
-        val layout = state.store.spaceList.map { space ->
-            com.gmg.seatnow.domain.model.LayoutInfo(
-                name = space.name.ifBlank { "기본 홀" },
-                tables = space.tableList.map { table ->
-                    com.gmg.seatnow.domain.model.TableDetail(
-                        tableType = table.personCount.toIntOrNull() ?: 0,
-                        tableCount = table.tableCount.toIntOrNull() ?: 0
-                    )
-                }
-            )
-        }
-
-        val regularHolidays = when (state.operation.regularHolidayType) {
-            1 -> {
-                state.operation.weeklyHolidayDays.map { dayIdx ->
-                    com.gmg.seatnow.domain.model.RegularHolidayInfo(mapIndexToDayOfWeek(dayIdx), 0)
-                }
-            }
-            2 -> {
-                state.operation.monthlyHolidayWeeks.flatMap { week ->
-                    state.operation.monthlyHolidayDays.map { day ->
-                        com.gmg.seatnow.domain.model.RegularHolidayInfo(mapIndexToDayOfWeek(day), week)
-                    }
-                }
-            }
-            else -> emptyList()
-        }
-
-        val tempHolidays = if (state.operation.isTempHolidayEnabled && state.operation.tempHolidayStart.isNotBlank()) {
-            listOf(com.gmg.seatnow.domain.model.TemporaryHolidayInfo(
-                startDate = state.operation.tempHolidayStart.replace("/", "-"),
-                endDate = state.operation.tempHolidayEnd.replace("/", "-")
-            ))
-        } else emptyList()
-
-        val hours = state.operation.operatingSchedules.flatMap { schedule ->
-            schedule.selectedDays.map { dayIdx ->
-                com.gmg.seatnow.domain.model.OperatingHoursInfo(
-                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
-                    startTime = "${schedule.startHour.toString().padStart(2,'0')}:${schedule.startMin.toString().padStart(2,'0')}",
-                    endTime = "${schedule.endHour.toString().padStart(2,'0')}:${schedule.endMin.toString().padStart(2,'0')}"
-                )
-            }
-        }
-
-        return com.gmg.seatnow.domain.model.OwnerSignUpInfo(
-            account, business, layout,
-            com.gmg.seatnow.domain.model.OperationInfo(regularHolidays, tempHolidays, hours)
-        )
-    }
-
-    private fun mapIndexToDayOfWeek(index: Int): String {
-        return when (index) {
-            0 -> "SUNDAY"
-            1 -> "MONDAY"
-            2 -> "TUESDAY"
-            3 -> "WEDNESDAY"
-            4 -> "THURSDAY"
-            5 -> "FRIDAY"
-            6 -> "SATURDAY"
-            else -> "MONDAY"
-        }
-    }
 
     private fun handleNextStep() {
         val currentStep = _uiState.value.currentStep
