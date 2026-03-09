@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.MenuCategoryUiModel
 import com.gmg.seatnow.domain.model.StoreDetail
-import com.gmg.seatnow.domain.usecase.store.GetStoreDetailUseCase
-import com.gmg.seatnow.domain.usecase.store.ToggleMenuLikeUseCase
-import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
+import com.gmg.seatnow.domain.usecase.user.detail.GetStoreDetailUseCase
+import com.gmg.seatnow.domain.usecase.user.detail.ToggleMenuLikeUseCase
+import com.gmg.seatnow.domain.usecase.user.mypage.ToggleStoreKeepUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow

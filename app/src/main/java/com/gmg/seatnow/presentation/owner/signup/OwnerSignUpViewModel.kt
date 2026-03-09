@@ -8,9 +8,13 @@ import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.SpaceItem
 import com.gmg.seatnow.domain.model.SignUpTableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.gmg.seatnow.domain.usecase.auth.*
-import com.gmg.seatnow.domain.usecase.logic.*
-import com.gmg.seatnow.domain.usecase.store.*
+import com.gmg.seatnow.domain.usecase.common.auth.*
+import com.gmg.seatnow.domain.usecase.owner.auth.*
+import com.gmg.seatnow.domain.usecase.user.home.*
+import com.gmg.seatnow.domain.usecase.owner.seat.*
+import com.gmg.seatnow.domain.usecase.owner.store.*
+import com.gmg.seatnow.domain.usecase.common.validation.*
+import com.gmg.seatnow.domain.usecase.common.logic.*
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

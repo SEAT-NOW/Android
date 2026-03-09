@@ -3,7 +3,7 @@ package com.gmg.seatnow.presentation.user.mypage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.local.AuthManager
-import com.gmg.seatnow.domain.usecase.auth.WithdrawUserUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.WithdrawUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

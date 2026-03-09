@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.model.SplashDestination
-import com.gmg.seatnow.domain.usecase.auth.GetSplashDestinationUseCase
-import com.gmg.seatnow.domain.usecase.auth.ReissueTokenUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.GetSplashDestinationUseCase
+import com.gmg.seatnow.domain.usecase.common.auth.ReissueTokenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

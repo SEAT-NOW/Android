@@ -2,9 +2,9 @@ package com.gmg.seatnow.presentation.owner.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.domain.usecase.auth.OwnerLoginUseCase
-import com.gmg.seatnow.domain.usecase.logic.ValidateEmailUseCase
-import com.gmg.seatnow.domain.usecase.logic.ValidatePasswordUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.OwnerLoginUseCase
+import com.gmg.seatnow.domain.usecase.common.validation.ValidateEmailUseCase
+import com.gmg.seatnow.domain.usecase.common.validation.ValidatePasswordUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

@@ -3,8 +3,8 @@ package com.gmg.seatnow.presentation.user.term
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.local.AuthManager
-import com.gmg.seatnow.domain.usecase.auth.SaveGuestTermsUseCase
-import com.gmg.seatnow.domain.usecase.auth.SaveKakaoTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SaveGuestTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SaveKakaoTermsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

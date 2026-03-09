@@ -3,8 +3,8 @@ package com.gmg.seatnow.presentation.user.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.Store
-import com.gmg.seatnow.domain.usecase.user.GetStoresByHeadCountUseCase
-import com.gmg.seatnow.domain.usecase.user.GetStoresUseCase
+import com.gmg.seatnow.domain.usecase.user.home.GetStoresByHeadCountUseCase
+import com.gmg.seatnow.domain.usecase.user.home.GetStoresUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

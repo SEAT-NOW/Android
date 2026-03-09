@@ -5,9 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.domain.model.StoreDetail
 import com.gmg.seatnow.domain.model.StoreStatus
-import com.gmg.seatnow.domain.usecase.store.GetKeepStoresUseCase
-import com.gmg.seatnow.domain.usecase.store.ToggleStoreKeepUseCase
-import com.gmg.seatnow.domain.usecase.auth.CheckDeveloperModeUseCase
+import com.gmg.seatnow.domain.usecase.user.mypage.GetKeepStoresUseCase
+import com.gmg.seatnow.domain.usecase.user.mypage.ToggleStoreKeepUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckDeveloperModeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

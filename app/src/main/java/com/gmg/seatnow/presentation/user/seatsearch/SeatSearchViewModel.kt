@@ -2,8 +2,8 @@ package com.gmg.seatnow.presentation.user.seatsearch
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.domain.usecase.user.AdjustHeadCountUseCase
-import com.gmg.seatnow.domain.usecase.user.ValidateHeadCountUseCase
+import com.gmg.seatnow.domain.usecase.user.home.AdjustHeadCountUseCase
+import com.gmg.seatnow.domain.usecase.user.home.ValidateHeadCountUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

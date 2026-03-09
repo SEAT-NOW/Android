@@ -4,18 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.SignUpTableItem
 import com.gmg.seatnow.domain.model.SpaceItem
-import com.gmg.seatnow.domain.usecase.auth.ChangeOwnerPasswordUseCase
-import com.gmg.seatnow.domain.usecase.auth.GetOwnerAccountUseCase
-import com.gmg.seatnow.domain.usecase.auth.GetStoreProfileUseCase
-import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
-import com.gmg.seatnow.domain.usecase.auth.UpdateStorePhoneUseCase
-import com.gmg.seatnow.domain.usecase.auth.VerifyOwnerPasswordUseCase
-import com.gmg.seatnow.domain.usecase.logic.ValidatePasswordUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.ChangeOwnerPasswordUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.GetOwnerAccountUseCase
+import com.gmg.seatnow.domain.usecase.owner.store.GetStoreProfileUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.OwnerLogoutUseCase
+import com.gmg.seatnow.domain.usecase.owner.store.UpdateStorePhoneUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.VerifyOwnerPasswordUseCase
+import com.gmg.seatnow.domain.usecase.common.validation.ValidatePasswordUseCase
 
 // ★ 도메인 UseCase들 주입 (회원가입에서 쓰던 것 재활용 포함)
-import com.gmg.seatnow.domain.usecase.store.GetSeatConfigurationUseCase
-import com.gmg.seatnow.domain.usecase.store.UpdateStoreLayoutUseCase
-import com.gmg.seatnow.domain.usecase.store.CalculateSeatCountUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.GetSeatConfigurationUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.UpdateStoreLayoutUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.CalculateSeatCountUseCase
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow

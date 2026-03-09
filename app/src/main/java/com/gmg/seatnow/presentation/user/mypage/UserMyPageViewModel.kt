@@ -2,9 +2,9 @@ package com.gmg.seatnow.presentation.user.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.domain.usecase.auth.CheckIsGuestUseCase
-import com.gmg.seatnow.domain.usecase.auth.GetUserNicknameUseCase
-import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckIsGuestUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.GetUserNicknameUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.OwnerLogoutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

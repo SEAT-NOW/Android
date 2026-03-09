@@ -3,10 +3,10 @@ package com.gmg.seatnow.presentation.owner.store.seat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.model.TableItem
-import com.gmg.seatnow.domain.usecase.store.CalculateSeatDisplayUseCase
-import com.gmg.seatnow.domain.usecase.store.GetSeatStatusUseCase
-import com.gmg.seatnow.domain.usecase.store.UpdateSeatUsageUseCase
-import com.gmg.seatnow.domain.usecase.store.UpdateTableCountUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.CalculateSeatDisplayUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.GetSeatStatusUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.UpdateSeatUsageUseCase
+import com.gmg.seatnow.domain.usecase.owner.seat.UpdateTableCountUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

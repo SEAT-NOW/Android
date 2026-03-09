@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.data.local.AppConfigManager
 import com.gmg.seatnow.data.local.AuthManager
 import com.gmg.seatnow.data.local.UserManager
-import com.gmg.seatnow.domain.usecase.auth.CheckGuestTermsUseCase
-import com.gmg.seatnow.domain.usecase.auth.CheckKakaoTermsUseCase
-import com.gmg.seatnow.domain.usecase.auth.LoginWithKakaoUseCase
-import com.gmg.seatnow.domain.usecase.auth.SaveKakaoUserInfoUseCase
-import com.gmg.seatnow.domain.usecase.auth.SetDeveloperModeUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckGuestTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckKakaoTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.LoginWithKakaoUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SaveKakaoUserInfoUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SetDeveloperModeUseCase
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
