@@ -1,4 +1,4 @@
-package com.gmg.seatnow.presentation.extension
+﻿package com.gmg.seatnow.presentation.extension
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color

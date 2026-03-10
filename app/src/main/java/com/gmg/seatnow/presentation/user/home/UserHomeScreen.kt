@@ -44,7 +44,7 @@ import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.util.IntentUtil
-import com.gmg.seatnow.presentation.util.MapLogicHandler
+import com.gmg.seatnow.presentation.util.MapUtils
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.compose.*
@@ -132,7 +132,7 @@ fun UserHomeScreen(
     }
 
     fun refreshCurrentLocation() {
-        MapLogicHandler.moveCameraToCurrentLocation(
+        MapUtils.moveCameraToCurrentLocation(
             context = context,
             cameraPositionState = cameraPositionState,
             coroutineScope = coroutineScope,
