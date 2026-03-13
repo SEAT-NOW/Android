@@ -27,6 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
+import com.gmg.seatnow.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,6 +82,8 @@ fun SeatNowTextField(
     else if (isFocused) SubBlack
     else SubLightGray
 
+    var passwordVisible by remember { mutableStateOf(false) }
+
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = value,
@@ -105,6 +113,22 @@ fun SeatNowTextField(
                     )
                 }
             },
+            trailingIcon = {
+                if (isPassword) {
+                    val image = if (passwordVisible)
+                        painterResource(id = R.drawable.btn_pw_visible_on)
+                    else
+                        painterResource(id = R.drawable.btn_pw_visible_off)
+
+                    // 컴포넌트 여백 요구사항(오른쪽 16dp, 동일 패딩)에 맞추기 위해 Box나 패딩 조절 가능
+                    IconButton(
+                        onClick = { passwordVisible = !passwordVisible },
+                        modifier = Modifier.padding(end = 4.dp) // OutlinedTextField 기본 패딩이 있어서 추가로 살짝만 줘도 보통 맞습니다.
+                    ) {
+                        Icon(painter = image, contentDescription = "Toggle password visibility", tint = Color.Companion.Unspecified)
+                    }
+                }
+            },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
             singleLine = true,
             isError = errorText != null,
@@ -122,7 +146,7 @@ fun SeatNowTextField(
                 disabledBorderColor = Color.Companion.Transparent,
                 errorBorderColor = Color.Companion.Transparent
             ),
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else visualTransformation,
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else visualTransformation,
             keyboardOptions = KeyboardOptions(
                 keyboardType = finalKeyboardType,
                 imeAction = imeAction
