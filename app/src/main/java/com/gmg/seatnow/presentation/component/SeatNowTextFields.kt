@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -120,13 +121,19 @@ fun SeatNowTextField(
                     else
                         painterResource(id = R.drawable.btn_pw_visible_off)
 
-                    // 컴포넌트 여백 요구사항(오른쪽 16dp, 동일 패딩)에 맞추기 위해 Box나 패딩 조절 가능
-                    IconButton(
-                        onClick = { passwordVisible = !passwordVisible },
-                        modifier = Modifier.padding(end = 4.dp) // OutlinedTextField 기본 패딩이 있어서 추가로 살짝만 줘도 보통 맞습니다.
-                    ) {
-                        Icon(painter = image, contentDescription = "Toggle password visibility", tint = Color.Companion.Unspecified)
-                    }
+                    val indicationSource = remember { MutableInteractionSource() }
+
+                    Icon(
+                        painter = image,
+                        contentDescription = "Toggle password visibility",
+                        tint = Color.Companion.Unspecified,
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = indicationSource,
+                                indication = null,
+                                onClick = { passwordVisible = !passwordVisible }
+                            )
+                    )
                 }
             },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
