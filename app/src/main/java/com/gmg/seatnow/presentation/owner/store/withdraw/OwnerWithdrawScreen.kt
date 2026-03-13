@@ -225,6 +225,7 @@ fun WithdrawBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding() // OS 하단 시스템 네비게이션 바 영역 확보
             .padding(24.dp)
             .imePadding() // 키보드 패딩 적용
     ) {
