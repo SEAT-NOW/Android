@@ -413,16 +413,9 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> {
         return try {
             // 1. API 요청 DTO 생성
-            // API 명세서 예시에 하이픈(-)이 포함되어 있으므로 포맷팅 (선택사항, 백엔드 로직에 따라 다름)
-            // 여기서는 UI에서 넘어온 값(숫자만 있는 값이라 가정)에 하이픈을 넣어줍니다.
-            val formattedBusinessNum = if (businessNumber.length == 10 && !businessNumber.contains("-")) {
-                "${businessNumber.substring(0, 3)}-${businessNumber.substring(3, 5)}-${businessNumber.substring(5)}"
-            } else {
-                businessNumber
-            }
-
+            // 하이픈(-) 포맷팅 로직 임시 제거 (400 Bad Request 이슈로 인한 롤백 대비 주석 또는 원복 처리)
             val request = OwnerWithdrawRequestDTO(
-                businessNumber = formattedBusinessNum,
+                businessNumber = businessNumber,
                 password = password
             )
 
