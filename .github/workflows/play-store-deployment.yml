@@ -44,21 +44,11 @@ jobs:
       - name: 6. 릴리즈용 AAB(App Bundle) 생성
         run: ./gradlew bundleRelease
 
-      - name: 7. 앱 서명 진행 (미리 등록한 Secrets 값 자동 디코딩 및 적용)
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: app/build/outputs/bundle/release
-          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-
-      - name: 8. 구글 플레이스토어에 자동 업로드
+      - name: 7. 구글 플레이스토어에 자동 업로드
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: com.gmg.seatnow
-          releaseFiles: ${{steps.sign_app.outputs.signedReleaseFile}}
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: draft
