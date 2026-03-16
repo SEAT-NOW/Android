@@ -26,8 +26,9 @@ android {
         applicationId = "com.gmg.seatnow"
         minSdk = 29
         targetSdk = 35
-        versionCode = 15
-        versionName = "2.7"
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+        versionCode = 15 + runNumber
+        versionName = "2.8.$runNumber"
 
         multiDexEnabled = true
 
