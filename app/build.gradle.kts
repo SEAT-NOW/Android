@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmg.seatnow"
         minSdk = 29
         targetSdk = 35
-        versionCode = 13
-        versionName = "2.5"
+        versionCode = 14
+        versionName = "2.6"
 
         multiDexEnabled = true
 
