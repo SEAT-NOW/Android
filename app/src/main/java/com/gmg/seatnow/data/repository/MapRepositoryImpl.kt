@@ -2,6 +2,7 @@ package com.gmg.seatnow.data.repository
 
 import android.location.Location
 import com.gmg.seatnow.data.api.UserApiService
+import com.gmg.seatnow.data.local.AppConfigManager
 
 // ★ [수정] 변경된 DTO 이름으로 정확히 Import 해야 합니다!
 import com.gmg.seatnow.data.model.response.OpeningHourItem
@@ -14,10 +15,13 @@ import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 
 class MapRepositoryImpl @Inject constructor(
-    private val userApiService: UserApiService
+    private val userApiService: UserApiService,
+    private val appConfigManager: AppConfigManager
 ) : MapRepository {
 
     private val storeCache = mutableMapOf<Long, Store>()
+    private val fakeKeepList = mutableListOf<StoreDetail>()
+    private var lastFetchedDetail: StoreDetail? = null
 
     // 1. [홈] 지도 위 매장 검색
     override fun getStores(
@@ -95,7 +99,7 @@ class MapRepositoryImpl @Inject constructor(
                 // 상세 API의 images는 List<ImageDto> 이므로 변환 필요
                 val detailImages = data.images.sortedByDescending { it.isMain }.map { it.url }
 
-                val storeDetail = StoreDetail(
+                var storeDetail = StoreDetail(
                     id = data.storeId,
                     name = data.storeName,
                     images = detailImages,
@@ -110,6 +114,13 @@ class MapRepositoryImpl @Inject constructor(
                     closedDays = formatClosedDays(data.regularHolidays),
                     isKept = data.kept
                 )
+
+                if (appConfigManager.isTester()) {
+                    val isFakeKept = fakeKeepList.any { it.id == storeId }
+                    storeDetail = storeDetail.copy(isKept = isFakeKept)
+                }
+
+                lastFetchedDetail = storeDetail
 
                 // ★ [수정 확인] SeatMenuCategory -> MenuCategoryUiModel 매핑
                 val menus = data.menuCategories.map { category ->
@@ -139,6 +150,21 @@ class MapRepositoryImpl @Inject constructor(
 
     // 3. 킵 토글
     override suspend fun toggleStoreKeep(storeId: Long, isKept: Boolean): Result<Unit> {
+        if (appConfigManager.isTester()) {
+            if (isKept) {
+                // 킵 하기: 방금 조회해서 기억해둔 객체(lastFetchedDetail)를 리스트에 넣음
+                lastFetchedDetail?.let { detail ->
+                    if (fakeKeepList.none { it.id == storeId }) {
+                        fakeKeepList.add(detail.copy(isKept = true))
+                    }
+                }
+            } else {
+                // 킵 취소: 리스트에서 삭제
+                fakeKeepList.removeAll { it.id == storeId }
+            }
+            return Result.success(Unit)
+        }
+
         return try {
             // [수정] scrapStore -> keepStore 호출로 변경
             val response = userApiService.keepStore(storeId)
@@ -160,6 +186,10 @@ class MapRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getKeepStoreList(): Result<List<StoreDetail>> {
+        if (appConfigManager.isTester()) {
+            return Result.success(fakeKeepList.toList())
+        }
+
         return try {
             val response = userApiService.getKeptStores()
 

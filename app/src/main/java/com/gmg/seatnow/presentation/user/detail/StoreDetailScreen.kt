@@ -46,30 +46,32 @@ fun StoreDetailRoute(
     viewModel: StoreDetailViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
-    val storeDetail by viewModel.storeDetailState.collectAsState()
-    val menuCategories by viewModel.menuListState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is StoreDetailViewModel.UiEvent.ShowToast -> {
+                is StoreDetailEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
-                is StoreDetailViewModel.UiEvent.NavigateBack -> {
+                is StoreDetailEvent.NavigateBack -> {
                     onBackClick() // 데이터 로드 실패 시 화면 종료
                 }
             }
         }
     }
 
-    if (storeDetail != null) {
+    if (!uiState.isLoading && uiState.storeDetail != null) {
         StoreDetailScreen(
-            storeDetail = storeDetail!!,
-            menuCategories = menuCategories,
-            onLikeClicked = viewModel::onLikeClicked,
-            onKeepClicked = viewModel::onKeepClicked, // ★ ViewModel 함수 연결
-            onBackClick = onBackClick
+            storeDetail = uiState.storeDetail!!,
+            menuCategories = uiState.menuCategories,
+            onAction = { action ->
+                when (action) {
+                    is StoreDetailAction.OnBackClick -> onBackClick()
+                    else -> viewModel.onAction(action)
+                }
+            }
         )
     } else {
         // 로딩 중 UI
@@ -86,9 +88,7 @@ fun StoreDetailScreen(
     modifier: Modifier = Modifier,
     menuCategories: List<MenuCategoryUiModel>,
     initialTabIndex: Int = 0,
-    onLikeClicked: (Long) -> Unit,
-    onKeepClicked: (Long, Boolean) -> Unit,
-    onBackClick: () -> Unit
+    onAction: (StoreDetailAction) -> Unit
 ) {
     val context = LocalContext.current // ★ 전화 걸기를 위한 Context
 
@@ -102,7 +102,7 @@ fun StoreDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { onKeepClicked(storeDetail.id, !storeDetail.isKept) }) {
+                    IconButton(onClick = { onAction(StoreDetailAction.OnKeepClicked(storeDetail.id, !storeDetail.isKept)) }) {
                         // isKept 상태에 따라 보여줄 아이콘 리소스 결정
                         val keepIconRes = if (storeDetail.isKept) {
                             // TODO: 여기에 '눌렸을 때(빨간색/채워진)' 사용할 Drawable ID를 넣으세요.
@@ -239,7 +239,7 @@ fun StoreDetailScreen(
             Box(modifier = Modifier.fillMaxWidth().background(White).padding(vertical = 16.dp)) {
                 when (selectedTabIndex) {
                     0 -> StoreHomeTab(storeDetail = storeDetail)
-                    1 -> StoreMenuTab(menuCategories = menuCategories, onLikeClicked = onLikeClicked)
+                    1 -> StoreMenuTab(menuCategories = menuCategories, onLikeClicked = { onAction(StoreDetailAction.OnLikeClicked(it)) })
                 }
             }
         }

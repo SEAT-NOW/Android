@@ -36,35 +36,22 @@ fun OwnerLoginScreen(
     onNavigateToOwnerMain: () -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
-    val email by viewModel.email.collectAsState()
-    val password by viewModel.password.collectAsState()
-    val emailError by viewModel.emailError.collectAsState()
-    val passwordError by viewModel.passwordError.collectAsState()
-    val loginError by viewModel.loginError.collectAsState()
-    val isButtonEnabled by viewModel.isLoginButtonEnabled.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     // 이벤트 처리
     LaunchedEffect(true) {
         viewModel.event.collect { event ->
             when(event) {
-                is OwnerLoginViewModel.OwnerLoginEvent.NavigateToOwnerMain -> onNavigateToOwnerMain()
-                is OwnerLoginViewModel.OwnerLoginEvent.NavigateToSignUp -> onNavigateToSignUp()
+                is OwnerLoginEvent.NavigateToOwnerMain -> onNavigateToOwnerMain()
+                is OwnerLoginEvent.NavigateToSignUp -> onNavigateToSignUp()
             }
         }
     }
 
     // UI(Stateless) 호출
     OwnerLoginContent(
-        email = email,
-        onEmailChange = viewModel::onEmailChange,
-        password = password,
-        onPasswordChange = viewModel::onPasswordChange,
-        emailError = emailError,
-        passwordError = passwordError,
-        loginError = loginError,
-        isButtonEnabled = isButtonEnabled,
-        onLoginClick = viewModel::onLoginClick,
-        onSignUpClick = viewModel::onSignUpClick,
+        uiState = uiState,
+        onAction = viewModel::onAction,
         onBackClick = onBackClick
     )
 }
@@ -73,16 +60,8 @@ fun OwnerLoginScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerLoginContent(
-    email: String,
-    onEmailChange: (String) -> Unit,
-    password: String,
-    onPasswordChange: (String) -> Unit,
-    emailError: String?,
-    passwordError: String?,
-    loginError: String?,
-    isButtonEnabled: Boolean,
-    onLoginClick: () -> Unit,
-    onSignUpClick: () -> Unit,
+    uiState: OwnerLoginUiState,
+    onAction: (OwnerLoginAction) -> Unit,
     onBackClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -110,30 +89,30 @@ fun OwnerLoginContent(
 
             // 이메일 입력
             SeatNowTextField(
-                value = email,
-                onValueChange = onEmailChange,
+                value = uiState.email,
+                onValueChange = { onAction(OwnerLoginAction.UpdateEmail(it)) },
                 placeholder = "이메일",
-                errorText = emailError
+                errorText = uiState.emailError
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // 비밀번호 입력
             SeatNowTextField(
-                value = password,
-                onValueChange = onPasswordChange,
+                value = uiState.password,
+                onValueChange = { onAction(OwnerLoginAction.UpdatePassword(it)) },
                 placeholder = "비밀번호 (8~20자리, 영문/숫자/특수기호 포함)",
                 isPassword = true,
                 imeAction = ImeAction.Done,
-                errorText = passwordError
+                errorText = uiState.passwordError
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // [로그인 실패 시 버튼 위에 뜨는 에러 메시지]
-            if (loginError != null) {
+            if (uiState.loginError != null) {
                 Text(
-                    text = loginError,
+                    text = uiState.loginError,
                     style = MaterialTheme.typography.labelSmall.copy(color = Color.Red, fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
@@ -143,14 +122,14 @@ fun OwnerLoginContent(
 
             // 로그인 버튼
             Button(
-                onClick = onLoginClick,
+                onClick = { onAction(OwnerLoginAction.OnLoginClick) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
                     .padding(horizontal = 10.dp),
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(0.dp),
-                enabled = isButtonEnabled,
+                enabled = uiState.isLoginButtonEnabled,
                 interactionSource = interactionSource,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isPressed) PointRedPressed else PointRed,
@@ -178,7 +157,7 @@ fun OwnerLoginContent(
 
             // 회원가입 버튼
             OutlinedButton(
-                onClick = onSignUpClick,
+                onClick = { onAction(OwnerLoginAction.OnSignUpClick) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
@@ -205,16 +184,8 @@ fun PreviewOwnerLoginScreen() {
     // 뷰모델 없이 순수 UI만 테스트
     SeatNowTheme {
         OwnerLoginContent(
-            email = "",
-            onEmailChange = {},
-            password = "",
-            onPasswordChange = {},
-            emailError = null,
-            passwordError = null,
-            loginError = null,
-            isButtonEnabled = false,
-            onLoginClick = {},
-            onSignUpClick = {},
+            uiState = OwnerLoginUiState(),
+            onAction = {},
             onBackClick = {}
         )
     }
@@ -225,16 +196,15 @@ fun PreviewOwnerLoginScreen() {
 fun PreviewOwnerLoginScreenError() {
     SeatNowTheme{
         OwnerLoginContent(
-            email = "test@",
-            onEmailChange = {},
-            password = "123",
-            onPasswordChange = {},
-            emailError = "이메일 형식이 올바르지 않습니다.",
-            passwordError = "비밀번호를 확인해주세요.",
-            loginError = "아이디 또는 비밀번호가 일치하지 않습니다.",
-            isButtonEnabled = true,
-            onLoginClick = {},
-            onSignUpClick = {},
+            uiState = OwnerLoginUiState(
+                email = "test@",
+                emailError = "이메일 형식이 올바르지 않습니다.",
+                password = "123",
+                passwordError = "비밀번호를 확인해주세요.",
+                loginError = "아이디 또는 비밀번호가 일치하지 않습니다.",
+                isLoginButtonEnabled = true
+            ),
+            onAction = {},
             onBackClick = {}
         )
     }

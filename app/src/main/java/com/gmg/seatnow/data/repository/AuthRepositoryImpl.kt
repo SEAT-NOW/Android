@@ -4,16 +4,26 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.local.AppConfigManager
 import com.gmg.seatnow.data.local.AuthManager
+import com.gmg.seatnow.data.local.UserManager
+import com.gmg.seatnow.data.model.request.AccountDTO
+import com.gmg.seatnow.data.model.request.BusinessDTO
 import com.gmg.seatnow.data.model.request.BusinessVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.EmailVerificationRequestDTO
+import com.gmg.seatnow.data.model.request.LayoutDTO
+import com.gmg.seatnow.data.model.request.OperatingHoursDTO
+import com.gmg.seatnow.data.model.request.OperationDTO
 import com.gmg.seatnow.data.model.request.OwnerLoginRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
 import com.gmg.seatnow.data.model.request.OwnerWithdrawRequestDTO
+import com.gmg.seatnow.data.model.request.RegularHolidayDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationConfirmRequestDTO
 import com.gmg.seatnow.data.model.request.SmsVerificationRequestDTO
 import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
+import com.gmg.seatnow.data.model.request.TableInfoDTO
+import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
 import com.gmg.seatnow.data.model.request.VerifyPasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ChangePasswordRequestDTO
 import com.gmg.seatnow.data.model.response.ErrorResponse
@@ -26,6 +36,7 @@ import com.google.gson.Gson
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -33,6 +44,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
+import javax.inject.Provider
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -40,11 +52,12 @@ import kotlin.coroutines.suspendCoroutine
 class AuthRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authManager: AuthManager,
-    private val authService: AuthService
+    private val userManager: UserManager,
+    private val appConfigManager: AppConfigManager,
+    private val authServiceProvider: Provider<AuthService>
 ) : AuthRepository {
-
-    private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
-    private var cachedStoreProfile: StoreProfileResponseDTO? = null
+    private val authService: AuthService
+        get() = authServiceProvider.get()
 
     override suspend fun loginKakao(): Result<KakaoLoginResult> {
         return try {
@@ -133,32 +146,18 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun reissueToken(): Result<Unit> {
-        val refreshToken = authManager.getRefreshToken() ?: return Result.failure(Exception("Refresh Token 없음"))
+        val newToken = performTokenRefreshCore()
+        return if (newToken != null) {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception("토큰 만료"))
+        }
+    }
 
-        return try {
-            // 헤더에 RefreshToken 실어서 요청
-            val response = authService.reissueToken(refreshToken)
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data
-                data?.let {
-                    // 새 토큰들 저장
-                    val newAccessToken = if (it.accessToken.startsWith("Bearer")) it.accessToken else "Bearer ${it.accessToken}"
-                    val newRefreshToken = it.refreshToken
-
-                    authManager.saveTokens(newAccessToken, newRefreshToken)
-                }
-                Log.d("AuthRepo", "토큰 재발급 성공")
-                Result.success(Unit)
-            } else {
-                // 재발급 실패 (Refresh Token 만료 등) -> 로그아웃 처리
-                authManager.clearTokens()
-                Log.e("AuthRepo", "토큰 재발급 실패: ${response.code()}")
-                Result.failure(Exception("토큰 만료"))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
+    override fun refreshTokenBlocking(): String? {
+        // OkHttp의 백그라운드 스레드에서 코루틴을 동기적으로 묶어서 실행합니다.
+        return runBlocking {
+            performTokenRefreshCore()
         }
     }
 
@@ -315,11 +314,28 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signUpOwner(
-        requestDto: OwnerSignUpRequestDTO,
+        info: com.gmg.seatnow.domain.model.OwnerSignUpInfo,
         licenseUri: Uri?,
         storeImageUris: List<Uri>
     ): Result<Unit> {
         return try {
+            val requestDto = OwnerSignUpRequestDTO(
+                account = AccountDTO(info.account.email, info.account.password, info.account.phoneNumber),
+                business = BusinessDTO(
+                    info.business.representativeName, info.business.businessNumber, info.business.storeName,
+                    info.business.address, info.business.neighborhood, info.business.latitude,
+                    info.business.longitude, info.business.universityNames, info.business.storePhone
+                ),
+                layout = info.layout.map { l ->
+                    LayoutDTO(l.name, l.tables.map { t -> TableInfoDTO(t.tableType, t.tableCount) })
+                },
+                operation = OperationDTO(
+                    regularHolidays = info.operation.regularHolidays.map { RegularHolidayDTO(it.dayOfWeek, it.weekInfo) },
+                    temporaryHolidays = info.operation.temporaryHolidays.map { TemporaryHolidayDTO(it.startDate, it.endDate) },
+                    hours = info.operation.hours.map { OperatingHoursDTO(it.dayOfWeek, it.startTime, it.endTime) }
+                )
+            )
+
             val jsonString = Gson().toJson(requestDto)
             val requestBody = jsonString.toRequestBody("application/json".toMediaTypeOrNull())
 
@@ -389,22 +405,17 @@ class AuthRepositoryImpl @Inject constructor(
         } finally {
             // ★ [핵심] 성공이든 실패든 앱 내부 저장소의 토큰은 무조건 삭제
             authManager.clearTokens()
+            userManager.clearUserData()
+            appConfigManager.setTesterMode(false)
         }
     }
 
     override suspend fun ownerWithdraw(businessNumber: String, password: String): Result<Unit> {
         return try {
             // 1. API 요청 DTO 생성
-            // API 명세서 예시에 하이픈(-)이 포함되어 있으므로 포맷팅 (선택사항, 백엔드 로직에 따라 다름)
-            // 여기서는 UI에서 넘어온 값(숫자만 있는 값이라 가정)에 하이픈을 넣어줍니다.
-            val formattedBusinessNum = if (businessNumber.length == 10 && !businessNumber.contains("-")) {
-                "${businessNumber.substring(0, 3)}-${businessNumber.substring(3, 5)}-${businessNumber.substring(5)}"
-            } else {
-                businessNumber
-            }
-
+            // 하이픈(-) 포맷팅 로직 임시 제거 (400 Bad Request 이슈로 인한 롤백 대비 주석 또는 원복 처리)
             val request = OwnerWithdrawRequestDTO(
-                businessNumber = formattedBusinessNum,
+                businessNumber = businessNumber,
                 password = password
             )
 
@@ -414,6 +425,8 @@ class AuthRepositoryImpl @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 // 3. 성공 시 내부 토큰 삭제
                 authManager.clearTokens()
+                userManager.clearAllData()
+                appConfigManager.setTesterMode(false)
                 Log.d("AuthRepo", "회원탈퇴 성공: 토큰 삭제 완료")
                 Result.success(Unit)
             } else {
@@ -434,6 +447,9 @@ class AuthRepositoryImpl @Inject constructor(
 
             // 통신 성공 & BaseResponse의 success가 true일 때
             if (response.isSuccessful && body?.success == true) {
+                authManager.clearTokens()
+                userManager.clearAllData()
+                appConfigManager.setTesterMode(false)
                 Result.success(Unit)
             } else {
                 // 서버에서 내려준 message를 에러 메시지로 사용
@@ -481,69 +497,35 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateStorePhone(phone: String): Result<Unit> {
-        return try {
-            val response = authService.updateStorePhone(StorePhoneUpdateRequestDTO(phone))
+    private suspend fun performTokenRefreshCore(): String? {
+        val refreshToken = authManager.getRefreshToken() ?: return null
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(Unit)
-            } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getStoreProfile(): Result<StoreProfileResponseDTO> {
         return try {
-            val response = authService.getStoreProfile()
+            val response = authService.reissueToken(refreshToken)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception("데이터가 비어있습니다."))
+                    val newAccessToken = if (data.accessToken.startsWith("Bearer")) data.accessToken else "Bearer ${data.accessToken}"
+                    val newRefreshToken = data.refreshToken
+
+                    authManager.saveTokens(newAccessToken, newRefreshToken)
+                    Log.d("AuthRepo", "토큰 재발급 성공")
+                    return newAccessToken
                 }
-            } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
             }
+
+            // 재발급 실패 처리
+            authManager.clearTokens()
+            Log.e("AuthRepo", "토큰 재발급 실패: ${response.code()}")
+            null
         } catch (e: Exception) {
             e.printStackTrace()
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO> {
-        // 1. 캐시된 데이터가 있으면 바로 반환 (API 호출 X)
-        cachedOwnerAccount?.let {
-            return Result.success(it)
-        }
-
-        // 2. 캐시가 없으면 API 호출
-        return try {
-            val response = authService.getOwnerAccount()
-
-            if (response.isSuccessful && response.body()?.success == true) {
-                val data = response.body()?.data
-                if (data != null) {
-                    // ★ 3. 성공 시 캐시에 저장
-                    cachedOwnerAccount = data
-                    Result.success(data)
-                } else {
-                    Result.failure(Exception("데이터가 비어있습니다."))
-                }
-            } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Result.failure(e)
+            authManager.clearTokens()
+            userManager.clearUserData()
+            appConfigManager.setTesterMode(false)
+            Log.e("AuthRepo", "토큰 재발급 통신 에러")
+            null
         }
     }
 

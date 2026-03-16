@@ -2,8 +2,9 @@ package com.gmg.seatnow.presentation.user.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.local.AuthManager
-import com.gmg.seatnow.domain.usecase.auth.OwnerLogoutUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckIsGuestUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.GetUserNicknameUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.OwnerLogoutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,33 +16,22 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UserMyPageViewModel @Inject constructor(
-    private val authManager: AuthManager,
+    private val checkIsGuestUseCase: CheckIsGuestUseCase,
+    private val getUserNicknameUseCase: GetUserNicknameUseCase,
     private val logoutUseCase: OwnerLogoutUseCase
 ) : ViewModel() {
 
-    data class UserMyPageUiState(
-        val nickname: String = "",
-        val isGuest: Boolean = false,
-        val isLoading: Boolean = false
-    )
-
     private val _uiState = MutableStateFlow(UserMyPageUiState())
     val uiState = _uiState.asStateFlow()
-
-    sealed interface UserMyPageEvent {
-        data object NavigateToLogin : UserMyPageEvent // 게스트 & 일반유저 공용
-        data object NavigateToAccountInfo : UserMyPageEvent
-        data object NavigateToWithdraw : UserMyPageEvent
-    }
 
     private val _event = MutableSharedFlow<UserMyPageEvent>()
     val event = _event.asSharedFlow()
 
     init {
-        val isGuestUser = authManager.getAccessToken().isNullOrBlank()
+        val isGuestUser = checkIsGuestUseCase()
         _uiState.update {
             it.copy(
-                nickname = if (isGuestUser) "게스트" else (authManager.getUserNickname() ?: "사용자"),
+                nickname = if (isGuestUser) "게스트" else (getUserNicknameUseCase() ?: "사용자"),
                 isGuest = isGuestUser
             )
         }
@@ -71,17 +61,10 @@ class UserMyPageViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             logoutUseCase()
                 .onSuccess {
-                    authManager.clearTokens()
                     _event.emit(UserMyPageEvent.NavigateToLogin)
                 }
                 .onFailure { _event.emit(UserMyPageEvent.NavigateToLogin) }
             _uiState.update { it.copy(isLoading = false) }
         }
     }
-}
-
-sealed interface UserMyPageAction {
-    data object OnAccountInfoClick : UserMyPageAction
-    data object OnLogoutClick : UserMyPageAction
-    data object OnWithdrawClick : UserMyPageAction
 }

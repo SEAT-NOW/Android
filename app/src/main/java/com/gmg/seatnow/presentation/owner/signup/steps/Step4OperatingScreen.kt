@@ -10,8 +10,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gmg.seatnow.presentation.component.*
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.OperationState // ★ Preview용 추가
+import com.gmg.seatnow.presentation.owner.signup.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,10 +25,11 @@ fun Step4OperatingScreen(
     uiState: OwnerSignUpUiState,
     onAction: (SignUpAction) -> Unit
 ) {
+    // ★ operation 바구니 참조
     val disabledOperatingDays =
-        if (uiState.regularHolidayType == 1) uiState.weeklyHolidayDays else emptySet()
+        if (uiState.operation.regularHolidayType == 1) uiState.operation.weeklyHolidayDays else emptySet()
 
-    val scheduledDays = uiState.operatingSchedules.flatMap { it.selectedDays }.toSet()
+    val scheduledDays = uiState.operation.operatingSchedules.flatMap { it.selectedDays }.toSet()
 
     val isWeekFull = (disabledOperatingDays + scheduledDays).size >= 7
 
@@ -50,7 +52,6 @@ fun Step4OperatingScreen(
     var expandedScheduleId by remember { mutableStateOf<Long?>(null) }
     var expandedTimeTarget by remember { mutableStateOf(TimeTarget.None) }
 
-    // ★ [수정] LazyColumn -> Column (부모 스크롤 사용)
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val isSmallScreen = maxWidth < 380.dp
 
@@ -67,7 +68,7 @@ fun Step4OperatingScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // 1-1. 매주 (Radio Button Logic)
-            val isWeeklySelected = uiState.regularHolidayType == 1
+            val isWeeklySelected = uiState.operation.regularHolidayType == 1
             val weeklyTextColor = if (isWeeklySelected) PointRed else SubGray
             val weeklyBorderColor = if (isWeeklySelected) PointRed else SubLightGray
 
@@ -84,7 +85,7 @@ fun Step4OperatingScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // 요일 선택 드롭다운
-                val displayWeeklyText = formatDays(uiState.weeklyHolidayDays)
+                val displayWeeklyText = formatDays(uiState.operation.weeklyHolidayDays)
                 SeatNowDropdownButton(
                     text = displayWeeklyText,
                     onClick = { onAction(SignUpAction.SetWeeklyDialogVisible(true)) },
@@ -101,7 +102,7 @@ fun Step4OperatingScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // 1-2. 매월
-            val isMonthlySelected = uiState.regularHolidayType == 2
+            val isMonthlySelected = uiState.operation.regularHolidayType == 2
             val monthlyTextColor = if (isMonthlySelected) PointRed else SubGray
             val monthlyBorderColor = if (isMonthlySelected) PointRed else SubLightGray
 
@@ -118,7 +119,7 @@ fun Step4OperatingScreen(
                 Text("매월", style = MaterialTheme.typography.bodyMedium, color = monthlyTextColor)
                 Spacer(modifier = Modifier.width(12.dp))
 
-                val displayMonthlyWeekText = formatWeeks(uiState.monthlyHolidayWeeks)
+                val displayMonthlyWeekText = formatWeeks(uiState.operation.monthlyHolidayWeeks)
                 SeatNowDropdownButton(
                     text = displayMonthlyWeekText,
                     onClick = { onAction(SignUpAction.SetMonthlyWeekDialogVisible(true)) },
@@ -129,7 +130,7 @@ fun Step4OperatingScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
-                val displayMonthlyDayText = formatDays(uiState.monthlyHolidayDays)
+                val displayMonthlyDayText = formatDays(uiState.operation.monthlyHolidayDays)
                 SeatNowDropdownButton(
                     text = displayMonthlyDayText,
                     onClick = { onAction(SignUpAction.SetMonthlyDayDialogVisible(true)) },
@@ -156,25 +157,25 @@ fun Step4OperatingScreen(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SeatNowCheckRadioButton(
-                    selected = uiState.isTempHolidayEnabled,
+                    selected = uiState.operation.isTempHolidayEnabled,
                     onClick = { onAction(SignUpAction.ToggleTempHoliday) },
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
                 val tempHolidayBorderColor =
-                    if (uiState.isTempHolidayEnabled) PointRed else SubLightGray
-                val tempHolidayTextColor = if (uiState.isTempHolidayEnabled) PointRed else SubGray
+                    if (uiState.operation.isTempHolidayEnabled) PointRed else SubLightGray
+                val tempHolidayTextColor = if (uiState.operation.isTempHolidayEnabled) PointRed else SubGray
 
                 SeatNowDateBox(
-                    dateText = if (uiState.tempHolidayStart.isNotEmpty()) uiState.tempHolidayStart else "YYYY/MM/DD",
+                    dateText = if (uiState.operation.tempHolidayStart.isNotEmpty()) uiState.operation.tempHolidayStart else "YYYY/MM/DD",
                     onClick = {
-                        if (uiState.isTempHolidayEnabled) onAction(
+                        if (uiState.operation.isTempHolidayEnabled) onAction(
                             SignUpAction.SetTempHolidayDatePickerVisible(
                                 true
                             )
                         )
                     },
-                    enabled = uiState.isTempHolidayEnabled,
+                    enabled = uiState.operation.isTempHolidayEnabled,
                     modifier = Modifier.widthIn(max = 120.dp),
                     borderColor = tempHolidayBorderColor,
                     textColor = tempHolidayTextColor
@@ -184,15 +185,15 @@ fun Step4OperatingScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 // 종료일
                 SeatNowDateBox(
-                    dateText = if (uiState.tempHolidayEnd.isNotEmpty()) uiState.tempHolidayEnd else "YYYY/MM/DD",
+                    dateText = if (uiState.operation.tempHolidayEnd.isNotEmpty()) uiState.operation.tempHolidayEnd else "YYYY/MM/DD",
                     onClick = {
-                        if (uiState.isTempHolidayEnabled) onAction(
+                        if (uiState.operation.isTempHolidayEnabled) onAction(
                             SignUpAction.SetTempHolidayDatePickerVisible(
                                 true
                             )
                         )
                     },
-                    enabled = uiState.isTempHolidayEnabled,
+                    enabled = uiState.operation.isTempHolidayEnabled,
                     modifier = Modifier.widthIn(max = 120.dp),
                     borderColor = tempHolidayBorderColor,
                     textColor = tempHolidayTextColor
@@ -211,7 +212,7 @@ fun Step4OperatingScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            uiState.operatingSchedules.forEach { schedule ->
+            uiState.operation.operatingSchedules.forEach { schedule ->
                 Column(modifier = Modifier.fillMaxWidth()) {
                     DayOfWeekSelector(
                         selectedDays = schedule.selectedDays,
@@ -234,14 +235,11 @@ fun Step4OperatingScreen(
 
                     OperatingScheduleItemRow(
                         schedule = schedule,
-                        isDeleteEnabled = uiState.operatingSchedules.size > 1,
-                        // 현재 열려있는 타겟 정보 전달 (None, Start, End)
+                        isDeleteEnabled = uiState.operation.operatingSchedules.size > 1,
                         expandedTarget = if (isMyStartOpen) TimeTarget.Start else if (isMyEndOpen) TimeTarget.End else TimeTarget.None,
-                        // ★ [수정 1] 화면 작으면 폰트/아이콘 크기 줄임
                         isSmallScreen = isSmallScreen,
 
                         onToggleStart = {
-                            // 이미 Start가 열려있으면 닫고, 아니면 Start 염 (다른 놈이 열려있었으면 걔는 자동으로 닫힘)
                             if (isMyStartOpen) {
                                 expandedScheduleId = null
                                 expandedTimeTarget = TimeTarget.None
@@ -287,7 +285,7 @@ fun Step4OperatingScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
 
-                if (schedule != uiState.operatingSchedules.last()) {
+                if (schedule != uiState.operation.operatingSchedules.last()) {
                     HorizontalDivider(thickness = 1.dp, color = SubPaleGray)
                     Spacer(modifier = Modifier.height(20.dp))
                 }
@@ -301,37 +299,36 @@ fun Step4OperatingScreen(
                 )
             }
 
-            if (uiState.showWeeklyDayDialog) {
+            if (uiState.operation.showWeeklyDayDialog) {
                 WeeklyHolidayDialog(
-                    selectedDays = uiState.weeklyHolidayDays,
+                    selectedDays = uiState.operation.weeklyHolidayDays,
                     onDismiss = { onAction(SignUpAction.SetWeeklyDialogVisible(false)) },
                     onConfirm = { days -> onAction(SignUpAction.UpdateWeeklyHolidays(days)) }
                 )
             }
 
-            if (uiState.showMonthlyWeekDialog) {
+            if (uiState.operation.showMonthlyWeekDialog) {
                 MonthlyWeekDialog(
-                    selectedWeeks = uiState.monthlyHolidayWeeks,
+                    selectedWeeks = uiState.operation.monthlyHolidayWeeks,
                     onDismiss = { onAction(SignUpAction.SetMonthlyWeekDialogVisible(false)) },
                     onConfirm = { weeks -> onAction(SignUpAction.UpdateMonthlyWeeks(weeks)) }
                 )
             }
-            if (uiState.showMonthlyDayDialog) {
+            if (uiState.operation.showMonthlyDayDialog) {
                 WeeklyHolidayDialog(
-                    selectedDays = uiState.monthlyHolidayDays,
+                    selectedDays = uiState.operation.monthlyHolidayDays,
                     onDismiss = { onAction(SignUpAction.SetMonthlyDayDialogVisible(false)) },
-                    onConfirm = { days -> onAction(SignUpAction.UpdateMonthlyDays(days)) } // UpdateMonthlyDays 호출
+                    onConfirm = { days -> onAction(SignUpAction.UpdateMonthlyDays(days)) }
                 )
             }
 
 
-            // ★ [Fix] DateRangePicker Logic
-            if (uiState.showTempHolidayDatePicker) {
+            // ★ DateRangePicker Logic
+            if (uiState.operation.showTempHolidayDatePicker) {
                 val datePickerState = rememberDateRangePickerState()
 
                 DatePickerDialog(
                     onDismissRequest = { onAction(SignUpAction.SetTempHolidayDatePickerVisible(false)) },
-                    // ★ [핵심 1] 틴트(분홍색조) 제거: tonalElevation을 0.dp로 설정해야 완전한 흰색이 나옵니다.
                     tonalElevation = 0.dp,
                     confirmButton = {
                         TextButton(onClick = {
@@ -340,44 +337,31 @@ fun Step4OperatingScreen(
                             val finalEndStr = if (endStr.isEmpty()) startStr else endStr
                             if (startStr.isNotEmpty()) onAction(SignUpAction.UpdateTempHolidayRange(startStr, finalEndStr))
                         }) {
-                            // 저장 버튼 색상 (빨강)
                             Text("저장", color = PointRed, fontWeight = FontWeight.Bold)
                         }
                     },
-                    // ★ [핵심 2] 다이얼로그 창 배경 흰색 강제
                     colors = DatePickerDefaults.colors(
                         containerColor = White
                     )
                 ) {
                     DateRangePicker(
                         state = datePickerState,
-                        // ★ [핵심 3] 내부 컴포넌트 색상 재정의 (유효한 파라미터만 사용)
                         colors = DatePickerDefaults.colors(
-                            containerColor = White, // 메인 배경
-
-                            // 상단 헤더 텍스트들 (검정)
+                            containerColor = White,
                             titleContentColor = SubBlack,
                             headlineContentColor = SubBlack,
                             subheadContentColor = SubBlack,
                             weekdayContentColor = SubBlack,
-
-                            // 연도 선택 부분
                             yearContentColor = SubGray,
                             currentYearContentColor = PointRed,
                             selectedYearContentColor = White,
                             selectedYearContainerColor = PointRed,
-
-                            // 날짜 숫자 부분
                             dayContentColor = SubBlack,
                             disabledDayContentColor = SubLightGray,
                             selectedDayContentColor = White,
-                            selectedDayContainerColor = PointRed, // 선택된 날짜 빨강 동그라미
-
-                            // 오늘 날짜 표시
+                            selectedDayContainerColor = PointRed,
                             todayContentColor = PointRed,
                             todayDateBorderColor = PointRed,
-
-                            // 범위 선택 구간 (연한 빨강 배경)
                             dayInSelectionRangeContainerColor = PointRed.copy(alpha = 0.1f),
                             dayInSelectionRangeContentColor = SubBlack
                         )
@@ -394,10 +378,8 @@ fun Step4OperatingScreen(
 fun PreviewStep4WeeklySelected() {
     SeatNowTheme {
         Step4OperatingScreen(
-            // regularHolidayType = 1로 설정하여 '매주'가 선택된 상태를 보여줌
             uiState = OwnerSignUpUiState(
-                regularHolidayType = 1,
-//                weeklyHolidayDays = setOf(0) // 예: 일요일 선택된 상태
+                operation = OperationState(regularHolidayType = 1) // ★ Preview 마이그레이션
             ),
             onAction = {}
         )
@@ -409,14 +391,10 @@ fun PreviewStep4WeeklySelected() {
 fun PreviewStep4MonthlySelected() {
     SeatNowTheme {
         Step4OperatingScreen(
-            // regularHolidayType = 2로 설정하여 '매월'이 선택된 상태를 보여줌
             uiState = OwnerSignUpUiState(
-                regularHolidayType = 2,
-//                monthlyHolidayWeeks = setOf(2, 4), // 예: 2, 4주 선택된 상태
-//                monthlyHolidayDays = setOf(0)      // 예: 일요일 선택된 상태
+                operation = OperationState(regularHolidayType = 2) // ★ Preview 마이그레이션
             ),
             onAction = {}
         )
     }
 }
-

@@ -17,7 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.gmg.seatnow.presentation.owner.store.manage.StoreManagementScreen
+import com.gmg.seatnow.presentation.owner.store.storeManage.StoreManagementScreen
 import com.gmg.seatnow.presentation.owner.store.mypage.MyPageScreen
 import com.gmg.seatnow.presentation.owner.store.seat.SeatManagementScreen
 import com.gmg.seatnow.presentation.theme.PointRed
@@ -53,7 +53,7 @@ fun StoreMainRoute(
 
 @Composable
 fun StoreMainScreen(
-    uiState: StoreMainViewModel.StoreMainUiState,
+    uiState: StoreMainUiState,
     onAction: (StoreMainAction) -> Unit,
     onNavigateToLogin: () -> Unit,
     onNavigateToAccountInfo: () -> Unit,

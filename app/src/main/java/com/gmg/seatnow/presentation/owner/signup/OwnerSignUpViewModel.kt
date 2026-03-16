@@ -3,23 +3,19 @@ package com.gmg.seatnow.presentation.owner.signup
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.data.model.request.AccountDTO
-import com.gmg.seatnow.data.model.request.BusinessDTO
-import com.gmg.seatnow.data.model.request.LayoutDTO
-import com.gmg.seatnow.data.model.request.OperatingHoursDTO
-import com.gmg.seatnow.data.model.request.OperationDTO
-import com.gmg.seatnow.data.model.request.OwnerSignUpRequestDTO
-import com.gmg.seatnow.data.model.request.RegularHolidayDTO
-import com.gmg.seatnow.data.model.request.TableInfoDTO
-import com.gmg.seatnow.data.model.request.TemporaryHolidayDTO
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.domain.model.OperatingScheduleItem
 import com.gmg.seatnow.domain.model.SpaceItem
 import com.gmg.seatnow.domain.model.SignUpTableItem
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.gmg.seatnow.domain.usecase.auth.*
-import com.gmg.seatnow.domain.usecase.logic.*
-import com.gmg.seatnow.domain.usecase.store.*
+import com.gmg.seatnow.domain.usecase.common.auth.*
+import com.gmg.seatnow.domain.usecase.owner.auth.*
+// GetNearbyUniversityUseCase는 common.logic.*에 포함됨
+
+import com.gmg.seatnow.domain.usecase.owner.seat.*
+import com.gmg.seatnow.domain.usecase.owner.store.*
+import com.gmg.seatnow.domain.usecase.common.validation.*
+import com.gmg.seatnow.domain.usecase.common.logic.*
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -30,30 +26,35 @@ import javax.inject.Inject
 @HiltViewModel
 class OwnerSignUpViewModel @Inject constructor(
     // [Auth UseCases]
-    private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase, // 이메일/폰 공용
+    private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase,
     private val requestEmailAuthCodeUseCase: RequestEmailAuthCodeUseCase,
     private val verifyPhoneAuthCodeUseCase: VerifyPhoneAuthCodeUseCase,
-    private val verifyEmailAuthCodeUseCase: VerifyEmailAuthCodeUseCase,   // 이메일/폰 공용
+    private val verifyEmailAuthCodeUseCase: VerifyEmailAuthCodeUseCase,
     private val verifyBusinessNumberUseCase: VerifyBusinessNumberUseCase,
 
     // [Store UseCases]
     private val searchStoreUseCase: SearchStoreUseCase,
     private val getNearbyUniversityUseCase: GetNearbyUniversityUseCase,
+    private val calculateSeatCountUseCase: CalculateSeatCountUseCase,
+    private val checkScheduleCollisionUseCase: CheckScheduleCollisionUseCase,
+    private val limitStorePhotosUseCase: LimitStorePhotosUseCase,
 
-    // [Logic UseCases]
+    // [Logic UseCases & Validation]
     private val validateEmailUseCase: ValidateEmailUseCase,
     private val validatePasswordUseCase: ValidatePasswordUseCase,
+    private val validatePasswordCheckUseCase: ValidatePasswordCheckUseCase,
+    private val validateSignUpStepUseCase: ValidateSignUpStepUseCase,
     private val formatTimerUseCase: FormatTimerUseCase,
     private val calculateSpaceInfoUseCase: CalculateSpaceInfoUseCase,
+    private val checkTestAccountUseCase: CheckTestAccountUseCase,
+
+    // [Mapper]
+    private val signUpStateToDomainMapper: SignUpStateToDomainMapper,
 
     private val signUpOwnerUseCase: SignUpOwnerUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(OwnerSignUpUiState(
-        weeklyHolidayDays = setOf(0),
-        monthlyHolidayDays = setOf(0),
-        monthlyHolidayWeeks = setOf(2,4)
-    ))
+    private val _uiState = MutableStateFlow(OwnerSignUpUiState())
     val uiState: StateFlow<OwnerSignUpUiState> = _uiState.asStateFlow()
 
     private val _event = MutableSharedFlow<SignUpEvent>()
@@ -65,19 +66,18 @@ class OwnerSignUpViewModel @Inject constructor(
     private val _storeSearchQuery = MutableSharedFlow<String>()
 
     init {
-        // [UseCase 적용] 상호명 검색
         viewModelScope.launch {
             @OptIn(FlowPreview::class)
             _storeSearchQuery
                 .debounce(500)
                 .collect { query ->
                     if (query.isNotBlank()) {
-                        searchStoreUseCase(query) // UseCase 호출
+                        searchStoreUseCase(query)
                             .onSuccess { results ->
-                                _uiState.update { it.copy(storeSearchResults = results) }
+                                _uiState.update { it.copy(business = it.business.copy(storeSearchResults = results)) }
                             }
                     } else {
-                        _uiState.update { it.copy(storeSearchResults = emptyList()) }
+                        _uiState.update { it.copy(business = it.business.copy(storeSearchResults = emptyList())) }
                     }
                 }
         }
@@ -85,33 +85,34 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun initializeDefaultSpace() {
-        // [Step 3 요구사항] 기본값 "전체", 수정 모드 True로 시작
         val defaultSpace = SpaceItem(
             id = System.currentTimeMillis(),
             name = "",
             seatCount = 0,
-            isEditing = true, // 수정 중 상태
-            editInput = "전체", // 기본 키워드
+            isEditing = true,
+            editInput = "전체",
             tableList = listOf(SignUpTableItem(personCount = "", tableCount = ""))
         )
         _uiState.update {
             it.copy(
-                spaceList = listOf(defaultSpace),
-                selectedSpaceId = defaultSpace.id,
-                isNextButtonEnabled = false // ★ 수정 중이므로 버튼 비활성화
+                store = it.store.copy(
+                    spaceList = listOf(defaultSpace),
+                    selectedSpaceId = defaultSpace.id
+                ),
+                isNextButtonEnabled = false
             )
         }
     }
 
     fun onAction(action: SignUpAction) {
         when (action) {
-            // Step 1 Action
+            // Step 1
             is SignUpAction.UpdateEmail -> validateAndUpdateEmail(action.email)
-            is SignUpAction.UpdateAuthCode -> _uiState.update { it.copy(authCode = action.code) }
+            is SignUpAction.UpdateAuthCode -> _uiState.update { it.copy(basic = it.basic.copy(authCode = action.code)) }
             is SignUpAction.UpdatePassword -> validateAndUpdatePassword(action.password)
             is SignUpAction.UpdatePasswordCheck -> validateAndUpdatePasswordCheck(action.check)
-            is SignUpAction.UpdatePhone -> _uiState.update { it.copy(phone = action.phone) }
-            is SignUpAction.UpdatePhoneAuthCode -> _uiState.update { it.copy(phoneAuthCode = action.code) }
+            is SignUpAction.UpdatePhone -> _uiState.update { it.copy(basic = it.basic.copy(phone = action.phone)) }
+            is SignUpAction.UpdatePhoneAuthCode -> _uiState.update { it.copy(basic = it.basic.copy(phoneAuthCode = action.code)) }
 
             is SignUpAction.RequestEmailCode -> requestEmailCode()
             is SignUpAction.VerifyEmailCode -> verifyEmailCode()
@@ -120,27 +121,27 @@ class OwnerSignUpViewModel @Inject constructor(
 
             is SignUpAction.ToggleAllTerms -> toggleAllTerms(action.isChecked)
             is SignUpAction.ToggleTerm -> toggleSingleTerm(action.termType)
-            is SignUpAction.OpenTermDetail -> _uiState.update { it.copy(openedTermType = action.termType) }
-            is SignUpAction.CloseTermDetail -> _uiState.update { it.copy(openedTermType = null) }
+            is SignUpAction.OpenTermDetail -> _uiState.update { it.copy(basic = it.basic.copy(openedTermType = action.termType)) }
+            is SignUpAction.CloseTermDetail -> _uiState.update { it.copy(basic = it.basic.copy(openedTermType = null)) }
 
-            // Step 2 Implementations
-            is SignUpAction.UpdateRepName -> { _uiState.update { it.copy(repName = action.name) } }
+            // Step 2
+            is SignUpAction.UpdateRepName -> { _uiState.update { it.copy(business = it.business.copy(repName = action.name)) } }
             is SignUpAction.UpdateBusinessNum -> {
                 if (action.num.length <= 10 && action.num.all { it.isDigit() }) {
-                    _uiState.update { it.copy(businessNumber = action.num) }
+                    _uiState.update { it.copy(business = it.business.copy(businessNumber = action.num)) }
                 }
             }
             is SignUpAction.VerifyBusinessNum -> verifyBusinessNumber()
-            is SignUpAction.OpenStoreSearch -> _uiState.update { it.copy(isStoreSearchVisible = true) }
-            is SignUpAction.CloseStoreSearch -> _uiState.update { it.copy(isStoreSearchVisible = false) }
+            is SignUpAction.OpenStoreSearch -> _uiState.update { it.copy(business = it.business.copy(isStoreSearchVisible = true)) }
+            is SignUpAction.CloseStoreSearch -> _uiState.update { it.copy(business = it.business.copy(isStoreSearchVisible = false)) }
             is SignUpAction.SearchStoreQuery -> {
                 viewModelScope.launch { _storeSearchQuery.emit(action.query) }
             }
             is SignUpAction.SelectStore -> selectStore(action.store)
-            is SignUpAction.UpdateMainAddress -> _uiState.update { it.copy(mainAddress = action.address) }
+            is SignUpAction.UpdateMainAddress -> _uiState.update { it.copy(business = it.business.copy(mainAddress = action.address)) }
             is SignUpAction.UpdateStoreContact -> {
                 if (action.phone.length <= 11 && action.phone.all { it.isDigit() }) {
-                    _uiState.update { it.copy(storeContact = action.phone) }
+                    _uiState.update { it.copy(business = it.business.copy(storeContact = action.phone)) }
                 }
             }
             is SignUpAction.UploadLicenseImage -> uploadLicenseImage(action.uri, action.fileName)
@@ -160,37 +161,38 @@ class OwnerSignUpViewModel @Inject constructor(
 
             // Step 4
             is SignUpAction.ToggleRegularHolidayType -> {
-                _uiState.update {
-                    val newType = if (it.regularHolidayType == action.type) 0 else action.type
-                    it.copy(regularHolidayType = newType)
+                _uiState.update { state ->
+                    val newType = if (state.operation.regularHolidayType == action.type) 0 else action.type
+                    state.copy(operation = state.operation.copy(regularHolidayType = newType))
                 }
             }
-            is SignUpAction.UpdateWeeklyHolidays -> _uiState.update { it.copy(weeklyHolidayDays = action.days, showWeeklyDayDialog = false) }
-            is SignUpAction.UpdateMonthlyWeeks -> _uiState.update { it.copy(monthlyHolidayWeeks = action.weeks, showMonthlyWeekDialog = false) }
-            is SignUpAction.UpdateMonthlyDays -> _uiState.update { it.copy(monthlyHolidayDays = action.days, showMonthlyDayDialog = false) }
-            is SignUpAction.ToggleTempHoliday -> _uiState.update { it.copy(isTempHolidayEnabled = !it.isTempHolidayEnabled) }
+            is SignUpAction.UpdateWeeklyHolidays -> _uiState.update { it.copy(operation = it.operation.copy(weeklyHolidayDays = action.days, showWeeklyDayDialog = false)) }
+            is SignUpAction.UpdateMonthlyWeeks -> _uiState.update { it.copy(operation = it.operation.copy(monthlyHolidayWeeks = action.weeks, showMonthlyWeekDialog = false)) }
+            is SignUpAction.UpdateMonthlyDays -> _uiState.update { it.copy(operation = it.operation.copy(monthlyHolidayDays = action.days, showMonthlyDayDialog = false)) }
+            is SignUpAction.ToggleTempHoliday -> _uiState.update { it.copy(operation = it.operation.copy(isTempHolidayEnabled = !it.operation.isTempHolidayEnabled)) }
             is SignUpAction.UpdateTempHolidayRange -> {
                 _uiState.update {
-                    it.copy(tempHolidayStart = action.start, tempHolidayEnd = action.end, showTempHolidayDatePicker = false)
+                    it.copy(operation = it.operation.copy(tempHolidayStart = action.start, tempHolidayEnd = action.end, showTempHolidayDatePicker = false))
                 }
             }
             is SignUpAction.AddOperatingSchedule -> {
-                val newId = (_uiState.value.operatingSchedules.maxOfOrNull { it.id } ?: 0) + 1
+                val currentSchedules = _uiState.value.operation.operatingSchedules
+                val newId = (currentSchedules.maxOfOrNull { it.id } ?: 0) + 1
                 val newItem = OperatingScheduleItem(newId, startHour = 18, startMin = 0, endHour = 0, endMin = 0)
-                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules + newItem) }
+                _uiState.update { it.copy(operation = it.operation.copy(operatingSchedules = currentSchedules + newItem)) }
             }
             is SignUpAction.UpdateOperatingDays -> updateOperatingScheduleDays(action.id, action.dayIdx)
             is SignUpAction.UpdateOperatingTime -> updateOperatingScheduleTime(action.id, action.startHour, action.startMin, action.endHour, action.endMin)
             is SignUpAction.RemoveOperatingSchedule -> {
-                _uiState.update { it.copy(operatingSchedules = it.operatingSchedules.filter { item -> item.id != action.id }) }
+                _uiState.update { it.copy(operation = it.operation.copy(operatingSchedules = it.operation.operatingSchedules.filter { item -> item.id != action.id })) }
             }
 
-            is SignUpAction.SetWeeklyDialogVisible -> _uiState.update { it.copy(showWeeklyDayDialog = action.visible) }
-            is SignUpAction.SetMonthlyWeekDialogVisible -> _uiState.update { it.copy(showMonthlyWeekDialog = action.visible) }
-            is SignUpAction.SetMonthlyDayDialogVisible -> _uiState.update { it.copy(showMonthlyDayDialog = action.visible) }
-            is SignUpAction.SetTempHolidayDatePickerVisible -> _uiState.update { it.copy(showTempHolidayDatePicker = action.visible) }
+            is SignUpAction.SetWeeklyDialogVisible -> _uiState.update { it.copy(operation = it.operation.copy(showWeeklyDayDialog = action.visible)) }
+            is SignUpAction.SetMonthlyWeekDialogVisible -> _uiState.update { it.copy(operation = it.operation.copy(showMonthlyWeekDialog = action.visible)) }
+            is SignUpAction.SetMonthlyDayDialogVisible -> _uiState.update { it.copy(operation = it.operation.copy(showMonthlyDayDialog = action.visible)) }
+            is SignUpAction.SetTempHolidayDatePickerVisible -> _uiState.update { it.copy(operation = it.operation.copy(showTempHolidayDatePicker = action.visible)) }
 
-            //step 5
+            // Step 5
             is SignUpAction.AddStorePhotos -> addStorePhotos(action.uris)
             is SignUpAction.RemoveStorePhoto -> removeStorePhoto(action.uri)
             is SignUpAction.SetRepresentativePhoto -> setRepresentativePhoto(action.uri)
@@ -200,98 +202,80 @@ class OwnerSignUpViewModel @Inject constructor(
             is SignUpAction.OnBackClick -> handleBackStep()
         }
 
-        // ★ 어떤 액션이든 끝나면 버튼 상태 체크 (특히 SaveSpaceItem 이후 중요)
         checkNextButtonEnabled()
     }
 
     // --- Step 1 Implementation ---
 
     private fun requestEmailCode() {
-        val email = _uiState.value.email
-        if (email.isBlank() || _uiState.value.emailError != null) return
+        val email = _uiState.value.basic.email
+        if (email.isBlank() || _uiState.value.basic.emailError != null) return
 
-        if (email == "reviewer@seatnow.com" || email.startsWith("test")) {
+        if (checkTestAccountUseCase.isTestEmail(email)) {
             startEmailTimer()
-            _uiState.update {
-                it.copy(
-                    isEmailCodeSent = true,
-                    authCode = "", // 초기화
-                    isEmailVerificationAttempted = false,
-                    emailVerifiedError = null
-                )
-            }
-            viewModelScope.launch {
-                _event.emit(SignUpEvent.ShowToast("[TEST] 인증번호 123456을 입력하세요."))
-            }
-            return // API 호출 안 하고 종료
+            _uiState.update { it.copy(basic = it.basic.copy(isEmailCodeSent = true, authCode = "", isEmailVerificationAttempted = false, emailVerifiedError = null)) }
+            viewModelScope.launch { _event.emit(SignUpEvent.ShowToast("[TEST] 인증번호 123456을 입력하세요.")) }
+            return
         }
 
         viewModelScope.launch {
-            // [UseCase 적용] 이메일 인증 요청
             requestEmailAuthCodeUseCase(email)
                 .onSuccess {
                     startEmailTimer()
                     _uiState.update {
-                        it.copy(
+                        it.copy(basic = it.basic.copy(
                             isEmailCodeSent = true,
                             authCode = "",
                             isEmailVerificationAttempted = false,
-                            emailVerifiedError = null) }
+                            emailVerifiedError = null)) }
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        it.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.") } }
+                        it.copy(basic = it.basic.copy(emailError = exception.message ?: "인증번호 전송에 실패했습니다.")) } }
         }
     }
 
     private fun verifyEmailCode() {
-        val email = _uiState.value.email
-        val code = _uiState.value.authCode
-        _uiState.update { it.copy(isEmailVerificationAttempted = true) }
-        if ((email == "reviewer@seatnow.com" || email.startsWith("test")) && code == "123456") {
+        val email = _uiState.value.basic.email
+        val code = _uiState.value.basic.authCode
+        _uiState.update { it.copy(basic = it.basic.copy(isEmailVerificationAttempted = true)) }
+
+        if (checkTestAccountUseCase.isTestEmail(email) && code == "123456") {
             stopEmailTimer()
-            _uiState.update {
-                it.copy(
-                    isEmailVerified = true,
-                    emailTimerText = null,
-                    emailVerifiedError = null
-                )
-            }
+            _uiState.update { it.copy(basic = it.basic.copy(isEmailVerified = true, emailTimerText = null, emailVerifiedError = null)) }
             checkNextButtonEnabled()
-            return // API 호출 안 하고 종료
+            return
         }
 
         stopEmailTimer()
         viewModelScope.launch {
-            // [UseCase 적용] 인증번호 검증
             verifyEmailAuthCodeUseCase(email, code)
                 .onSuccess {
                     _uiState.update {
-                        it.copy(
+                        it.copy(basic = it.basic.copy(
                             isEmailVerified = true,
                             emailTimerText = null,
-                            emailVerifiedError = null) }
+                            emailVerifiedError = null)) }
                     checkNextButtonEnabled()
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        it.copy(emailVerifiedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.") } }
+                        it.copy(basic = it.basic.copy(emailVerifiedError = exception.message ?: "인증에 실패했습니다. 다시 시도해주세요.")) } }
         }
     }
 
     private fun requestPhoneCode() {
-        val phone = _uiState.value.phone
-        // 하이픈이 섞여있어도 UseCase 혹은 로직에서 제거한다고 가정 (여기선 길이만 체크)
+        val phone = _uiState.value.basic.phone
         if (phone.length < 10) return
-        if (phone == "01000000000") {
+        if (checkTestAccountUseCase.isTestPhone(phone)) {
             startPhoneTimer()
             _uiState.update {
-                it.copy(
+                it.copy(basic = it.basic.copy(
                     isPhoneCodeSent = true,
                     phoneAuthCode = "",
                     isPhoneVerificationAttempted = false,
                     phoneVerifiedError = null
-                )
+                ))
             }
             viewModelScope.launch {
                 _event.emit(SignUpEvent.ShowToast("[TEST] 인증번호 123456을 입력하세요."))
@@ -300,105 +284,93 @@ class OwnerSignUpViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // [변경] 분리된 UseCase 호출
             requestPhoneAuthCodeUseCase(phone)
                 .onSuccess {
                     startPhoneTimer()
                     _uiState.update {
-                        it.copy(
+                        it.copy(basic = it.basic.copy(
                             isPhoneCodeSent = true,
                             phoneAuthCode = "",
                             isPhoneVerificationAttempted = false,
                             phoneVerifiedError = null
-                        )
+                        ))
                     }
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        it.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다.")
+                        it.copy(basic = it.basic.copy(phoneError = exception.message ?: "인증번호 전송에 실패했습니다."))
                     }
                 }
         }
     }
 
-    // [핸드폰 검증 로직]
     private fun verifyPhoneCode() {
-        val phone = _uiState.value.phone
-        val code = _uiState.value.phoneAuthCode
-        _uiState.update { it.copy(isPhoneVerificationAttempted = true) }
-        if (phone == "01000000000" && code == "123456") {
+        val phone = _uiState.value.basic.phone
+        val code = _uiState.value.basic.phoneAuthCode
+        _uiState.update { it.copy(basic = it.basic.copy(isPhoneVerificationAttempted = true)) }
+        if (checkTestAccountUseCase.isTestPhone(phone) && code == "123456") {
             stopPhoneTimer()
             _uiState.update {
-                it.copy(
+                it.copy(basic = it.basic.copy(
                     isPhoneVerified = true,
                     phoneTimerText = null,
                     phoneVerifiedError = null
-                )
+                ))
             }
             checkNextButtonEnabled()
             return
         }
 
-        stopPhoneTimer() // 타이머 멈춤
+        stopPhoneTimer()
         viewModelScope.launch {
-            // [변경] 핸드폰 전용 UseCase 호출 (실제 API)
             verifyPhoneAuthCodeUseCase(phone, code)
                 .onSuccess {
                     _uiState.update {
-                        it.copy(
+                        it.copy(basic = it.basic.copy(
                             isPhoneVerified = true,
                             phoneTimerText = null,
                             phoneVerifiedError = null
-                        )
+                        ))
                     }
                     checkNextButtonEnabled()
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        it.copy(phoneVerifiedError = exception.message ?: "인증 번호가 일치하지 않습니다.")
+                        it.copy(basic = it.basic.copy(phoneVerifiedError = exception.message ?: "인증 번호가 일치하지 않습니다."))
                     }
                 }
         }
     }
 
     private fun validateAndUpdateEmail(email: String) {
-        // [UseCase 적용] 정규식 로직 제거 -> UseCase 사용
-        val isValid = validateEmailUseCase(email)
-        val error = if (email.isNotBlank() && !isValid) "올바른 이메일 형식이 아닙니다." else null
-
-        _uiState.update { it.copy(email = email, emailError = error, isEmailVerified = false, isEmailCodeSent = false, isEmailVerificationAttempted = false) }
+        val error = validateEmailUseCase(email)
+        _uiState.update { it.copy(basic = it.basic.copy(email = email, emailError = error, isEmailVerified = false, isEmailCodeSent = false, isEmailVerificationAttempted = false)) }
         stopEmailTimer()
     }
 
     private fun validateAndUpdatePassword(password: String) {
-        // [UseCase 적용]
-        val isValid = validatePasswordUseCase(password)
-        val error = if (password.isNotBlank() && !isValid) "영문, 숫자, 특수문자 포함 8~20자리여야 합니다." else null
-
-        _uiState.update { it.copy(password = password, passwordError = error) }
-        validateAndUpdatePasswordCheck(_uiState.value.passwordCheck)
+        val error = validatePasswordUseCase(password)
+        _uiState.update { it.copy(basic = it.basic.copy(password = password, passwordError = error)) }
+        validateAndUpdatePasswordCheck(_uiState.value.basic.passwordCheck)
     }
 
-    // (참고) 비밀번호 확인 일치 로직은 간단한 비교라 ViewModel에 남겨둠 (필요시 UseCase화 가능)
     private fun validateAndUpdatePasswordCheck(check: String) {
-        val currentPassword = _uiState.value.password
-        val error = if (check.isNotBlank() && check != currentPassword) "비밀번호가 일치하지 않습니다." else null
-        _uiState.update { it.copy(passwordCheck = check, passwordCheckError = error) }
+        val error = validatePasswordCheckUseCase(_uiState.value.basic.password, check)
+        _uiState.update { it.copy(basic = it.basic.copy(passwordCheck = check, passwordCheckError = error)) }
     }
 
     private fun startEmailTimer() {
         emailTimerJob?.cancel()
         emailTimerJob = viewModelScope.launch {
             var time = 180
-            _uiState.update { it.copy(isEmailTimerExpired = false) }
+            _uiState.update { it.copy(basic = it.basic.copy(isEmailTimerExpired = false)) }
             while (time > 0) {
-                // [UseCase 적용] 시간 포맷팅
                 val timeString = formatTimerUseCase(time)
-                _uiState.update { it.copy(emailTimerText = timeString) }
+                _uiState.update { it.copy(basic = it.basic.copy(emailTimerText = timeString)) }
                 delay(1000)
                 time--
             }
-            _uiState.update { it.copy(emailTimerText = "0:00", isEmailTimerExpired = true) }
+            _uiState.update { it.copy(basic = it.basic.copy(emailTimerText = "0:00", isEmailTimerExpired = true)) }
         }
     }
 
@@ -406,67 +378,66 @@ class OwnerSignUpViewModel @Inject constructor(
         phoneTimerJob?.cancel()
         phoneTimerJob = viewModelScope.launch {
             var time = 180
-            _uiState.update { it.copy(isPhoneTimerExpired = false) }
+            _uiState.update { it.copy(basic = it.basic.copy(isPhoneTimerExpired = false)) }
             while (time > 0) {
-                // [UseCase 적용] 시간 포맷팅
                 val timeString = formatTimerUseCase(time)
-                _uiState.update { it.copy(phoneTimerText = timeString) }
+                _uiState.update { it.copy(basic = it.basic.copy(phoneTimerText = timeString)) }
                 delay(1000)
                 time--
             }
-            _uiState.update { it.copy(phoneTimerText = "0:00", isPhoneTimerExpired = true) }
+            _uiState.update { it.copy(basic = it.basic.copy(phoneTimerText = "0:00", isPhoneTimerExpired = true)) }
         }
     }
 
     private fun stopEmailTimer() {
         emailTimerJob?.cancel()
-        _uiState.update { it.copy(emailTimerText = null) }
+        _uiState.update { it.copy(basic = it.basic.copy(emailTimerText = null)) }
     }
 
     private fun stopPhoneTimer() {
         phoneTimerJob?.cancel()
-        _uiState.update { it.copy(phoneTimerText = null) }
+        _uiState.update { it.copy(basic = it.basic.copy(phoneTimerText = null)) }
     }
 
-    // 약관 관련 로직 (단순 토글이라 VM 유지)
     private fun toggleAllTerms(isChecked: Boolean) {
         _uiState.update {
-            it.copy(
+            it.copy(basic = it.basic.copy(
                 isAllTermsAgreed = isChecked,
                 isAgeVerified = isChecked,
                 isServiceVerified = isChecked,
                 isPrivacyCollectVerified = isChecked,
                 isPrivacyProvideVerified = isChecked
-            )
+            ))
         }
     }
 
     private fun toggleSingleTerm(termType: TermType) {
         _uiState.update { state ->
-            val newState = when (termType) {
-                TermType.AGE -> state.copy(isAgeVerified = !state.isAgeVerified)
-                TermType.SERVICE -> state.copy(isServiceVerified = !state.isServiceVerified)
-                TermType.PRIVACY_COLLECT -> state.copy(isPrivacyCollectVerified = !state.isPrivacyCollectVerified)
-                TermType.PRIVACY_PROVIDE -> state.copy(isPrivacyProvideVerified = !state.isPrivacyProvideVerified)
+            val basic = state.basic
+            val newBasic = when (termType) {
+                TermType.AGE -> basic.copy(isAgeVerified = !basic.isAgeVerified)
+                TermType.SERVICE -> basic.copy(isServiceVerified = !basic.isServiceVerified)
+                TermType.PRIVACY_COLLECT -> basic.copy(isPrivacyCollectVerified = !basic.isPrivacyCollectVerified)
+                TermType.PRIVACY_PROVIDE -> basic.copy(isPrivacyProvideVerified = !basic.isPrivacyProvideVerified)
             }
-            val allChecked = newState.isAgeVerified && newState.isServiceVerified &&
-                    newState.isPrivacyCollectVerified && newState.isPrivacyProvideVerified
-            newState.copy(isAllTermsAgreed = allChecked)
+            val allChecked = newBasic.isAgeVerified && newBasic.isServiceVerified &&
+                    newBasic.isPrivacyCollectVerified && newBasic.isPrivacyProvideVerified
+            state.copy(basic = newBasic.copy(isAllTermsAgreed = allChecked))
         }
     }
 
     // --- Step 2 Implementation ---
 
     private fun verifyBusinessNumber() {
-        val num = _uiState.value.businessNumber
+        val num = _uiState.value.business.businessNumber
         if (num.length != 10) return
 
-        if (num == "0000000000") {
+        if (checkTestAccountUseCase.isTestBusinessNum(num)) {
             _uiState.update {
-                it.copy(
+                it.copy(business = it.business.copy(
                     isBusinessNumVerified = true,
                     businessNumberError = null
-                )
+                ))
             }
             checkNextButtonEnabled()
             viewModelScope.launch {
@@ -476,50 +447,59 @@ class OwnerSignUpViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // [UseCase 적용]
             verifyBusinessNumberUseCase(num)
                 .onSuccess {
-                    _uiState.update { it.copy(isBusinessNumVerified = true, businessNumberError = null) }
+                    _uiState.update { it.copy(business = it.business.copy(isBusinessNumVerified = true, businessNumberError = null)) }
                     checkNextButtonEnabled()
                 }
-                .onFailure { exception -> _uiState.update { it.copy(businessNumberError = exception.message ?: "인증 실패") } }
+                .onFailure { exception -> _uiState.update { it.copy(business = it.business.copy(businessNumberError = exception.message ?: "인증 실패")) } }
         }
     }
 
-
-
     private fun selectStore(store: StoreSearchResult) {
         _uiState.update {
-            it.copy(
+            it.copy(business = it.business.copy(
                 storeName = store.placeName,
                 mainAddress = store.addressName,
+                selectedLatitude = store.latitude,
+                selectedLongitude = store.longitude,
                 isStoreSearchVisible = false,
                 nearbyUniv = "대학 검색 중...",
                 isNearbyUnivEnabled = true
-            )
+            ))
         }
 
         viewModelScope.launch {
-            // [UseCase 적용]
             getNearbyUniversityUseCase(store.latitude, store.longitude)
                 .onSuccess { univList ->
                     val resultText = if (univList.isEmpty()) "비대학가" else univList.joinToString(" / ")
-                    _uiState.update { it.copy(nearbyUniv = resultText, isNearbyUnivEnabled = false) }
+                    _uiState.update {
+                        it.copy(business = it.business.copy(
+                            nearbyUniv = resultText,
+                            nearbyUnivList = univList,
+                            isNearbyUnivEnabled = false
+                        ))
+                    }
                     checkNextButtonEnabled()
                 }
                 .onFailure {
-                    _uiState.update { it.copy(nearbyUniv = "대학을 찾을 수 없습니다.", isNearbyUnivEnabled = false) }
+                    _uiState.update {
+                        it.copy(business = it.business.copy(
+                            nearbyUniv = "대학을 찾을 수 없습니다.",
+                            nearbyUnivList = emptyList(),
+                            isNearbyUnivEnabled = false
+                        ))
+                    }
                 }
         }
     }
 
     private fun uploadLicenseImage(uri: Uri, fileName: String) {
-        // 로딩이나 리포지토리 호출 로직 제거 -> 즉시 상태 업데이트
         _uiState.update {
-            it.copy(
-                licenseImageUrl = uri.toString(), // 미리보기용 Uri 저장
+            it.copy(business = it.business.copy(
+                licenseImageUrl = uri.toString(),
                 licenseFileName = fileName
-            )
+            ))
         }
         checkNextButtonEnabled()
     }
@@ -530,98 +510,99 @@ class OwnerSignUpViewModel @Inject constructor(
         val newItem = SpaceItem(
             id = System.currentTimeMillis(),
             name = "",
-            isEditing = true, // 생성 시 수정 모드
+            isEditing = true,
             editInput = "",
             tableList = listOf(SignUpTableItem(personCount = "", tableCount = ""))
         )
         _uiState.update {
-            it.copy(
-                spaceList = it.spaceList + newItem,
+            it.copy(store = it.store.copy(
+                spaceList = it.store.spaceList + newItem,
                 selectedSpaceId = newItem.id
-            )
+            ))
         }
         checkNextButtonEnabled()
     }
 
     private fun updateSpaceItemInput(id: Long, input: String) {
         _uiState.update { state ->
-            state.copy(spaceList = state.spaceList.map { item ->
-                if (item.id == id) item.copy(editInput = input) else item
-            })
+            state.copy(store = state.store.copy(
+                spaceList = state.store.spaceList.map { item ->
+                    if (item.id == id) item.copy(editInput = input) else item
+                }
+            ))
         }
     }
 
     private fun saveSpaceItem(id: Long) {
         _uiState.update { state ->
-            state.copy(spaceList = state.spaceList.map { item ->
-                if (item.id == id) {
-                    // [UseCase 적용] 복잡한 계산 및 정리 로직 위임
-                    calculateSpaceInfoUseCase(item)
-                } else item
-            })
+            state.copy(store = state.store.copy(
+                spaceList = state.store.spaceList.map { item ->
+                    if (item.id == id) {
+                        calculateSpaceInfoUseCase(item)
+                    } else item
+                }
+            ))
         }
         checkNextButtonEnabled()
     }
 
     private fun removeSpaceItem(id: Long) {
         _uiState.update { state ->
-            if (state.spaceList.size <= 1) return@update state
-            val nextSelectedId = if (state.selectedSpaceId == id) {
-                state.spaceList.find { it.id != id }?.id
-            } else state.selectedSpaceId
+            if (state.store.spaceList.size <= 1) return@update state
+            val nextSelectedId = if (state.store.selectedSpaceId == id) {
+                state.store.spaceList.find { it.id != id }?.id
+            } else state.store.selectedSpaceId
 
-            state.copy(
-                spaceList = state.spaceList.filter { it.id != id },
+            state.copy(store = state.store.copy(
+                spaceList = state.store.spaceList.filter { it.id != id },
                 selectedSpaceId = nextSelectedId
-            )
+            ))
         }
         checkNextButtonEnabled()
     }
 
     private fun toggleEditMode(id: Long) {
         _uiState.update { state ->
-            state.copy(
+            state.copy(store = state.store.copy(
                 selectedSpaceId = id,
-                spaceList = state.spaceList.map { item ->
+                spaceList = state.store.spaceList.map { item ->
                     if (item.id == id) {
                         item.copy(isEditing = true, editInput = item.name, inputError = null)
                     } else {
                         item.copy(isEditing = false, inputError = null)
                     }
                 }
-            )
+            ))
         }
         checkNextButtonEnabled()
     }
 
     private fun selectSpace(id: Long) {
         _uiState.update { state ->
-            state.copy(
+            state.copy(store = state.store.copy(
                 selectedSpaceId = id,
-                spaceList = state.spaceList.map {
-                    // 선택 시 다른 항목의 수정 모드는 종료시키는 게 일반적이나, 기획에 따라 유지 가능.
-                    // 여기서는 기존 로직 유지 (EditMode 해제)
+                spaceList = state.store.spaceList.map {
                     it.copy(isEditing = false, inputError = null)
                 }
-            )
+            ))
         }
     }
 
     private fun addTableItemRow() {
-        val selectedId = _uiState.value.selectedSpaceId ?: return
+        val selectedId = _uiState.value.store.selectedSpaceId ?: return
         val newItem = SignUpTableItem(personCount = "", tableCount = "")
         _uiState.update { state ->
-            val updatedSpaceList = state.spaceList.map { space ->
+            val updatedSpaceList = state.store.spaceList.map { space ->
                 if (space.id == selectedId) space.copy(tableList = space.tableList + newItem) else space
             }
-            state.copy(spaceList = updatedSpaceList)
+            state.copy(store = state.store.copy(spaceList = updatedSpaceList))
         }
     }
 
     private fun updateTableItemValue(tableId: Long, nValue: String?, mValue: String?) {
-        val selectedId = _uiState.value.selectedSpaceId ?: return
+        val selectedId = _uiState.value.store.selectedSpaceId ?: return
         _uiState.update { state ->
-            val updatedSpaceList = state.spaceList.map { space ->
+            val updatedSpaceList = state.store.spaceList.map { space ->
                 if (space.id == selectedId) {
                     val newTableList = space.tableList.map { table ->
                         if (table.id == tableId) {
@@ -631,40 +612,37 @@ class OwnerSignUpViewModel @Inject constructor(
                             )
                         } else table
                     }
-                    // 단순 좌석 계산 로직은 UI 갱신용이라 VM에 둬도 되지만,
-                    // calculateSpaceInfoUseCase가 저장 시점에 최종 계산하므로 여기선 임시 계산만 수행
-                    val newSeatCount = newTableList.sumOf { (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0) }
+                    val newSeatCount = calculateSeatCountUseCase(newTableList)
                     space.copy(tableList = newTableList, seatCount = newSeatCount)
                 } else space
             }
-            state.copy(spaceList = updatedSpaceList)
+            state.copy(store = state.store.copy(spaceList = updatedSpaceList))
         }
     }
 
     private fun removeTableItemRow(tableId: Long) {
-        val selectedId = _uiState.value.selectedSpaceId ?: return
+        val selectedId = _uiState.value.store.selectedSpaceId ?: return
         _uiState.update { state ->
-            val targetSpace = state.spaceList.find { it.id == selectedId } ?: return@update state
+            val targetSpace = state.store.spaceList.find { it.id == selectedId } ?: return@update state
             if (targetSpace.tableList.size <= 1) return@update state
 
-            val updatedSpaceList = state.spaceList.map { space ->
+            val updatedSpaceList = state.store.spaceList.map { space ->
                 if (space.id == selectedId) {
                     val newTableList = space.tableList.filter { it.id != tableId }
-                    val newSeatCount = newTableList.sumOf { (it.personCount.toIntOrNull() ?: 0) * (it.tableCount.toIntOrNull() ?: 0) }
+                    val newSeatCount = calculateSeatCountUseCase(newTableList)
                     space.copy(tableList = newTableList, seatCount = newSeatCount)
                 } else space
             }
-            state.copy(spaceList = updatedSpaceList)
+            state.copy(store = state.store.copy(spaceList = updatedSpaceList))
         }
     }
 
-    // --- Step 4 Implementation (유지) ---
+    // --- Step 4 Implementation ---
     private fun updateOperatingScheduleDays(id: Long, dayIdx: Int) {
-        val currentSchedules = _uiState.value.operatingSchedules
+        val currentSchedules = _uiState.value.operation.operatingSchedules
         val targetItem = currentSchedules.find { it.id == id } ?: return
-        val isOccupiedByOther = currentSchedules.any { item ->
-            item.id != id && item.selectedDays.contains(dayIdx)
-        }
+
+        val isOccupiedByOther = checkScheduleCollisionUseCase(currentSchedules, id, dayIdx)
 
         if (isOccupiedByOther && !targetItem.selectedDays.contains(dayIdx)) {
             viewModelScope.launch { _event.emit(SignUpEvent.ShowToast("이미 설정된 요일입니다.")) }
@@ -672,97 +650,85 @@ class OwnerSignUpViewModel @Inject constructor(
         }
 
         _uiState.update { state ->
-            val updatedList = state.operatingSchedules.map { item ->
+            val updatedList = state.operation.operatingSchedules.map { item ->
                 if (item.id == id) {
                     val currentDays = item.selectedDays
                     val newDays = if (currentDays.contains(dayIdx)) currentDays - dayIdx else currentDays + dayIdx
                     item.copy(selectedDays = newDays)
                 } else item
             }
-            state.copy(operatingSchedules = updatedList)
+            state.copy(operation = state.operation.copy(operatingSchedules = updatedList))
         }
         checkNextButtonEnabled()
     }
 
     private fun updateOperatingScheduleTime(id: Long, sH: Int, sM: Int, eH: Int, eM: Int) {
         _uiState.update { state ->
-            val updatedList = state.operatingSchedules.map { item ->
+            val updatedList = state.operation.operatingSchedules.map { item ->
                 if (item.id == id) item.copy(startHour = sH, startMin = sM, endHour = eH, endMin = eM) else item
             }
-            state.copy(operatingSchedules = updatedList)
+            state.copy(operation = state.operation.copy(operatingSchedules = updatedList))
         }
     }
 
+    // --- Step 5 Implementation ---
     private fun addStorePhotos(uris: List<Uri>) {
         _uiState.update { state ->
-            val currentList = state.storePhotoList
-            // [수정] 최대 5장까지만 유지 (take(5))
-            val newList = (currentList + uris).distinct().take(5)
-
-            // 리스트가 비어있었는데 추가됐다면, 첫 번째 사진을 자동으로 대표로 설정
-            val newRep = if (state.representativePhotoUri == null && newList.isNotEmpty()) {
+            val newList = limitStorePhotosUseCase(state.photo.storePhotoList, uris)
+            val newRep = if (state.photo.representativePhotoUri == null && newList.isNotEmpty()) {
                 newList.first()
             } else {
-                state.representativePhotoUri
+                state.photo.representativePhotoUri
             }
 
-            state.copy(
+            state.copy(photo = state.photo.copy(
                 storePhotoList = newList,
                 representativePhotoUri = newRep
-            )
+            ))
         }
     }
 
     private fun removeStorePhoto(uri: Uri) {
         _uiState.update { state ->
-            val newList = state.storePhotoList.filter { it != uri }
-
-            // 삭제된 사진이 하필 대표 사진이었다면? -> 남은 사진 중 첫 번째를 대표로 승계
-            var newRep = state.representativePhotoUri
-            if (uri == state.representativePhotoUri) {
+            val newList = state.photo.storePhotoList.filter { it != uri }
+            var newRep = state.photo.representativePhotoUri
+            if (uri == state.photo.representativePhotoUri) {
                 newRep = newList.firstOrNull()
             }
 
-            state.copy(
+            state.copy(photo = state.photo.copy(
                 storePhotoList = newList,
                 representativePhotoUri = newRep
-            )
+            ))
         }
     }
 
     private fun setRepresentativePhoto(uri: Uri) {
-        // 이미 리스트에 있는 uri인지 확인 후 설정
-        if (_uiState.value.storePhotoList.contains(uri)) {
-            _uiState.update { it.copy(representativePhotoUri = uri) }
+        if (_uiState.value.photo.storePhotoList.contains(uri)) {
+            _uiState.update { it.copy(photo = it.photo.copy(representativePhotoUri = uri)) }
         }
     }
 
-    // ★ [Next Button Check]
     private fun checkNextButtonEnabled() {
         val state = _uiState.value
         val isValid = when (state.currentStep) {
-            SignUpStep.STEP_1_BASIC -> {
-                state.isEmailVerified && state.isPhoneVerified &&
-                        state.password.isNotBlank() && state.passwordError == null &&
-                        state.passwordCheck.isNotBlank() && state.passwordCheckError == null &&
-                        state.isAllTermsAgreed
-            }
-            SignUpStep.STEP_2_BUSINESS -> {
-                state.repName.isNotBlank() &&
-                        state.isBusinessNumVerified &&
-                        state.storeName.isNotBlank() &&
-                        state.mainAddress.isNotBlank()
-            }
-            SignUpStep.STEP_3_STORE -> {
-                // [요청 사항 반영]
-                // 1. 공간 리스트가 비어있지 않아야 함
-                // 2. 수정 중인 공간(isEditing == true)이 하나라도 있으면 안 됨
-                state.spaceList.isNotEmpty() && state.spaceList.none { it.isEditing }
-            }
-            SignUpStep.STEP_4_OPERATION -> {
-                state.operatingSchedules.isNotEmpty() &&
-                        state.operatingSchedules.all { it.selectedDays.isNotEmpty() }
-            }
+            SignUpStep.STEP_1_BASIC -> validateSignUpStepUseCase.validateStep1(
+                isEmailVerified = state.basic.isEmailVerified,
+                isPhoneVerified = state.basic.isPhoneVerified,
+                password = state.basic.password,
+                passwordError = state.basic.passwordError,
+                passwordCheck = state.basic.passwordCheck,
+                passwordCheckError = state.basic.passwordCheckError,
+                isAllTermsAgreed = state.basic.isAllTermsAgreed
+            )
+            SignUpStep.STEP_2_BUSINESS -> validateSignUpStepUseCase.validateStep2(
+                repName = state.business.repName,
+                isBusinessNumVerified = state.business.isBusinessNumVerified,
+                storeName = state.business.storeName,
+                mainAddress = state.business.mainAddress
+            )
+            SignUpStep.STEP_3_STORE -> validateSignUpStepUseCase.validateStep3(state.store.spaceList)
+            SignUpStep.STEP_4_OPERATION -> validateSignUpStepUseCase.validateStep4(state.operation.operatingSchedules)
             SignUpStep.STEP_5_PHOTO -> true
             SignUpStep.STEP_6_COMPLETE -> true
             else -> false
@@ -773,155 +739,20 @@ class OwnerSignUpViewModel @Inject constructor(
     private fun executeSignUp() {
         viewModelScope.launch {
             val state = _uiState.value
+            val domainInfo = signUpStateToDomainMapper.map(state)
+            val licenseUri = if (state.business.licenseImageUrl != null) Uri.parse(state.business.licenseImageUrl) else null
 
-            // 1. UI State -> Request DTO 매핑
-            val requestDto = mapStateToDto(state)
-
-            // 2. 사업자 등록증 준비
-            val licenseUri = if(state.licenseImageUrl != null) Uri.parse(state.licenseImageUrl) else null
-
-            // 3. [수정] 가게 사진 리스트 재정렬 (대표 사진을 무조건 0번으로!)
-            val rawList = state.storePhotoList
-            val repUri = state.representativePhotoUri
-
-            val sortedStoreImages = if (repUri != null && rawList.contains(repUri)) {
-                // 대표 사진이 있으면: [대표 사진] + [나머지 사진들] 순서로 재조립
-                val otherImages = rawList.filter { it != repUri }
-                listOf(repUri) + otherImages
-            } else {
-                // 대표 사진이 없으면: 그냥 원래 순서대로
-                rawList
-            }
-
-            // 4. API 호출 (재정렬된 sortedStoreImages 전송)
-            signUpOwnerUseCase(requestDto, licenseUri, sortedStoreImages)
-                .onSuccess {
-                    _uiState.update { it.copy(currentStep = SignUpStep.STEP_6_COMPLETE) }
-                }
-                .onFailure { e ->
-                    _event.emit(SignUpEvent.ShowToast("회원가입 실패: ${e.message}"))
-                }
-        }
-    }
-
-    // [Helper] 매핑 함수
-    private fun mapStateToDto(state: OwnerSignUpUiState): OwnerSignUpRequestDTO {
-        // Account 매핑 (동일)
-        val account = AccountDTO(
-            email = state.email,
-            password = state.password,
-            phoneNumber = state.phone
-        )
-
-        // Business 매핑
-        val univList = if (state.nearbyUniv.contains("/")) {
-            state.nearbyUniv.split("/").map { it.trim() }
-        } else {
-            if (state.nearbyUniv.isNotBlank()) listOf(state.nearbyUniv) else emptyList()
-        }
-
-        val business = BusinessDTO(
-            representativeName = state.repName,
-            businessNumber = state.businessNumber,
-            storeName = state.storeName,
-            address = state.mainAddress,
-            neighborhood = extractNeighborhood(state.mainAddress) ?: "정보 없음",
-            latitude = state.storeSearchResults.find { it.placeName == state.storeName }?.latitude ?: 0.0,
-            longitude = state.storeSearchResults.find { it.placeName == state.storeName }?.longitude ?: 0.0,
-            universityNames = univList,
-            storePhone = state.storeContact
-        )
-
-        // Layout 매핑 (동일)
-        val layout = state.spaceList.map { space ->
-            LayoutDTO(
-                name = space.name.ifBlank { "기본 홀" },
-                tables = space.tableList.map { table ->
-                    TableInfoDTO(
-                        tableType = table.personCount.toIntOrNull() ?: 0,
-                        tableCount = table.tableCount.toIntOrNull() ?: 0
-                    )
-                }
+            signUpOwnerUseCase(
+                info = domainInfo,
+                licenseUri = licenseUri,
+                storeImageUris = state.photo.storePhotoList,
+                representativeUri = state.photo.representativePhotoUri
             )
-        }
-
-        // ★ [핵심 수정] Operation (정기 휴무일) 매핑 로직
-        // regularHolidayType -> 0: 매주(Weekly), 1: 매월 특정 주(Monthly)
-        val regularHolidays = if (state.regularHolidayType == 0) {
-            // [Case 0] 매주 선택 시 -> weekInfo를 무조건 0으로 설정
-            state.weeklyHolidayDays.map { dayIdx ->
-                RegularHolidayDTO(
-                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
-                    weekInfo = 0 // 0 = Every Week
-                )
-            }
-        } else {
-            // [Case 1] 특정 주 선택 시 -> 선택된 주차(weeks)와 요일(days)의 조합(Cartesian Product)
-            // 예: weeks=[2, 10], days=[MON] -> (MON, 2), (MON, 10)
-            state.monthlyHolidayWeeks.flatMap { week ->
-                state.monthlyHolidayDays.map { day ->
-                    RegularHolidayDTO(
-                        dayOfWeek = mapIndexToDayOfWeek(day),
-                        weekInfo = week // 1~5 or 10(Last Week)
-                    )
-                }
-            }
-        }
-
-        // 임시 휴무일 매핑 (동일)
-        val tempHolidays = if (state.isTempHolidayEnabled && state.tempHolidayStart.isNotBlank()) {
-            listOf(
-                TemporaryHolidayDTO(
-                    startDate = state.tempHolidayStart.replace("/", "-"), // ★ 여기서 replace 추가!
-                    endDate = state.tempHolidayEnd.replace("/", "-")      // ★ 여기도 추가!
-                )
-            )
-        } else {
-            emptyList()
-        }
-
-        // 운영 시간 매핑 (동일)
-        val hours = state.operatingSchedules.flatMap { schedule ->
-            schedule.selectedDays.map { dayIdx ->
-                OperatingHoursDTO(
-                    dayOfWeek = mapIndexToDayOfWeek(dayIdx),
-                    startTime = "${schedule.startHour.toString().padStart(2,'0')}:${schedule.startMin.toString().padStart(2,'0')}",
-                    endTime = "${schedule.endHour.toString().padStart(2,'0')}:${schedule.endMin.toString().padStart(2,'0')}"
-                )
-            }
-        }
-
-        return OwnerSignUpRequestDTO(
-            account = account,
-            business = business,
-            layout = layout,
-            operation = OperationDTO(
-                regularHolidays = regularHolidays, // 수정된 리스트 전달
-                temporaryHolidays = tempHolidays,
-                hours = hours
-            )
-        )
-    }
-
-    // [Review] 주소에서 '동' 추출하는 간단한 헬퍼 함수 (선택 사항)
-    private fun extractNeighborhood(address: String): String? {
-        // "서울 강남구 역삼동 123-4" -> "역삼동" 추출 시도
-        val split = address.split(" ")
-        return split.find { it.endsWith("동") || it.endsWith("읍") || it.endsWith("면") }
-    }
-
-    private fun mapIndexToDayOfWeek(index: Int): String {
-        return when (index) {
-            0 -> "SUNDAY"
-            1 -> "MONDAY"
-            2 -> "TUESDAY"
-            3 -> "WEDNESDAY"
-            4 -> "THURSDAY"
-            5 -> "FRIDAY"
-            6 -> "SATURDAY"
-            else -> "MONDAY"
+                .onSuccess { _uiState.update { it.copy(currentStep = SignUpStep.STEP_6_COMPLETE) } }
+                .onFailure { e -> _event.emit(SignUpEvent.ShowToast("회원가입 실패: ${e.message}")) }
         }
     }
+
 
     private fun handleNextStep() {
         val currentStep = _uiState.value.currentStep
@@ -940,12 +771,12 @@ class OwnerSignUpViewModel @Inject constructor(
     }
 
     private fun handleBackStep() {
-        if (_uiState.value.isStoreSearchVisible) {
-            _uiState.update { it.copy(isStoreSearchVisible = false) }
+        if (_uiState.value.business.isStoreSearchVisible) {
+            _uiState.update { it.copy(business = it.business.copy(isStoreSearchVisible = false)) }
             return
         }
-        if (_uiState.value.openedTermType != null) {
-            _uiState.update { it.copy(openedTermType = null) }
+        if (_uiState.value.basic.openedTermType != null) {
+            _uiState.update { it.copy(basic = it.basic.copy(openedTermType = null)) }
             return
         }
         val currentStep = _uiState.value.currentStep
@@ -955,167 +786,5 @@ class OwnerSignUpViewModel @Inject constructor(
         } else {
             viewModelScope.launch { _event.emit(SignUpEvent.NavigateBack) }
         }
-    }
-
-    enum class TermType(val title: String) {
-        AGE("[필수] 만 14세 이상"),
-        SERVICE("[필수] 이용약관 동의"),
-        PRIVACY_COLLECT("[필수] 개인정보 수집이용 동의"),
-        PRIVACY_PROVIDE("[필수] 개인정보 처리방침 동의")
-    }
-
-    data class OwnerSignUpUiState(
-        val currentStep: SignUpStep = SignUpStep.STEP_1_BASIC, //THIS
-        val isNextButtonEnabled: Boolean = false,
-
-        //STEP1
-        val isAllTermsAgreed: Boolean = false,
-        val isAgeVerified: Boolean = false,
-        val isServiceVerified: Boolean = false,
-        val isPrivacyCollectVerified: Boolean = false,
-        val isPrivacyProvideVerified: Boolean = false,
-        val openedTermType: TermType? = null,
-
-        val email: String = "",
-        val emailError: String? = null,
-        val isEmailCodeSent: Boolean = false,
-        val isEmailVerified: Boolean = false,
-        val emailVerifiedError: String? = null,
-        val isEmailVerificationAttempted: Boolean = false,
-        val emailTimerText: String? = null,
-        val isEmailTimerExpired: Boolean = false,
-        val authCode: String = "",
-
-        val password: String = "",
-        val passwordError: String? = null,
-        val passwordCheck: String = "",
-        val passwordCheckError: String? = null,
-        val phone: String = "",
-        val phoneError: String? = null,
-        val isPhoneCodeSent: Boolean = false,
-        val isPhoneVerified: Boolean = false,
-        val isPhoneVerificationAttempted: Boolean = false,
-        val phoneVerifiedError: String? = null,
-        val phoneTimerText: String? = null,
-        val isPhoneTimerExpired: Boolean = false,
-        val phoneAuthCode: String = "",
-
-        // Step 2
-        val repName: String = "",
-        val businessNumber: String = "",
-        val isBusinessNumVerified: Boolean = false,
-        val businessNumberError: String? = null,
-        val storeName: String = "",
-        val mainAddress: String = "",
-        val nearbyUniv: String = "",
-        val isNearbyUnivEnabled: Boolean = true,
-        val nearbyUnivError: String? = null,
-        val storeContact: String = "",
-        val licenseFileName: String? = null,
-        val licenseImageUrl: String? = null,
-        val isStoreSearchVisible: Boolean = false,
-        val storeSearchResults: List<StoreSearchResult> = emptyList(),
-
-        // Step 3
-        val spaceList: List<SpaceItem> = emptyList(),
-        val selectedSpaceId: Long? = null,
-
-        // Step 4
-        val regularHolidayType: Int = 0,
-        val weeklyHolidayDays: Set<Int> = emptySet(),
-        val monthlyHolidayWeeks: Set<Int> = emptySet(),
-        val monthlyHolidayDays: Set<Int> = emptySet(),
-
-        val isTempHolidayEnabled: Boolean = false,
-        val tempHolidayStart: String = "",
-        val tempHolidayEnd: String = "",
-
-        val operatingSchedules: List<OperatingScheduleItem> = listOf(
-            OperatingScheduleItem(id = 0, startHour = 18, startMin = 0, endHour = 0, endMin = 0)
-        ),
-
-        val showWeeklyDayDialog: Boolean = false,
-        val showMonthlyWeekDialog: Boolean = false,
-        val showMonthlyDayDialog: Boolean = false,
-        val showTempHolidayDatePicker: Boolean = false,
-
-        // Step 5
-        val storePhotoList: List<Uri> = emptyList(),
-        val representativePhotoUri: Uri? = null,
-    )
-
-    sealed interface SignUpAction {
-        //step1
-        data class UpdateEmail(val email: String) : SignUpAction
-        data class UpdateAuthCode(val code: String) : SignUpAction
-        data class UpdatePassword(val password: String) : SignUpAction
-        data class UpdatePasswordCheck(val check: String) : SignUpAction
-        data class UpdatePhone(val phone: String) : SignUpAction
-        data class UpdatePhoneAuthCode(val code: String) : SignUpAction
-        data class ToggleAllTerms(val isChecked: Boolean) : SignUpAction
-        data class ToggleTerm(val termType: TermType) : SignUpAction
-        data class OpenTermDetail(val termType: TermType) : SignUpAction
-        object CloseTermDetail : SignUpAction
-        object RequestEmailCode : SignUpAction
-        object VerifyEmailCode : SignUpAction
-        object RequestPhoneCode : SignUpAction
-        object VerifyPhoneCode : SignUpAction
-
-        //step2
-        data class UpdateRepName(val name: String) : SignUpAction
-        data class UpdateBusinessNum(val num: String) : SignUpAction
-        object VerifyBusinessNum : SignUpAction
-        object OpenStoreSearch : SignUpAction
-        object CloseStoreSearch : SignUpAction
-        data class SearchStoreQuery(val query: String) : SignUpAction
-        data class SelectStore(val store: StoreSearchResult) : SignUpAction
-        data class UpdateMainAddress(val address: String) : SignUpAction
-        data class UpdateStoreContact(val phone: String) : SignUpAction
-        data class UploadLicenseImage(val uri: Uri, val fileName: String) : SignUpAction
-
-        //step3
-        object AddSpaceItemRow : SignUpAction
-        data class UpdateSpaceItemInput(val id: Long, val input: String) : SignUpAction
-        data class SaveSpaceItem(val id: Long) : SignUpAction
-        data class SelectSpace(val id: Long) : SignUpAction
-        data class RemoveSpace(val id: Long) : SignUpAction
-        data class EditSpace(val id: Long) : SignUpAction
-
-        object AddTableItemRow : SignUpAction
-        data class UpdateTableItemN(val tableId: Long, val value: String) : SignUpAction
-        data class UpdateTableItemM(val tableId: Long, val value: String) : SignUpAction
-        data class RemoveTableItemRow(val tableId: Long) : SignUpAction
-
-        //step4
-        data class ToggleRegularHolidayType(val type: Int) : SignUpAction
-        data class SetWeeklyDialogVisible(val visible: Boolean) : SignUpAction
-        data class SetMonthlyWeekDialogVisible(val visible: Boolean) : SignUpAction
-        data class SetMonthlyDayDialogVisible(val visible: Boolean) : SignUpAction
-        data class SetTempHolidayDatePickerVisible(val visible: Boolean) : SignUpAction
-        data class UpdateWeeklyHolidays(val days: Set<Int>) : SignUpAction
-        data class UpdateMonthlyWeeks(val weeks: Set<Int>) : SignUpAction
-        data class UpdateMonthlyDays(val days: Set<Int>) : SignUpAction
-
-        object ToggleTempHoliday : SignUpAction
-        data class UpdateTempHolidayRange(val start: String, val end: String) : SignUpAction
-
-        object AddOperatingSchedule : SignUpAction
-        data class UpdateOperatingDays(val id: Long, val dayIdx: Int) : SignUpAction
-        data class UpdateOperatingTime(val id: Long, val startHour: Int, val startMin: Int, val endHour: Int, val endMin: Int) : SignUpAction
-        data class RemoveOperatingSchedule(val id: Long) : SignUpAction
-
-        //step5
-        data class AddStorePhotos(val uris: List<Uri>) : SignUpAction
-        data class RemoveStorePhoto(val uri: Uri) : SignUpAction
-        data class SetRepresentativePhoto(val uri: Uri) : SignUpAction
-
-        object OnNextClick : SignUpAction
-        object OnBackClick : SignUpAction
-    }
-
-    sealed interface SignUpEvent {
-        object NavigateBack : SignUpEvent
-        object NavigateToHome : SignUpEvent
-        data class ShowToast(val message: String) : SignUpEvent
     }
 }

@@ -7,20 +7,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.formatPhoneNumber
-import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageUiState
 import com.gmg.seatnow.presentation.theme.SubGray
 import com.gmg.seatnow.presentation.theme.White
-import com.gmg.seatnow.presentation.user.mypage.UserInfoRow
+import com.gmg.seatnow.presentation.user.mypage.components.UserInfoRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountInfoScreen(
-    uiState: MyPageViewModel.MyPageUiState,
+    uiState: MyPageUiState,
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onNavigateToWithdraw: () -> Unit,
@@ -43,13 +42,13 @@ fun AccountInfoScreen(
         ) {
             UserInfoRow(
                 title = "휴대폰 번호",
-                value = if (uiState.isProfileLoaded) formatPhoneNumber(uiState.ownerPhoneNumber) else "불러오는 중..."            )
+                value = if (uiState.account.isProfileLoaded) formatPhoneNumber(uiState.account.ownerPhoneNumber) else "불러오는 중..."            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             UserInfoRow(
                 title = "이메일",
-                value = if (uiState.isProfileLoaded) uiState.ownerEmail else "불러오는 중..."
+                value = if (uiState.account.isProfileLoaded) uiState.account.ownerEmail else "불러오는 중..."
             )
 
             Spacer(modifier = Modifier.height(24.dp))

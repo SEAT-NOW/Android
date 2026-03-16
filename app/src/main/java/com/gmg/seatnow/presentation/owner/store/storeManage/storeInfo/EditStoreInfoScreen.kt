@@ -12,16 +12,19 @@ import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.formatBusinessNumber
 import com.gmg.seatnow.presentation.component.formatPhoneNumber
-import com.gmg.seatnow.presentation.owner.store.mypage.MyPageViewModel
+
+// ★ [수정됨] Contract 파일에서 Import 하도록 수정
+import com.gmg.seatnow.presentation.owner.store.mypage.MyPageUiState
+import com.gmg.seatnow.presentation.owner.store.mypage.StoreInfoState
 import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubDarkGray
 import com.gmg.seatnow.presentation.theme.SubLightGray
 import com.gmg.seatnow.presentation.theme.White
-import com.gmg.seatnow.presentation.user.mypage.UserInfoRow
+import com.gmg.seatnow.presentation.user.mypage.components.UserInfoRow
 
 @Composable
 fun EditStoreInfoScreen(
-    uiState: MyPageViewModel.MyPageUiState,
+    uiState: MyPageUiState, // ★ [수정됨] MyPageViewModel 종속성 제거
     onBackClick: () -> Unit,
     onEditContactClick: () -> Unit
 ) {
@@ -48,19 +51,19 @@ fun EditStoreInfoScreen(
 
             UserInfoRow(
                 title = "대표자명",
-                value = uiState.representativeName.orLoading()
+                value = uiState.storeInfo.representativeName.orLoading() // ★ [수정됨] storeInfo 바구니 참조
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             UserInfoRow(
                 title = "사업자 등록번호",
-                value = formatBusinessNumber(uiState.businessNumber).orLoading()
+                value = formatBusinessNumber(uiState.storeInfo.businessNumber).orLoading() // ★ [수정됨]
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             UserInfoRow(
                 title = "상호명",
-                value = uiState.storeName.orLoading()
+                value = uiState.storeInfo.storeName.orLoading() // ★ [수정됨]
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -74,7 +77,7 @@ fun EditStoreInfoScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = uiState.storeAddress.orLoading(),
+                    text = uiState.storeInfo.storeAddress.orLoading(), // ★ [수정됨]
                     style = MaterialTheme.typography.bodySmall,
                     color = SubDarkGray,
                     lineHeight = 18.sp
@@ -88,15 +91,14 @@ fun EditStoreInfoScreen(
 
             UserInfoRow(
                 title = "주변 대학명",
-                value = uiState.universityName.orLoading()
+                value = uiState.storeInfo.universityName.orLoading() // ★ [수정됨]
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             // 6. 사업자 등록증 파일 (없을 수도 있음)
-            // ★ 수정: 로딩 전이면 "불러오기..", 로딩 완료 후면 값이 없어도 공백으로 표시
             UserInfoRow(
                 title = "사업자 등록증 파일",
-                value = if (!uiState.isStoreLoaded) "불러오기.." else uiState.licenseFileName
+                value = if (!uiState.storeInfo.isStoreLoaded) "불러오기.." else uiState.storeInfo.licenseFileName // ★ [수정됨]
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -106,10 +108,9 @@ fun EditStoreInfoScreen(
                     .fillMaxWidth()
                     .clickable(onClick = onEditContactClick)
             ) {
-                // ★ 수정: 로딩 전이면 "불러오기..", 로딩 완료 후면 포매팅된 값(없으면 공백) 표시
                 UserInfoRow(
                     title = "가게 연락처",
-                    value = if (!uiState.isStoreLoaded) "불러오기.." else formatPhoneNumber(uiState.storeContact),
+                    value = if (!uiState.storeInfo.isStoreLoaded) "불러오기.." else formatPhoneNumber(uiState.storeInfo.storeContact), // ★ [수정됨]
                     showArrow = true
                 )
             }
@@ -120,15 +121,17 @@ fun EditStoreInfoScreen(
 @Preview(showBackground = true)
 @Composable
 fun PreviewEditStoreInfoScreen() {
-    val mockState = MyPageViewModel.MyPageUiState(
-        isStoreLoaded = true, // 로딩 완료 상태 가정
-        representativeName = "안태훈",
-        businessNumber = "1234567890",
-        storeName = "맛있는 술집 신촌본점",
-        storeAddress = "서울특별시 서대문구 연세로 12길 34, 1층 (창천동)",
-        universityName = "연세대학교",
-        licenseFileName = "", // 빈 값 테스트
-        storeContact = ""     // 빈 값 테스트
+    val mockState = MyPageUiState(
+        storeInfo = StoreInfoState( // ★ [수정됨] Preview도 바구니로 감싸주기
+            isStoreLoaded = true,
+            representativeName = "안태훈",
+            businessNumber = "1234567890",
+            storeName = "맛있는 술집 신촌본점",
+            storeAddress = "서울특별시 서대문구 연세로 12길 34, 1층 (창천동)",
+            universityName = "연세대학교",
+            licenseFileName = "",
+            storeContact = ""
+        )
     )
 
     EditStoreInfoScreen(

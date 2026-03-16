@@ -23,7 +23,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TabContentOperationInfo(
-    uiState: StoreEditMainViewModel.StoreEditUiState,
+    uiState: StoreEditUiState,
     onAction: (StoreEditAction) -> Unit
 ) {
     val daysText = listOf("일", "월", "화", "수", "목", "금", "토")
@@ -45,8 +45,8 @@ fun TabContentOperationInfo(
     var expandedScheduleId by remember { mutableStateOf<Long?>(null) }
     var expandedTimeTarget by remember { mutableStateOf(TimeTarget.None) }
 
-    val disabledOperatingDays = if (uiState.regularHolidayType == 1) uiState.weeklyHolidayDays else emptySet()
-    val scheduledDays = uiState.operatingSchedules.flatMap { it.selectedDays }.toSet()
+    val disabledOperatingDays = if (uiState.operationState.regularHolidayType == 1) uiState.operationState.weeklyHolidayDays else emptySet()
+    val scheduledDays = uiState.operationState.operatingSchedules.flatMap { it.selectedDays }.toSet()
     val isWeekFull = (disabledOperatingDays + scheduledDays).size >= 7
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -67,7 +67,7 @@ fun TabContentOperationInfo(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 1-1. 매주
-                val isWeeklySelected = uiState.regularHolidayType == 1
+                val isWeeklySelected = uiState.operationState.regularHolidayType == 1
                 val weeklyTextColor = if (isWeeklySelected) PointRed else SubGray
                 val weeklyBorderColor = if (isWeeklySelected) PointRed else SubLightGray
 
@@ -80,7 +80,7 @@ fun TabContentOperationInfo(
                     Text("매주", style = MaterialTheme.typography.bodyMedium, color = weeklyTextColor)
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    val displayWeeklyText = formatDays(uiState.weeklyHolidayDays)
+                    val displayWeeklyText = formatDays(uiState.operationState.weeklyHolidayDays)
                     SeatNowDropdownButton(
                         text = displayWeeklyText,
                         onClick = { onAction(StoreEditAction.SetWeeklyDialogVisible(true)) },
@@ -96,7 +96,7 @@ fun TabContentOperationInfo(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 1-2. 매월
-                val isMonthlySelected = uiState.regularHolidayType == 2
+                val isMonthlySelected = uiState.operationState.regularHolidayType == 2
                 val monthlyTextColor = if (isMonthlySelected) PointRed else SubGray
                 val monthlyBorderColor = if (isMonthlySelected) PointRed else SubLightGray
 
@@ -109,7 +109,7 @@ fun TabContentOperationInfo(
                     Text("매월", style = MaterialTheme.typography.bodyMedium, color = monthlyTextColor)
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    val displayMonthlyWeekText = formatWeeks(uiState.monthlyHolidayWeeks)
+                    val displayMonthlyWeekText = formatWeeks(uiState.operationState.monthlyHolidayWeeks)
                     SeatNowDropdownButton(
                         text = displayMonthlyWeekText,
                         onClick = { onAction(StoreEditAction.SetMonthlyWeekDialogVisible(true)) },
@@ -120,7 +120,7 @@ fun TabContentOperationInfo(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    val displayMonthlyDayText = formatDays(uiState.monthlyHolidayDays)
+                    val displayMonthlyDayText = formatDays(uiState.operationState.monthlyHolidayDays)
                     SeatNowDropdownButton(
                         text = displayMonthlyDayText,
                         onClick = { onAction(StoreEditAction.SetMonthlyDayDialogVisible(true)) },
@@ -147,18 +147,18 @@ fun TabContentOperationInfo(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SeatNowCheckRadioButton(
-                        selected = uiState.isTempHolidayEnabled,
+                        selected = uiState.operationState.isTempHolidayEnabled,
                         onClick = { onAction(StoreEditAction.ToggleTempHoliday) },
                     )
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    val tempHolidayBorderColor = if (uiState.isTempHolidayEnabled) PointRed else SubLightGray
-                    val tempHolidayTextColor = if (uiState.isTempHolidayEnabled) PointRed else SubGray
+                    val tempHolidayBorderColor = if (uiState.operationState.isTempHolidayEnabled) PointRed else SubLightGray
+                    val tempHolidayTextColor = if (uiState.operationState.isTempHolidayEnabled) PointRed else SubGray
 
                     SeatNowDateBox(
-                        dateText = if (uiState.tempHolidayStart.isNotEmpty()) uiState.tempHolidayStart else "YYYY/MM/DD",
-                        onClick = { if (uiState.isTempHolidayEnabled) onAction(StoreEditAction.SetTempHolidayDatePickerVisible(true)) },
-                        enabled = uiState.isTempHolidayEnabled,
+                        dateText = if (uiState.operationState.tempHolidayStart.isNotEmpty()) uiState.operationState.tempHolidayStart else "YYYY/MM/DD",
+                        onClick = { if (uiState.operationState.isTempHolidayEnabled) onAction(StoreEditAction.SetTempHolidayDatePickerVisible(true)) },
+                        enabled = uiState.operationState.isTempHolidayEnabled,
                         modifier = Modifier.widthIn(max = 120.dp),
                         borderColor = tempHolidayBorderColor,
                         textColor = tempHolidayTextColor
@@ -167,9 +167,9 @@ fun TabContentOperationInfo(
                     Text("~", style = MaterialTheme.typography.titleMedium, color = SubBlack)
                     Spacer(modifier = Modifier.width(12.dp))
                     SeatNowDateBox(
-                        dateText = if (uiState.tempHolidayEnd.isNotEmpty()) uiState.tempHolidayEnd else "YYYY/MM/DD",
-                        onClick = { if (uiState.isTempHolidayEnabled) onAction(StoreEditAction.SetTempHolidayDatePickerVisible(true)) },
-                        enabled = uiState.isTempHolidayEnabled,
+                        dateText = if (uiState.operationState.tempHolidayEnd.isNotEmpty()) uiState.operationState.tempHolidayEnd else "YYYY/MM/DD",
+                        onClick = { if (uiState.operationState.isTempHolidayEnabled) onAction(StoreEditAction.SetTempHolidayDatePickerVisible(true)) },
+                        enabled = uiState.operationState.isTempHolidayEnabled,
                         modifier = Modifier.widthIn(max = 120.dp),
                         borderColor = tempHolidayBorderColor,
                         textColor = tempHolidayTextColor
@@ -190,8 +190,8 @@ fun TabContentOperationInfo(
             }
 
             // 운영 스케줄 리스트
-            items(uiState.operatingSchedules.size) { index ->
-                val schedule = uiState.operatingSchedules[index]
+            items(uiState.operationState.operatingSchedules.size) { index ->
+                val schedule = uiState.operationState.operatingSchedules[index]
                 Column(modifier = Modifier.fillMaxWidth()) {
                     DayOfWeekSelector(
                         selectedDays = schedule.selectedDays,
@@ -205,7 +205,7 @@ fun TabContentOperationInfo(
 
                     OperatingScheduleItemRow(
                         schedule = schedule,
-                        isDeleteEnabled = uiState.operatingSchedules.size > 1,
+                        isDeleteEnabled = uiState.operationState.operatingSchedules.size > 1,
                         expandedTarget = if (isMyStartOpen) TimeTarget.Start else if (isMyEndOpen) TimeTarget.End else TimeTarget.None,
                         isSmallScreen = isSmallScreen,
                         onToggleStart = {
@@ -233,7 +233,7 @@ fun TabContentOperationInfo(
                     Spacer(modifier = Modifier.height(20.dp))
                 }
 
-                if (index < uiState.operatingSchedules.size - 1) {
+                if (index < uiState.operationState.operatingSchedules.size - 1) {
                     HorizontalDivider(thickness = 1.dp, color = SubPaleGray)
                     Spacer(modifier = Modifier.height(20.dp))
                 }
@@ -254,18 +254,18 @@ fun TabContentOperationInfo(
         // --- 다이얼로그 호출 (SeatNowComponents.kt 활용) ---
 
         // 1. 매주 요일 선택
-        if (uiState.showWeeklyDayDialog) {
+        if (uiState.dialogState.showWeeklyDayDialog) {
             WeeklyHolidayDialog(
-                selectedDays = uiState.weeklyHolidayDays,
+                selectedDays = uiState.operationState.weeklyHolidayDays,
                 onDismiss = { onAction(StoreEditAction.SetWeeklyDialogVisible(false)) },
                 onConfirm = { days -> onAction(StoreEditAction.UpdateWeeklyHolidays(days)) }
             )
         }
 
         // 2. 매월 주차 선택 (★ 핵심 수정: 값 변환)
-        if (uiState.showMonthlyWeekDialog) {
+        if (uiState.dialogState.showMonthlyWeekDialog) {
             // API용 값(10) -> UI용 값(5) 변환
-            val uiWeeks = uiState.monthlyHolidayWeeks.map { if (it == 10) 5 else it }.toSet()
+            val uiWeeks = uiState.operationState.monthlyHolidayWeeks.map { if (it == 10) 5 else it }.toSet()
 
             MonthlyWeekDialog(
                 selectedWeeks = uiWeeks,
@@ -279,16 +279,16 @@ fun TabContentOperationInfo(
         }
 
         // 3. 매월 요일 선택 (SingleDayDialog 대신 WeeklyHolidayDialog 사용)
-        if (uiState.showMonthlyDayDialog) {
+        if (uiState.dialogState.showMonthlyDayDialog) {
             WeeklyHolidayDialog(
-                selectedDays = uiState.monthlyHolidayDays,
+                selectedDays = uiState.operationState.monthlyHolidayDays,
                 onDismiss = { onAction(StoreEditAction.SetMonthlyDayDialogVisible(false)) },
                 onConfirm = { days -> onAction(StoreEditAction.UpdateMonthlyDays(days)) }
             )
         }
 
         // 4. 날짜 선택기
-        if (uiState.showTempHolidayDatePicker) {
+        if (uiState.dialogState.showTempHolidayDatePicker) {
             val datePickerState = rememberDateRangePickerState()
             DatePickerDialog(
                 onDismissRequest = { onAction(StoreEditAction.SetTempHolidayDatePickerVisible(false)) },
@@ -329,14 +329,5 @@ fun TabContentOperationInfo(
                 )
             }
         }
-    }
-}
-
-// =============================================================================
-
-@Composable
-fun TabContentStorePhotos() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("가게 사진 탭 (추후 구현)", color = SubGray)
     }
 }

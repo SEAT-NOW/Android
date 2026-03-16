@@ -44,7 +44,7 @@ import com.gmg.seatnow.domain.model.Store
 import com.gmg.seatnow.presentation.component.*
 import com.gmg.seatnow.presentation.theme.*
 import com.gmg.seatnow.presentation.util.IntentUtil
-import com.gmg.seatnow.presentation.util.MapLogicHandler
+import com.gmg.seatnow.presentation.util.MapUtils
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraUpdate
 import com.naver.maps.map.compose.*
@@ -64,6 +64,7 @@ fun UserHomeScreen(
     onNavigateToDetail: (Long) -> Unit,
     viewModel: UserHomeViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var currentUserLocation by remember { mutableStateOf<LatLng?>(null) }
     var selectedStoreId by remember { mutableStateOf<Long?>(null) }
     var showPermissionDialog by remember { mutableStateOf(false) }
@@ -89,13 +90,9 @@ fun UserHomeScreen(
     val locationSource = rememberFusedLocationSource()
     var trackingMode by remember { mutableStateOf(LocationTrackingMode.None) }
 
-    val storeList by viewModel.storeList.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val activeFilter by viewModel.activeHeadCount.collectAsState()
-
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
-        viewModel.clearSearch()
+        viewModel.onAction(UserHomeAction.ClearSearch)
     }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -135,7 +132,7 @@ fun UserHomeScreen(
     }
 
     fun refreshCurrentLocation() {
-        MapLogicHandler.moveCameraToCurrentLocation(
+        MapUtils.moveCameraToCurrentLocation(
             context = context,
             cameraPositionState = cameraPositionState,
             coroutineScope = coroutineScope,
@@ -143,13 +140,13 @@ fun UserHomeScreen(
                 trackingMode = LocationTrackingMode.Follow
 
                 currentUserLocation = LatLng(lat, lng)
-                viewModel.fetchStoresInCurrentMap(
+                viewModel.onAction(UserHomeAction.FetchStoresInCurrentMap(
                     lat = lat,
                     lng = lng,
                     radius = getCurrentRadius(),
                     userLat = lat,
                     userLng = lng
-                )
+                ))
                 sheetStep = BottomSheetStep.HALF
                 coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
             }
@@ -159,27 +156,35 @@ fun UserHomeScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineGranted || coarseGranted) {
             refreshCurrentLocation()
         }
     }
 
     LaunchedEffect(Unit) {
-        if (storeList.isNotEmpty() && savedCameraLat != null) {
+        if (uiState.storeList.isNotEmpty() && savedCameraLat != null) {
             return@LaunchedEffect
         }
 
-        val hasPermission = ContextCompat.checkSelfPermission(
+        val hasFinePermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-        if (hasPermission) refreshCurrentLocation() else showPermissionDialog = true
+        val hasCoarsePermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasFinePermission || hasCoarsePermission) refreshCurrentLocation() else showPermissionDialog = true
     }
 
     LaunchedEffect(initialHeadCount) {
         if (initialHeadCount != null) {
-            viewModel.setHeadCountFilter(initialHeadCount)
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            viewModel.onAction(UserHomeAction.SetHeadCountFilter(initialHeadCount))
+            val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val coarseGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (fineGranted || coarseGranted) {
                 refreshCurrentLocation()
             }
         }
@@ -270,9 +275,9 @@ fun UserHomeScreen(
         },
         sheetContent = {
             HomeBottomSheetContent(
-                storeList = storeList,
-                isLoading = isLoading,
-                activeFilter = activeFilter,
+                storeList = uiState.storeList,
+                isLoading = uiState.isLoading,
+                activeFilter = uiState.activeHeadCount,
                 sheetStep = sheetStep,
                 onScrollDownAtTop = {
                     // ✅ 수정 핵심 2: FULL 상태일 때는 아무것도 하지 않음 (Compose 기본 동작에 위임)
@@ -292,7 +297,7 @@ fun UserHomeScreen(
             UserMapContent(
                 cameraPositionState = cameraPositionState,
                 locationSource = locationSource,
-                storeList = storeList,
+                storeList = uiState.storeList,
                 trackingMode = trackingMode,
                 isLoading = false,
                 selectedStoreId = selectedStoreId,
@@ -303,7 +308,7 @@ fun UserHomeScreen(
                 onMapClick = {
                     if (isSearchActive) {
                         isSearchActive = false
-                        viewModel.clearSearch()
+                        viewModel.onAction(UserHomeAction.ClearSearch)
                     } else {
                         selectedStoreId = null
                     }
@@ -317,7 +322,7 @@ fun UserHomeScreen(
                 }
             )
 
-            val targetAlpha = if (scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded && !isSearchActive && storeList.isNotEmpty()) 0.25f else 0f
+            val targetAlpha = if (scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded && !isSearchActive && uiState.storeList.isNotEmpty()) 0.25f else 0f
             val animatedAlpha by animateFloatAsState(
                 targetValue = targetAlpha,
                 animationSpec = tween(durationMillis = 300),
@@ -334,21 +339,21 @@ fun UserHomeScreen(
                     UserSearchScreen(
                         onBackClick = {
                             isSearchActive = false
-                            viewModel.clearSearch()
+                            viewModel.onAction(UserHomeAction.ClearSearch)
                         },
                         onStoreClick = { store ->
                             isSearchActive = false
-                            viewModel.clearSearch()
+                            viewModel.onAction(UserHomeAction.ClearSearch)
                             trackingMode = LocationTrackingMode.None
                             selectedStoreId = store.id
                             sheetStep = BottomSheetStep.COLLAPSED
-                            viewModel.fetchStoresInCurrentMap(
+                            viewModel.onAction(UserHomeAction.FetchStoresInCurrentMap(
                                 lat = store.latitude,
                                 lng = store.longitude,
                                 radius = 2.0,
                                 userLat = currentUserLocation?.latitude,
                                 userLng = currentUserLocation?.longitude
-                            )
+                            ))
                             coroutineScope.launch {
                                 cameraPositionState.stop()
                                 cameraPositionState.animate(
@@ -359,29 +364,30 @@ fun UserHomeScreen(
                         },
                         onUniversityClick = { uniName ->
                             isSearchActive = false  // 1. 검색창 닫기
-                            viewModel.clearSearch() // 2. 검색어 초기화 (선택사항)
+                            viewModel.onAction(UserHomeAction.ClearSearch) // 2. 검색어 초기화 (선택사항)
 
                             // 3. 대학명으로 API 호출 (universityName 파라미터 사용)
-                            viewModel.fetchStoresByUniversity(
+                            viewModel.onAction(UserHomeAction.FetchStoresByUniversity(
                                 uniName = uniName,
                                 lat = center.latitude,
                                 lng = center.longitude,
                                 radius = 2.0, // 대학 주변 2km 탐색
                                 userLat = currentUserLocation?.latitude,
-                                userLng = currentUserLocation?.longitude
-                            ) { firstStore ->
-                                // 4. 결과가 있으면 해당 위치로 지도 이동
-                                if (firstStore != null) {
-                                    trackingMode = LocationTrackingMode.None
-                                    coroutineScope.launch {
-                                        cameraPositionState.stop()
-                                        cameraPositionState.animate(
-                                            update = CameraUpdate.scrollTo(LatLng(firstStore.latitude, firstStore.longitude)),
-                                            durationMs = 1000
-                                        )
+                                userLng = currentUserLocation?.longitude,
+                                onResultLoaded = { firstStore ->
+                                    // 4. 결과가 있으면 해당 위치로 지도 이동
+                                    if (firstStore != null) {
+                                        trackingMode = LocationTrackingMode.None
+                                        coroutineScope.launch {
+                                            cameraPositionState.stop()
+                                            cameraPositionState.animate(
+                                                update = CameraUpdate.scrollTo(LatLng(firstStore.latitude, firstStore.longitude)),
+                                                durationMs = 1000
+                                            )
+                                        }
                                     }
                                 }
-                            }
+                            ))
                         },
                         viewModel = viewModel,
                         currentLat = center.latitude,
@@ -402,19 +408,19 @@ fun UserHomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     HomeSearchBar(
-                        activeHeadCount = activeFilter,
+                        activeHeadCount = uiState.activeHeadCount,
                         onClearFilter = {
-                            viewModel.clearHeadCountFilter()
+                            viewModel.onAction(UserHomeAction.ClearHeadCountFilter)
                             onFilterCleared()
                             sheetStep = BottomSheetStep.HALF
                             val target = cameraPositionState.position.target
-                            viewModel.fetchStoresInCurrentMap(
+                            viewModel.onAction(UserHomeAction.FetchStoresInCurrentMap(
                                 target.latitude,
                                 target.longitude,
                                 getCurrentRadius(),
                                 currentUserLocation?.latitude,
                                 currentUserLocation?.longitude
-                            )
+                            ))
                         },
                         onSearchClick = {
                             isSearchActive = true
@@ -428,17 +434,17 @@ fun UserHomeScreen(
 
                     if (!isSheetExpanded && selectedStoreId == null) {
                         SearchHereButton(
-                            isLoading = isLoading,
+                            isLoading = uiState.isLoading,
                             onClick = {
                                 sheetStep = BottomSheetStep.HALF
                                 val center = cameraPositionState.position.target
-                                viewModel.fetchStoresInCurrentMap(
+                                viewModel.onAction(UserHomeAction.FetchStoresInCurrentMap(
                                     lat = center.latitude,
                                     lng = center.longitude,
                                     radius = getCurrentRadius(),
                                     userLat = currentUserLocation?.latitude,
                                     userLng = currentUserLocation?.longitude
-                                )
+                                ))
                             }
                         )
                     }
@@ -459,8 +465,8 @@ fun UserHomeScreen(
                 }
 
                 if (selectedStoreId != null) {
-                    val selectedIndex = storeList.indexOfFirst { it.id == selectedStoreId }
-                    val selectedStore = storeList.getOrNull(selectedIndex)
+                    val selectedIndex = uiState.storeList.indexOfFirst { it.id == selectedStoreId }
+                    val selectedStore = uiState.storeList.getOrNull(selectedIndex)
                     if (selectedStore != null) {
                         Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 50.dp)) {
                             StoreDetailCard(
@@ -481,7 +487,12 @@ fun UserHomeScreen(
             onDismiss = { showPermissionDialog = false },
             onConfirm = {
                 showPermissionDialog = false
-                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION))
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
             }
         )
     }

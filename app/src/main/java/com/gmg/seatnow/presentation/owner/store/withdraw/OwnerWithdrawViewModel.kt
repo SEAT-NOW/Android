@@ -2,7 +2,7 @@ package com.gmg.seatnow.presentation.owner.store.withdraw
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gmg.seatnow.domain.usecase.auth.OwnerWithdrawUseCase
+import com.gmg.seatnow.domain.usecase.owner.auth.OwnerWithdrawUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,48 +13,31 @@ class OwnerWithdrawViewModel @Inject constructor(
     private val withdrawUseCase: OwnerWithdrawUseCase
 ) : ViewModel() {
 
-    // 1. UI State
-    data class WithdrawUiState(
-        val isConfirmed: Boolean = false,
-        val businessNumber: String = "", // [신규] 사업자 번호
-        val password: String = "",       // [신규] 비밀번호
-        val isLoading: Boolean = false,
-        val errorMessage: String? = null
-    ) {
-        // [신규] 버튼 활성화 조건: 동의함 && 사업자번호 있음 && 비밀번호 있음 && 로딩 아님
-        val isButtonEnabled: Boolean
-            get() = isConfirmed && businessNumber.isNotBlank() && password.isNotBlank() && !isLoading
-    }
 
-    private val _uiState = MutableStateFlow(WithdrawUiState())
+    private val _uiState = MutableStateFlow(OwnerWithdrawUiState())
     val uiState = _uiState.asStateFlow()
 
-    // 2. Event
-    sealed interface WithdrawEvent {
-        data object NavigateToLogin : WithdrawEvent
-        data object PopBackStack : WithdrawEvent
-    }
 
-    private val _event = MutableSharedFlow<WithdrawEvent>()
+    private val _event = MutableSharedFlow<OwnerWithdrawEvent>()
     val event = _event.asSharedFlow()
 
     // 3. Action
-    fun onAction(action: WithdrawAction) {
+    fun onAction(action: OwnerWithdrawAction) {
         when (action) {
-            is WithdrawAction.OnToggleConfirm -> {
+            is OwnerWithdrawAction.OnToggleConfirm -> {
                 _uiState.update { it.copy(isConfirmed = !it.isConfirmed) }
             }
-            is WithdrawAction.OnBusinessNumberChange -> {
+            is OwnerWithdrawAction.OnBusinessNumberChange -> {
                 // 숫자만 입력받도록 필터링 (선택 사항)
                 val filtered = action.number.filter { it.isDigit() }
                 _uiState.update { it.copy(businessNumber = filtered, errorMessage = null) }
             }
-            is WithdrawAction.OnPasswordChange -> {
+            is OwnerWithdrawAction.OnPasswordChange -> {
                 _uiState.update { it.copy(password = action.password, errorMessage = null) }
             }
-            is WithdrawAction.OnWithdrawClick -> withdraw()
-            is WithdrawAction.OnBackClick -> {
-                viewModelScope.launch { _event.emit(WithdrawEvent.PopBackStack) }
+            is OwnerWithdrawAction.OnWithdrawClick -> withdraw()
+            is OwnerWithdrawAction.OnBackClick -> {
+                viewModelScope.launch { _event.emit(OwnerWithdrawEvent.PopBackStack) }
             }
         }
     }
@@ -73,7 +56,7 @@ class OwnerWithdrawViewModel @Inject constructor(
             )
                 .onSuccess {
                     // 성공 시 로그인 화면으로 이동
-                    _event.emit(WithdrawEvent.NavigateToLogin)
+                    _event.emit(OwnerWithdrawEvent.NavigateToLogin)
                 }
                 .onFailure { error ->
                     // ★ [추가] 실패 시 에러 메시지 설정
@@ -88,11 +71,3 @@ class OwnerWithdrawViewModel @Inject constructor(
     }
 }
 
-// Action
-sealed interface WithdrawAction {
-    data object OnToggleConfirm : WithdrawAction
-    data class OnBusinessNumberChange(val number: String) : WithdrawAction
-    data class OnPasswordChange(val password: String) : WithdrawAction
-    data object OnWithdrawClick : WithdrawAction
-    data object OnBackClick : WithdrawAction
-}

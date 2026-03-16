@@ -36,12 +36,12 @@ fun StoreEditMainScreen(
     val context = LocalContext.current
 
     // 1. 카테고리 순서 편집 모드일 때 뒤로가기 -> 모드 종료
-    BackHandler(enabled = uiState.isCategoryEditMode) {
+    BackHandler(enabled = uiState.menuState.isCategoryEditMode) {
         viewModel.onAction(StoreEditAction.SetCategoryEditMode(false))
     }
 
     // 2. 메뉴 추가 모드일 때 뒤로가기 -> 모드 종료
-    BackHandler(enabled = uiState.addingMenuCategoryId != null) {
+    BackHandler(enabled = uiState.menuState.addingMenuCategoryId != null) {
         viewModel.onAction(StoreEditAction.DismissAddMenu)
     }
 
@@ -59,7 +59,7 @@ fun StoreEditMainScreen(
     // 화면 상태에 따른 분기 처리
     when {
         // [Case 1] 카테고리 편집 모드 (순서 변경 등)
-        uiState.isCategoryEditMode -> {
+        uiState.menuState.isCategoryEditMode -> {
             CategoryEditScreen(
                 viewModel = viewModel,
                 onDismiss = { viewModel.onAction(StoreEditAction.SetCategoryEditMode(false)) }
@@ -67,10 +67,10 @@ fun StoreEditMainScreen(
         }
 
         // [Case 2] 메뉴 상세 추가 모드 (플러스 버튼 클릭 시)
-        uiState.addingMenuCategoryId != null -> {
+        uiState.menuState.addingMenuCategoryId != null -> {
             MenuEditScreen(
-                initialCategoryId = uiState.addingMenuCategoryId!!,
-                categoryList = uiState.menuCategories,
+                initialCategoryId = uiState.menuState.addingMenuCategoryId!!,
+                categoryList = uiState.menuState.menuCategories,
                 onBackClick = { viewModel.onAction(StoreEditAction.DismissAddMenu) },
                 onDeleteClick = { viewModel.onAction(StoreEditAction.DismissAddMenu) }, // 추가 취소
                 onSaveClick = { name, price, catId, uri ->
@@ -86,8 +86,8 @@ fun StoreEditMainScreen(
             )
         }
 
-        uiState.editingMenuItem != null -> {
-            val (categoryId, item) = uiState.editingMenuItem!!
+        uiState.menuState.editingMenuItem != null -> {
+            val (categoryId, item) = uiState.menuState.editingMenuItem!!
 
             MenuEditScreen(
                 initialCategoryId = categoryId,
@@ -95,7 +95,7 @@ fun StoreEditMainScreen(
                 initialPrice = item.price,         // ★ 기존 가격 주입
                 initialImageUri = item.imageUrl,   // ★ 기존 이미지 주입
 
-                categoryList = uiState.menuCategories,
+                categoryList = uiState.menuState.menuCategories,
 
                 onBackClick = { viewModel.onAction(StoreEditAction.DismissEditMenu) },
 
@@ -314,17 +314,19 @@ fun PreviewStoreEditMainScreen() {
         var selectedTabIndex by remember { mutableIntStateOf(0) }
 
         // 2. 더미 데이터 생성
-        val dummyUiState = StoreEditMainViewModel.StoreEditUiState(
+        val dummyUiState = StoreEditUiState(
             selectedTabIndex = selectedTabIndex,
             isSaveButtonEnabled = true,
-            regularHolidayType = 1,
-            weeklyHolidayDays = setOf(1),
-            operatingSchedules = listOf(
-                OperatingScheduleItem(
-                    id = 0,
-                    selectedDays = setOf(1, 2, 3, 4, 5),
-                    startHour = 10, startMin = 0,
-                    endHour = 22, endMin = 0
+            operationState = OperationInfoState(
+                regularHolidayType = 1,
+                weeklyHolidayDays = setOf(1),
+                operatingSchedules = listOf(
+                    OperatingScheduleItem(
+                        id = 0,
+                        selectedDays = setOf(1, 2, 3, 4, 5),
+                        startHour = 10, startMin = 0,
+                        endHour = 22, endMin = 0
+                    )
                 )
             )
         )

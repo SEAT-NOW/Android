@@ -2,8 +2,14 @@ package com.gmg.seatnow.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.data.local.AppConfigManager
 import com.gmg.seatnow.data.local.AuthManager
-import com.gmg.seatnow.domain.usecase.auth.LoginWithKakaoUseCase
+import com.gmg.seatnow.data.local.UserManager
+import com.gmg.seatnow.domain.usecase.user.auth.CheckGuestTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.CheckKakaoTermsUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.LoginWithKakaoUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SaveKakaoUserInfoUseCase
+import com.gmg.seatnow.domain.usecase.user.auth.SetDeveloperModeUseCase
 import com.kakao.sdk.user.UserApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,7 +20,10 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginWithKakaoUseCase: LoginWithKakaoUseCase,
-    private val authManager: AuthManager
+    private val saveKakaoUserInfoUseCase: SaveKakaoUserInfoUseCase,
+    private val checkKakaoTermsUseCase: CheckKakaoTermsUseCase,
+    private val checkGuestTermsUseCase: CheckGuestTermsUseCase,
+    private val setDeveloperModeUseCase: SetDeveloperModeUseCase
 ) : ViewModel() {
 
     private val _event = MutableSharedFlow<LoginEvent>()
@@ -48,12 +57,12 @@ class LoginViewModel @Inject constructor(
                 // [수정] 카카오 프로필에서 '닉네임'만 추출
                 val nickname = user.kakaoAccount?.profile?.nickname
 
-                // [수정] AuthManager에 닉네임만 저장
-                authManager.saveUserInfo(nickname = nickname)
+                // [수정] userManager에 닉네임만 저장
+                saveKakaoUserInfoUseCase(nickname)
 
-                // 약관 동의 체크 후 화면 이동
                 viewModelScope.launch {
-                    if (authManager.isKakaoTermsAgreed()) {
+                    // ★ UseCase를 통해 약관 동의 여부 확인
+                    if (checkKakaoTermsUseCase()) {
                         _event.emit(LoginEvent.NavigateToUserMain)
                     } else {
                         _event.emit(LoginEvent.NavigateToTerms(isGuest = false))
@@ -71,7 +80,7 @@ class LoginViewModel @Inject constructor(
 
     fun onGuestLoginClick() {
         viewModelScope.launch {
-            if (authManager.isGuestTermsAgreed()) {
+            if (checkGuestTermsUseCase()) {
                 _event.emit(LoginEvent.NavigateToUserMain)
             } else {
                 _event.emit(LoginEvent.NavigateToTerms(isGuest = true))
@@ -80,9 +89,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun onDeveloperLoginSuccess() {
-        authManager.setTesterMode(true) // 테스터 모드 활성화
-        // 닉네임 설정 (선택 사항)
-        authManager.saveUserInfo("개발자(Tester)")
+        setDeveloperModeUseCase()
     }
 
     fun onDeveloperLoginClick() {
@@ -91,10 +98,25 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun verifyDeveloperCode(code: String) {
+        viewModelScope.launch {
+            if (code == "seatnow!!testID") {
+                // 성공 시 UseCase 실행 후 결과 이벤트 방출
+                setDeveloperModeUseCase()
+                _event.emit(LoginEvent.ShowToast("개발자 모드로 진입합니다."))
+                _event.emit(LoginEvent.NavigateToUserMain)
+            } else {
+                // 실패 시 실패 이벤트 방출
+                _event.emit(LoginEvent.ShowToast("코드가 올바르지 않습니다."))
+            }
+        }
+    }
+
     sealed class LoginEvent {
         object NavigateToUserMain : LoginEvent()
         object NavigateToOwnerLogin : LoginEvent()
         object NavigateToDeveloperLogin : LoginEvent()
         data class NavigateToTerms(val isGuest: Boolean) : LoginEvent()
+        data class ShowToast(val message: String) : LoginEvent()
     }
 }

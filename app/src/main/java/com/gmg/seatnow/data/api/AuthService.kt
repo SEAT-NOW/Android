@@ -114,31 +114,15 @@ interface AuthService {
         @Body request: OwnerWithdrawRequestDTO
     ): Response<BaseResponse<Unit>>
 
-    // 사장님 로그아웃
+    // 로그아웃
     @POST("/auth/logout")
     suspend fun logout(): Response<BaseResponse<Unit>> // data가 {} 빈 객체이므로 Unit 또는 Any 처리
-
-    // 사장님 좌석조회
-    @GET("/api/v1/stores/{storeId}/seats")
-    suspend fun getSeatStatus(
-        @Path("storeId") storeId: Long
-    ): Response<BaseResponse<SeatStatusResponseDTO>> // 방금 만든 DTO 사용
-
-    // 사장님 좌석 실시간 업데이트
-    @PATCH("/api/v1/stores/seats")
-    suspend fun updateSeatStatus(
-        @Body request: SeatUpdateRequestDTO
-    ): Response<BaseResponse<SeatStatusResponseDTO>>
 
     // 카카오 로그인
     @GET("/auth/login/kakao")
     suspend fun loginWithKakao(
         @Query("kakaoAccessToken") kakaoAccessToken: String
     ): Response<BaseResponse<KakaoLoginResponse>>
-
-    // 사장님 계정정보 조회
-    @GET("/api/v1/stores/owner/account")
-    suspend fun getOwnerAccount(): Response<BaseResponse<OwnerAccountResponseDTO>>
 
     // 사장님 계정정보 비밀번호 수정 전 체크
     @POST("/api/v1/stores/owner/verify-password")
@@ -152,66 +136,8 @@ interface AuthService {
         @Body request: ChangePasswordRequestDTO
     ): Response<BaseResponse<Boolean>> // data: true/false
 
-    // 사장님 가게 정보 조회
-    @GET("/api/v1/stores/owner/profile")
-    suspend fun getStoreProfile(): Response<BaseResponse<StoreProfileResponseDTO>>
-
-    // 사장님 가게 연락처 수정
-    @PATCH("/api/v1/stores/operation/phone-number")
-    suspend fun updateStorePhone(
-        @Body request: StorePhoneUpdateRequestDTO
-    ): Response<BaseResponse<Boolean>> // data: true/false
-
-    // 매장 좌석 구성 정보 수정
-    @PATCH("/api/v1/stores/layout")
-    suspend fun updateStoreLayout(
-        @Body request: List<SpaceLayoutUpdateRequest>
-    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
-
-    // 매장 메뉴 정보 조회
-    @GET("/api/v1/stores/menus")
-    suspend fun getStoreMenus(): Response<BaseResponse<StoreMenuResponseDTO>>
-
-    @GET("/api/v1/stores/operation")
-    suspend fun getStoreOperations(): Response<BaseResponse<StoreOperationResponse>>
-
-    @GET("/api/v1/stores/operation/images")
-    suspend fun getStoreImages(): Response<BaseResponse<StoreImageResponse>>
-
-    @PATCH("/api/v1/stores/operation")
-    suspend fun updateStoreOperation(
-        @Body request: StoreOperationRequest
-    ): Response<BaseResponse<Boolean?>>
-
-    @PATCH("/api/v1/stores/menus/categories")
-    suspend fun updateMenuCategories(
-        @Body request: UpdateMenuCategoriesRequest
-    ): Response<BaseResponse<Boolean>> // 성공 시 data: true
-
-    @Multipart
-    @POST("/api/v1/stores/menus")
-    suspend fun saveMenu(
-        @Part("menuData") menuData: RequestBody,
-        @Part menuImage: MultipartBody.Part?
-    ): Response<BaseResponse<Boolean>>
-
+    // 회원 탈퇴 (유저, 사장님 공통)
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
 
-    @Multipart
-    @PATCH("/api/v1/stores/operation/images")
-    suspend fun updateStoreImages(
-        @Part("updateData") updateData: RequestBody, // JSON
-        @Part newImages: List<MultipartBody.Part>    // Files
-    ): Response<BaseResponse<Boolean?>>
-
-    @PATCH("/api/v1/stores/menus/order")
-    suspend fun updateMenuOrders(
-        @Body request: MenuOrderRequest
-    ): Response<BaseResponse<Boolean>>
-
-    @DELETE("/api/v1/stores/menus/{menuId}")
-    suspend fun deleteMenu(
-        @Path("menuId") menuId: Long
-    ): Response<BaseResponse<Boolean>>
 }

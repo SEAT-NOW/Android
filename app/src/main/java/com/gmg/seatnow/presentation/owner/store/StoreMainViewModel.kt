@@ -10,11 +10,6 @@ import javax.inject.Inject
 @HiltViewModel
 class StoreMainViewModel @Inject constructor() : ViewModel() {
 
-    // UI State
-    data class StoreMainUiState(
-        val currentTab: StoreTab = StoreTab.SEAT_MANAGEMENT
-    )
-
     private val _uiState = MutableStateFlow(StoreMainUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -26,9 +21,4 @@ class StoreMainViewModel @Inject constructor() : ViewModel() {
             }
         }
     }
-}
-
-// Action 정의도 축소
-sealed interface StoreMainAction {
-    data class ChangeTab(val tab: StoreTab) : StoreMainAction
 }

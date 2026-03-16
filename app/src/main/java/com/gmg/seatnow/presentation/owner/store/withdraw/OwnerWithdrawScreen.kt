@@ -1,13 +1,11 @@
 package com.gmg.seatnow.presentation.owner.store.withdraw
 
-import android.R.id.bold
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -45,8 +43,8 @@ fun OwnerWithdrawScreen(
     LaunchedEffect(true) {
         viewModel.event.collectLatest { event ->
             when (event) {
-                is OwnerWithdrawViewModel.WithdrawEvent.NavigateToLogin -> onNavigateToLogin()
-                is OwnerWithdrawViewModel.WithdrawEvent.PopBackStack -> onBackClick()
+                is OwnerWithdrawEvent.NavigateToLogin -> onNavigateToLogin()
+                is OwnerWithdrawEvent.PopBackStack -> onBackClick()
             }
         }
     }
@@ -60,15 +58,15 @@ fun OwnerWithdrawScreen(
 
 @Composable
 fun OwnerWithdrawContent(
-    uiState: OwnerWithdrawViewModel.WithdrawUiState,
-    onAction: (WithdrawAction) -> Unit,
+    uiState: OwnerWithdrawUiState,
+    onAction: (OwnerWithdrawAction) -> Unit,
     onBackClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
             SeatNowTopAppBar(
                 title = "회원 탈퇴(업체 삭제)",
-                onBackClick = { onAction(WithdrawAction.OnBackClick) }
+                onBackClick = { onAction(OwnerWithdrawAction.OnBackClick) }
             )
         },
         containerColor = White,
@@ -76,7 +74,7 @@ fun OwnerWithdrawContent(
             WithdrawBottomBar(
                 isEnabled = uiState.isButtonEnabled,
                 errorMessage = uiState.errorMessage,
-                onClick = { onAction(WithdrawAction.OnWithdrawClick) }
+                onClick = { onAction(OwnerWithdrawAction.OnWithdrawClick) }
             )
         }
     ) { innerPadding ->
@@ -135,7 +133,7 @@ fun OwnerWithdrawContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onAction(WithdrawAction.OnToggleConfirm) }
+                        .clickable { onAction(OwnerWithdrawAction.OnToggleConfirm) }
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -180,7 +178,7 @@ fun OwnerWithdrawContent(
                     onValueChange = { input ->
                         // 숫자만 입력받고, 최대 10자리까지만 허용 (자동 하이픈 로직을 위해)
                         if (input.length <= 10 && input.all { it.isDigit() }) {
-                            onAction(WithdrawAction.OnBusinessNumberChange(input))
+                            onAction(OwnerWithdrawAction.OnBusinessNumberChange(input))
                         }
                     },
                     placeholder = "사업자등록번호 (숫자만 입력)",
@@ -200,7 +198,7 @@ fun OwnerWithdrawContent(
                 Spacer(modifier = Modifier.height(12.dp))
                 SeatNowTextField(
                     value = uiState.password,
-                    onValueChange = { onAction(WithdrawAction.OnPasswordChange(it)) },
+                    onValueChange = { onAction(OwnerWithdrawAction.OnPasswordChange(it)) },
                     placeholder = "비밀번호",
                     isPassword = true,
                     imeAction = ImeAction.Done
@@ -227,6 +225,7 @@ fun WithdrawBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding() // OS 하단 시스템 네비게이션 바 영역 확보
             .padding(24.dp)
             .imePadding() // 키보드 패딩 적용
     ) {
@@ -272,7 +271,7 @@ fun WithdrawBottomBar(
 fun PreviewOwnerWithdrawScreen_Default() {
     SeatNowTheme {
         OwnerWithdrawContent(
-            uiState = OwnerWithdrawViewModel.WithdrawUiState(
+            uiState = OwnerWithdrawUiState(
                 isConfirmed = false,
                 businessNumber = "",
                 password = "",
@@ -289,7 +288,7 @@ fun PreviewOwnerWithdrawScreen_Default() {
 fun PreviewOwnerWithdrawScreen_Enabled() {
     SeatNowTheme {
         OwnerWithdrawContent(
-            uiState = OwnerWithdrawViewModel.WithdrawUiState(
+            uiState = OwnerWithdrawUiState(
                 isConfirmed = true,
                 businessNumber = "1234567890",
                 password = "password123!",

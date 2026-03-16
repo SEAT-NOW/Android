@@ -54,10 +54,10 @@ fun TabContentStorePhotos(
 
         // ★ LazyGrid가 아닌 사용자님의 NonLazyPhotoGrid 로직 적용
         NonLazyPhotoGrid(
-            photoList = uiState.storePhotoList,
+            photoList = uiState.photoState.storePhotoList,
             onAddClick = {
                 // ★ [수정] 5장 미만일 때만 갤러리 오픈
-                if (uiState.storePhotoList.size < 5) {
+                if (uiState.photoState.storePhotoList.size < 5) {
                     photoPickerLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )

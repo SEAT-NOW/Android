@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowMenuItem
 import com.gmg.seatnow.presentation.theme.SubGray
@@ -31,8 +30,8 @@ fun UserMyPageScreen(
     LaunchedEffect(true) {
         viewModel.event.collectLatest { event ->
             when (event) {
-                is UserMyPageViewModel.UserMyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
-                is UserMyPageViewModel.UserMyPageEvent.NavigateToLogin -> onNavigateToLogin()
+                is UserMyPageEvent.NavigateToAccountInfo -> onNavigateToAccountInfo()
+                is UserMyPageEvent.NavigateToLogin -> onNavigateToLogin()
                 // Withdraw는 AccountInfoScreen에서 처리하므로 여기서 라우팅하지 않음
                 else -> {}
             }

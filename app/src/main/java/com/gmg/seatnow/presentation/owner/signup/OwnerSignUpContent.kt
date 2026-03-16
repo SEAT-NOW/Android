@@ -24,10 +24,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.ui.draw.shadow
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.owner.signup.steps.Step1BasicScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step2BusinessScreen
 import com.gmg.seatnow.presentation.owner.signup.steps.Step3StoreScreen
@@ -52,7 +49,8 @@ fun OwnerSignUpContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // [레이어 1] 메인 콘텐츠 (회원가입 폼 및 약관 상세)
-        Crossfade(targetState = uiState.openedTermType, label = "TermDetailTransition") { termType ->
+        // ★ [수정됨] uiState.openedTermType -> uiState.basic.openedTermType
+        Crossfade(targetState = uiState.basic.openedTermType, label = "TermDetailTransition") { termType ->
             if (termType != null) {
                 TermsDetailScreen(
                     termType = termType,
@@ -66,14 +64,16 @@ fun OwnerSignUpContent(
             }
         }
 
-        // [레이어 2] 주소 검색 Overlay (★ 여기가 추가되어야 합니다!)
-        if (uiState.isStoreSearchVisible) {
+        // [레이어 2] 주소 검색 Overlay
+        // ★ [수정됨] uiState.isStoreSearchVisible -> uiState.business.isStoreSearchVisible
+        if (uiState.business.isStoreSearchVisible) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
                     .background(White)
             ) {
+                // (주의) StoreSearchScreen 내부에서도 uiState.business.xxx 를 사용하도록 마이그레이션 되어있어야 합니다!
                 StoreSearchScreen(
                     uiState = uiState,
                     onAction = onAction
@@ -90,6 +90,7 @@ fun SignUpFormScreen(
     onAction: (SignUpAction) -> Unit,
     onBackClick: () -> Unit
 ) {
+    // currentStep과 isNextButtonEnabled는 Contract의 최상단(Root)에 그대로 두었기 때문에 수정할 필요가 없습니다!
     val animatedProgress by animateFloatAsState(
         targetValue = uiState.currentStep.progress,
         animationSpec = tween(durationMillis = 500),
@@ -139,7 +140,7 @@ fun SignUpFormScreen(
             ) {
                 Button(
                     onClick = { onAction(SignUpAction.OnNextClick) },
-                    enabled = uiState.isNextButtonEnabled,
+                    enabled = uiState.isNextButtonEnabled, // 최상위 속성이라 그대로 사용
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),

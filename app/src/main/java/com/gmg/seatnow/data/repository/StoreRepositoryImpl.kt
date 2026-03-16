@@ -3,6 +3,7 @@ package com.gmg.seatnow.data.repository
 import android.content.Context
 import android.net.Uri
 import com.gmg.seatnow.data.api.AuthService
+import com.gmg.seatnow.data.api.StoreManageApiService
 import com.gmg.seatnow.data.model.request.CategoryOrderDto
 import com.gmg.seatnow.data.model.request.CategoryUpdateDto
 import com.gmg.seatnow.data.model.request.MenuDataRequest
@@ -14,6 +15,10 @@ import com.gmg.seatnow.data.model.request.HourRequest
 import com.gmg.seatnow.data.model.request.MenuOrderRequest
 import com.gmg.seatnow.data.model.request.StoreImageUpdateDto
 import com.gmg.seatnow.data.model.request.StoreImageUpdateRequest
+import com.gmg.seatnow.data.model.request.StorePhoneUpdateRequestDTO
+import com.gmg.seatnow.data.model.response.ErrorResponse
+import com.gmg.seatnow.data.model.response.OwnerAccountResponseDTO
+import com.gmg.seatnow.data.model.response.StoreProfileResponseDTO
 import com.gmg.seatnow.domain.model.OpeningHour
 import com.gmg.seatnow.domain.model.RegularHoliday
 import com.gmg.seatnow.domain.model.StoreImage
@@ -40,10 +45,12 @@ import kotlin.collections.filter
 // ★ [핵심] 이 어노테이션이 있어야 "Error: moved to extension" 오류를 무시하고 빌드됩니다.
 @Suppress("DEPRECATION", "DEPRECATION_ERROR")
 class StoreRepositoryImpl @Inject constructor(
-    private val authService: AuthService,
+    private val storeManageApiService: StoreManageApiService,
     @ApplicationContext private val context: Context
 ) : StoreRepository {
 
+    private var cachedOwnerAccount: OwnerAccountResponseDTO? = null
+    private var cachedStoreProfile: StoreProfileResponseDTO? = null
     private var cachedMenus: List<StoreMenuCategory>? = null
 
     override suspend fun getStoreMenus(forceRefresh: Boolean): Result<List<StoreMenuCategory>> {
@@ -52,7 +59,7 @@ class StoreRepositoryImpl @Inject constructor(
         }
 
         return try {
-            val response = authService.getStoreMenus()
+            val response = storeManageApiService.getStoreMenus()
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -101,7 +108,7 @@ class StoreRepositoryImpl @Inject constructor(
 
     override suspend fun getStoreOperations(): Result<StoreOperationInfo> {
         return try {
-            val response = authService.getStoreOperations()
+            val response = storeManageApiService.getStoreOperations()
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
                 if (data != null) {
@@ -131,7 +138,7 @@ class StoreRepositoryImpl @Inject constructor(
 
     override suspend fun getStoreImages(): Result<List<StoreImage>> {
         return try {
-            val response = authService.getStoreImages()
+            val response = storeManageApiService.getStoreImages()
 
             if (response.isSuccessful && response.body()?.success == true) {
                 val data = response.body()?.data
@@ -199,7 +206,7 @@ class StoreRepositoryImpl @Inject constructor(
             }
 
             // 3. API 호출
-            val response = authService.updateStoreImages(updateDataBody, newImageParts)
+            val response = storeManageApiService.updateStoreImages(updateDataBody, newImageParts)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(true)
@@ -230,7 +237,7 @@ class StoreRepositoryImpl @Inject constructor(
                 }
             )
 
-            val response = authService.updateStoreOperation(request)
+            val response = storeManageApiService.updateStoreOperation(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(Unit)
@@ -254,7 +261,7 @@ class StoreRepositoryImpl @Inject constructor(
                 )
             }
             val request = UpdateMenuCategoriesRequest(categoryDtos)
-            val catResponse = authService.updateMenuCategories(request)
+            val catResponse = storeManageApiService.updateMenuCategories(request)
 
             if (!catResponse.isSuccessful || catResponse.body()?.success != true) {
                 return Result.failure(Exception(catResponse.body()?.message ?: "카테고리 수정 실패"))
@@ -336,7 +343,7 @@ class StoreRepositoryImpl @Inject constructor(
                 }
             }
 
-            val response = authService.saveMenu(jsonRequestBody, imagePart)
+            val response = storeManageApiService.saveMenu(jsonRequestBody, imagePart)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(true)
@@ -364,7 +371,7 @@ class StoreRepositoryImpl @Inject constructor(
             val request = MenuOrderRequest(categoryOrders = orderList)
 
             // 2. API 호출
-            val response = authService.updateMenuOrders(request)
+            val response = storeManageApiService.updateMenuOrders(request)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(true)
@@ -378,10 +385,77 @@ class StoreRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateStorePhone(phone: String): Result<Unit> {
+        return try {
+            val response = storeManageApiService.updateStorePhone(StorePhoneUpdateRequestDTO(phone))
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getStoreProfile(): Result<StoreProfileResponseDTO> {
+        return try {
+            val response = storeManageApiService.getStoreProfile()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data != null) {
+                    Result.success(data)
+                } else {
+                    Result.failure(Exception("데이터가 비어있습니다."))
+                }
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getOwnerAccount(): Result<OwnerAccountResponseDTO> {
+        // 1. 캐시된 데이터가 있으면 바로 반환 (API 호출 X)
+        cachedOwnerAccount?.let {
+            return Result.success(it)
+        }
+
+        // 2. 캐시가 없으면 API 호출
+        return try {
+            val response = storeManageApiService.getOwnerAccount()
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                if (data != null) {
+                    // ★ 3. 성공 시 캐시에 저장
+                    cachedOwnerAccount = data
+                    Result.success(data)
+                } else {
+                    Result.failure(Exception("데이터가 비어있습니다."))
+                }
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+
     override suspend fun deleteMenu(menuId: Long): Result<Boolean> {
         return try {
             // Path Variable로 menuId 전달
-            val response = authService.deleteMenu(menuId)
+            val response = storeManageApiService.deleteMenu(menuId)
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(true)
@@ -406,6 +480,14 @@ class StoreRepositoryImpl @Inject constructor(
             tempFile
         } catch (e: Exception) {
             null
+        }
+    }
+    private fun parseErrorMessage(errorBody: String?): String {
+        return try {
+            val errorResponse = Gson().fromJson(errorBody, ErrorResponse::class.java)
+            errorResponse.message ?: errorResponse.detail ?: "알 수 없는 오류가 발생했습니다."
+        } catch (e: Exception) {
+            "서버 통신 오류가 발생했습니다."
         }
     }
 }

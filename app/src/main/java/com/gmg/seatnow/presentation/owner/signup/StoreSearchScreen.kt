@@ -1,6 +1,5 @@
 package com.gmg.seatnow.presentation.owner.signup
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,14 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gmg.seatnow.domain.model.StoreSearchResult
 import com.gmg.seatnow.presentation.component.SeatNowTextField
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
 import com.gmg.seatnow.presentation.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,7 +66,7 @@ fun StoreSearchScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(uiState.storeSearchResults) { store ->
+                items(uiState.business.storeSearchResults) { store ->
                     StoreResultItem(store = store, onClick = { onAction(SignUpAction.SelectStore(store)) })
                     HorizontalDivider(color = SubLightGray, thickness = 1.dp)
                 }

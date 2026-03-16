@@ -35,9 +35,9 @@ import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.component.TermItem
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.OwnerSignUpUiState
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.SignUpAction
-import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpViewModel.TermType
+import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpUiState
+import com.gmg.seatnow.presentation.owner.signup.SignUpAction
+import com.gmg.seatnow.presentation.owner.signup.TermType
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import com.gmg.seatnow.presentation.theme.SubBlack
@@ -52,31 +52,29 @@ fun Step1BasicScreen(
     val focusManager = LocalFocusManager.current
 
     // 1. 이메일 인증이 '성공'으로 바뀌는 순간 포커스 해제
-    LaunchedEffect(uiState.isEmailVerified) {
-        if (uiState.isEmailVerified) {
+    LaunchedEffect(uiState.basic.isEmailVerified) {
+        if (uiState.basic.isEmailVerified) {
             focusManager.clearFocus()
         }
     }
 
     // 2. 휴대폰 인증이 '성공'으로 바뀌는 순간 포커스 해제
-    LaunchedEffect(uiState.isPhoneVerified) {
-        if (uiState.isPhoneVerified) {
+    LaunchedEffect(uiState.basic.isPhoneVerified) {
+        if (uiState.basic.isPhoneVerified) {
             focusManager.clearFocus()
         }
     }
 
-
     Column {
-        // ... (이메일, 비밀번호, 휴대폰 입력 필드 코드는 기존과 동일하게 유지 - 분량상 생략하지 않고 모두 적어드립니다) ...
         // 1. [이메일 입력]
         SignUpTextFieldWithButton(
-            value = uiState.email,
+            value = uiState.basic.email,
             onValueChange = { onAction(SignUpAction.UpdateEmail(it)) },
             placeholder = "이메일",
-            buttonText = if (uiState.isEmailVerified) "인증완료" else if (uiState.isEmailCodeSent) "재전송" else "인증번호 전송",
-            errorText = uiState.emailError,
-            isEnabled = !uiState.isEmailVerified,
-            isButtonEnabled = !uiState.isEmailVerified && uiState.email.isNotBlank() && uiState.emailError == null,
+            buttonText = if (uiState.basic.isEmailVerified) "인증완료" else if (uiState.basic.isEmailCodeSent) "재전송" else "인증번호 전송",
+            errorText = uiState.basic.emailError,
+            isEnabled = !uiState.basic.isEmailVerified,
+            isButtonEnabled = !uiState.basic.isEmailVerified && uiState.basic.email.isNotBlank() && uiState.basic.emailError == null,
             onButtonClick = {
                 focusManager.clearFocus()
                 onAction(SignUpAction.RequestEmailCode)
@@ -86,7 +84,7 @@ fun Step1BasicScreen(
 
         // 2. [이메일 인증번호]
         SignUpTextFieldWithButton(
-            value = uiState.authCode,
+            value = uiState.basic.authCode,
             onValueChange = {
                 if (it.length <= 6 && it.all { char -> char.isDigit() }) {
                     onAction(SignUpAction.UpdateAuthCode(it))
@@ -94,12 +92,12 @@ fun Step1BasicScreen(
             },
             placeholder = "인증번호 입력",
             buttonText = "확인",
-            timerText = uiState.emailTimerText,
-            errorText = uiState.emailVerifiedError,
-            isEnabled = uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted,
-            isButtonEnabled = (uiState.isEmailCodeSent && !uiState.isEmailVerified && !uiState.isEmailVerificationAttempted)
-                    && !uiState.isEmailTimerExpired
-                    && uiState.authCode.length == 6,
+            timerText = uiState.basic.emailTimerText,
+            errorText = uiState.basic.emailVerifiedError,
+            isEnabled = uiState.basic.isEmailCodeSent && !uiState.basic.isEmailVerified && !uiState.basic.isEmailVerificationAttempted,
+            isButtonEnabled = (uiState.basic.isEmailCodeSent && !uiState.basic.isEmailVerified && !uiState.basic.isEmailVerificationAttempted)
+                    && !uiState.basic.isEmailTimerExpired
+                    && uiState.basic.authCode.length == 6,
             keyboardType = KeyboardType.Number,
             onButtonClick = {
                 focusManager.clearFocus()
@@ -110,38 +108,38 @@ fun Step1BasicScreen(
 
         // 3. [비밀번호]
         SeatNowTextField(
-            value = uiState.password,
+            value = uiState.basic.password,
             onValueChange = { onAction(SignUpAction.UpdatePassword(it)) },
             placeholder = "비밀번호 (8~20자리, 영문/숫자/특수기호 포함)",
             isPassword = true,
-            errorText = uiState.passwordError
+            errorText = uiState.basic.passwordError
         )
         Spacer(modifier = Modifier.height(20.dp))
 
         // 4. [비밀번호 확인]
         SeatNowTextField(
-            value = uiState.passwordCheck,
+            value = uiState.basic.passwordCheck,
             onValueChange = { onAction(SignUpAction.UpdatePasswordCheck(it)) },
             placeholder = "비밀번호 확인",
             isPassword = true,
-            errorText = uiState.passwordCheckError
+            errorText = uiState.basic.passwordCheckError
         )
         Spacer(modifier = Modifier.height(20.dp))
 
         // 5. [휴대폰 번호]
         SignUpTextFieldWithButton(
-            value = uiState.phone,
+            value = uiState.basic.phone,
             onValueChange = { input ->
                 if(input.length <= 11 && input.all { it.isDigit() })
                     onAction(SignUpAction.UpdatePhone(input))
             },
             placeholder = "휴대폰 번호('-' 제외)",
-            buttonText = if(uiState.isPhoneVerified) "인증완료" else if(uiState.isPhoneCodeSent) "재전송" else "인증번호 전송",
+            buttonText = if(uiState.basic.isPhoneVerified) "인증완료" else if(uiState.basic.isPhoneCodeSent) "재전송" else "인증번호 전송",
             keyboardType = KeyboardType.Number,
             visualTransformation = NumberVisualTransformation(),
-            errorText = uiState.phoneError,
-            isEnabled = !uiState.isPhoneVerified,
-            isButtonEnabled = !uiState.isPhoneVerified && uiState.phone.length == 11,
+            errorText = uiState.basic.phoneError,
+            isEnabled = !uiState.basic.isPhoneVerified,
+            isButtonEnabled = !uiState.basic.isPhoneVerified && uiState.basic.phone.length == 11,
             onButtonClick = {
                 focusManager.clearFocus()
                 onAction(SignUpAction.RequestPhoneCode)
@@ -151,7 +149,7 @@ fun Step1BasicScreen(
 
         // 6. [휴대폰 인증 번호]
         SignUpTextFieldWithButton(
-            value = uiState.phoneAuthCode,
+            value = uiState.basic.phoneAuthCode,
             onValueChange = {
                 if (it.length <= 6 && it.all { char -> char.isDigit() }) {
                     onAction(SignUpAction.UpdatePhoneAuthCode(it))
@@ -159,13 +157,13 @@ fun Step1BasicScreen(
             },
             placeholder = "인증번호 입력",
             buttonText = "확인",
-            timerText = uiState.phoneTimerText,
+            timerText = uiState.basic.phoneTimerText,
             keyboardType = KeyboardType.Number,
-            errorText = uiState.phoneVerifiedError,
-            isEnabled = uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted,
-            isButtonEnabled = (uiState.isPhoneCodeSent && !uiState.isPhoneVerified && !uiState.isPhoneVerificationAttempted)
-                    && !uiState.isPhoneTimerExpired
-                    && uiState.phoneAuthCode.length == 6,
+            errorText = uiState.basic.phoneVerifiedError,
+            isEnabled = uiState.basic.isPhoneCodeSent && !uiState.basic.isPhoneVerified && !uiState.basic.isPhoneVerificationAttempted,
+            isButtonEnabled = (uiState.basic.isPhoneCodeSent && !uiState.basic.isPhoneVerified && !uiState.basic.isPhoneVerificationAttempted)
+                    && !uiState.basic.isPhoneTimerExpired
+                    && uiState.basic.phoneAuthCode.length == 6,
             onButtonClick = {
                 focusManager.clearFocus()
                 onAction(SignUpAction.VerifyPhoneCode)
@@ -191,15 +189,14 @@ fun TermsAgreementSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth() // ★ 1. 가로로 꽉 채우기
-                .clickable { onAction(SignUpAction.ToggleAllTerms(!uiState.isAllTermsAgreed)) }
-                .padding(bottom = 8.dp)
-            , // 터치 영역 위아래 여백 (선택사항)
+                .clickable { onAction(SignUpAction.ToggleAllTerms(!uiState.basic.isAllTermsAgreed)) }
+                .padding(bottom = 8.dp), // 터치 영역 위아래 여백 (선택사항)
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center // ★ 2. 내용물을 가운데 정렬
         ) {
             CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
                 Checkbox(
-                    checked = uiState.isAllTermsAgreed,
+                    checked = uiState.basic.isAllTermsAgreed,
                     onCheckedChange = { onAction(SignUpAction.ToggleAllTerms(it)) },
                     colors = CheckboxDefaults.colors(
                         checkedColor = PointRed,
@@ -221,27 +218,27 @@ fun TermsAgreementSection(
         // 개별 약관 아이템들
         TermItem(
             title = TermType.AGE.title,
-            isChecked = uiState.isAgeVerified,
+            isChecked = uiState.basic.isAgeVerified,
             showArrow = false,
             onToggle = { onAction(SignUpAction.ToggleTerm(TermType.AGE)) }
         )
         TermItem(
             title = TermType.SERVICE.title,
-            isChecked = uiState.isServiceVerified,
+            isChecked = uiState.basic.isServiceVerified,
             showArrow = true,
             onToggle = { onAction(SignUpAction.ToggleTerm(TermType.SERVICE)) },
             onDetailClick = { onAction(SignUpAction.OpenTermDetail(TermType.SERVICE)) }
         )
         TermItem(
             title = TermType.PRIVACY_COLLECT.title,
-            isChecked = uiState.isPrivacyCollectVerified,
+            isChecked = uiState.basic.isPrivacyCollectVerified,
             showArrow = true,
             onToggle = { onAction(SignUpAction.ToggleTerm(TermType.PRIVACY_COLLECT)) },
             onDetailClick = { onAction(SignUpAction.OpenTermDetail(TermType.PRIVACY_COLLECT)) }
         )
         TermItem(
             title = TermType.PRIVACY_PROVIDE.title,
-            isChecked = uiState.isPrivacyProvideVerified,
+            isChecked = uiState.basic.isPrivacyProvideVerified,
             showArrow = true,
             onToggle = { onAction(SignUpAction.ToggleTerm(TermType.PRIVACY_PROVIDE)) },
             onDetailClick = { onAction(SignUpAction.OpenTermDetail(TermType.PRIVACY_PROVIDE)) }

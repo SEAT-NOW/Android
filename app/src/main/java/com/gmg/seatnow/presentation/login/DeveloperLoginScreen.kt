@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -16,6 +15,7 @@ import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.White
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun DeveloperLoginScreen(
@@ -25,6 +25,20 @@ fun DeveloperLoginScreen(
 ) {
     var code by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    LaunchedEffect(true) {
+        viewModel.event.collectLatest { event ->
+            when (event) {
+                is LoginViewModel.LoginEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is LoginViewModel.LoginEvent.NavigateToUserMain -> {
+                    onNavigateToUserMain()
+                }
+                else -> {} // 다른 이벤트는 무시
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -61,13 +75,7 @@ fun DeveloperLoginScreen(
             Button(
                 onClick = {
                     // ★ 비밀 코드 검증 로직
-                    if (code == "seatnow!!testID") {
-                        viewModel.onDeveloperLoginSuccess() // ViewModel에 상태 저장 요청
-                        Toast.makeText(context, "개발자 모드로 진입합니다.", Toast.LENGTH_SHORT).show()
-                        onNavigateToUserMain()
-                    } else {
-                        Toast.makeText(context, "코드가 올바르지 않습니다.", Toast.LENGTH_SHORT).show()
-                    }
+                    viewModel.verifyDeveloperCode(code)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
