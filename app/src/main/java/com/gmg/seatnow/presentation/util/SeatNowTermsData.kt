@@ -1,6 +1,6 @@
-package com.gmg.seatnow.presentation.user.term
+package com.gmg.seatnow.presentation.util
 
-fun getServiceTermsMock() = """
+fun getServiceTermsData() = """
 제1조 (목적)
 본 약관은 시트나우(SEAT NOW)가 제공하는 모바일 애플리케이션 및 관련 서비스(이하 “서비스”)의 이용과 관련하여 시트나우와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.
 
@@ -69,7 +69,7 @@ fun getServiceTermsMock() = """
 본 약관은 2026년 01월 17일부터 시행합니다.
 """.trimIndent()
 
-fun getPrivacyCollectMock() = """
+fun getPrivacyCollectData() = """
 시트나우(이하 “본 서비스”)는 서비스 제공을 위하여 아래와 같이 개인정보를 수집·이용합니다.
 
 1. 수집 항목
@@ -107,7 +107,7 @@ fun getPrivacyCollectMock() = """
 다만, 필수 개인정보 수집·이용에 동의하지 않을 경우 서비스 이용이 제한될 수 있습니다.
 """.trimIndent()
 
-fun getPrivacyProvideMock() = """
+fun getPrivacyProvideData() = """
 시트나우(이하 “본 서비스”)는 이용자의 개인정보를 매우 중요하게 생각하며, 「개인정보 보호법」, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」, 「위치정보의 보호 및 이용 등에 관한 법률」 등 관련 법령을 준수합니다.
 본 개인정보처리방침은 이용자가 본 서비스를 이용함에 있어 제공하는 개인정보가 어떠한 목적과 방식으로 처리되는지, 그리고 개인정보 보호를 위하여 어떠한 조치가 이루어지고 있는지를 안내하기 위하여 마련되었습니다.
 
@@ -196,7 +196,7 @@ fun getPrivacyProvideMock() = """
 본 개인정보처리방침은 2026년 01월 17일부터 시행됩니다.
 """.trimIndent()
 
-fun getLocationTermsMock() = """
+fun getLocationTermsData() = """
 시트나우(이하 “본 서비스”)는 「위치정보의 보호 및 이용 등에 관한 법률」 등 관련 법령을 준수하며, 이용자의 개인위치정보를 안전하게 보호하기 위하여 본 위치정보 이용약관을 마련합니다.
 
 본 약관은 본 서비스가 제공하는 위치 기반 서비스 이용과 관련하여 이용자와 본 서비스 간의 권리·의무 및 기타 필요한 사항을 규정합니다.

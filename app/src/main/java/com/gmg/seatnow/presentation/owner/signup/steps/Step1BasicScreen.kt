@@ -43,6 +43,7 @@ import com.gmg.seatnow.presentation.theme.SeatNowTheme
 import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubLightGray
 import com.gmg.seatnow.presentation.theme.White
+import com.gmg.seatnow.presentation.util.*
 
 @Composable
 fun Step1BasicScreen(
@@ -271,9 +272,9 @@ fun TermsDetailScreen(
         ) {
             // 임의의 약관 내용 생성 (Mocking)
             val content = when(termType) {
-                TermType.SERVICE -> getServiceTermsMock()
-                TermType.PRIVACY_COLLECT -> getPrivacyCollectMock()
-                TermType.PRIVACY_PROVIDE -> getPrivacyProvideMock()
+                TermType.SERVICE -> getServiceTermsData()
+                TermType.PRIVACY_COLLECT -> getPrivacyCollectData()
+                TermType.PRIVACY_PROVIDE -> getPrivacyProvideData()
                 else -> "내용이 없습니다."
             }
 
@@ -281,38 +282,6 @@ fun TermsDetailScreen(
         }
     }
 }
-
-// Mock Data Generators
-fun getServiceTermsMock() = """
-    제1조 (목적)
-    이 약관은 SeatNow(이하 "회사")가 제공하는 서비스 이용조건 및 절차, 회사와 회원 간의 권리, 의무 및 책임사항 등을 규정함을 목적으로 합니다.
-    
-    제2조 (정의)
-    1. "서비스"란 회사가 제공하는 공간 예약 및 관리 플랫폼을 의미합니다.
-    2. "회원"이란 이 약관에 동의하고 회사가 제공하는 서비스를 이용하는 자를 말합니다.
-    
-    제3조 (약관의 게시와 개정)
-    회사는 이 약관의 내용을 회원이 쉽게 알 수 있도록 서비스 초기 화면에 게시합니다.
-""".trimIndent()
-
-fun getPrivacyCollectMock() = """
-    1. 수집하는 개인정보 항목
-    이름, 이메일 주소, 비밀번호, 휴대전화번호, 사업자등록번호
-    
-    2. 수집 및 이용 목적
-    회원 가입 의사 확인, 본인 식별 및 인증, 회원 자격 유지 및 관리
-    
-    3. 보유 및 이용 기간
-    회원 탈퇴 시까지 (단, 관계 법령에 따릅니다)
-""".trimIndent()
-
-fun getPrivacyProvideMock() = """
-    1. 개인정보 제3자 제공
-    회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다. 다만, 아래의 경우에는 예외로 합니다.
-    
-    - 이용자들이 사전에 동의한 경우
-    - 법령의 규정에 의거하거나, 수사 목적으로 법령에 정해진 절차와 방법에 따라 수사기관의 요구가 있는 경우
-""".trimIndent()
 
 @Preview(showBackground = true, name = "Step 1 Only", heightDp = 800)
 @Composable

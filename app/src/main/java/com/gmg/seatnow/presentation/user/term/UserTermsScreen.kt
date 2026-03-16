@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.TermItem
 import com.gmg.seatnow.presentation.theme.*
+import com.gmg.seatnow.presentation.util.*
 
 @Composable
 fun UserTermsScreen(
@@ -227,10 +228,10 @@ fun UserTermsDetailScreen(
                 .padding(24.dp)
         ) {
             val content = when(termType) {
-                UserTermType.SERVICE -> getServiceTermsMock()
-                UserTermType.PRIVACY_COLLECT -> getPrivacyCollectMock()
-                UserTermType.PRIVACY_PROVIDE -> getPrivacyProvideMock()
-                UserTermType.LOCATION -> getLocationTermsMock() // 위치기반 추가
+                UserTermType.SERVICE -> getServiceTermsData()
+                UserTermType.PRIVACY_COLLECT -> getPrivacyCollectData()
+                UserTermType.PRIVACY_PROVIDE -> getPrivacyProvideData()
+                UserTermType.LOCATION -> getLocationTermsData() // 위치기반 추가
                 else -> "내용이 없습니다."
             }
 
