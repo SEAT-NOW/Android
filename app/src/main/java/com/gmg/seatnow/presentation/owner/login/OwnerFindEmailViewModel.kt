@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gmg.seatnow.domain.usecase.common.auth.RequestPhoneAuthCodeUseCase
 import com.gmg.seatnow.domain.usecase.common.auth.VerifyPhoneAuthCodeUseCase
-import com.gmg.seatnow.domain.usecase.common.logic.CheckTestAccountUseCase
+import com.gmg.seatnow.domain.usecase.common.validation.CheckTestAccountUseCase
 import com.gmg.seatnow.domain.usecase.common.logic.FormatTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
