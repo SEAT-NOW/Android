@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gmg.seatnow.presentation.login.LoginScreen
 import com.gmg.seatnow.presentation.owner.login.OwnerLoginScreen
+import com.gmg.seatnow.presentation.owner.login.OwnerFindEmailScreen
+import com.gmg.seatnow.presentation.owner.login.OwnerFindPasswordScreen
 import com.gmg.seatnow.presentation.owner.signup.OwnerSignUpScreen
 import com.gmg.seatnow.presentation.owner.store.StoreMainRoute
 import com.gmg.seatnow.presentation.owner.store.mypage.account.AccountInfoScreen
@@ -213,8 +215,24 @@ fun SeatNowNavGraph(
                 },
                 onNavigateToSignUp = {
                     navController.navigate("owner_signup")
+                },
+                onNavigateToFindEmail = {
+                    navController.navigate("owner_find_email")
+                },
+                onNavigateToFindPassword = {
+                    navController.navigate("owner_find_password")
                 }
             )
+        }
+
+        // 4-1. 사장님 이메일 찾기
+        composable("owner_find_email") {
+            OwnerFindEmailScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        // 4-2. 사장님 비밀번호 찾기
+        composable("owner_find_password") {
+            OwnerFindPasswordScreen(onBackClick = { navController.popBackStack() })
         }
 
         // 5. 사장님 회원가입

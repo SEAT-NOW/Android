@@ -31,6 +31,12 @@ class OwnerLoginViewModel @Inject constructor(
             is OwnerLoginAction.OnSignUpClick -> {
                 viewModelScope.launch { _event.emit(OwnerLoginEvent.NavigateToSignUp) }
             }
+            is OwnerLoginAction.OnFindEmailClick -> {
+                viewModelScope.launch { _event.emit(OwnerLoginEvent.NavigateToFindEmail) }
+            }
+            is OwnerLoginAction.OnFindPasswordClick -> {
+                viewModelScope.launch { _event.emit(OwnerLoginEvent.NavigateToFindPassword) }
+            }
         }
     }
 

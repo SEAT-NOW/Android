@@ -1,6 +1,7 @@
 package com.gmg.seatnow.presentation.owner.login
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,7 +36,9 @@ fun OwnerLoginScreen(
     viewModel: OwnerLoginViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
     onNavigateToOwnerMain: () -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToSignUp: () -> Unit,
+    onNavigateToFindEmail: () -> Unit,
+    onNavigateToFindPassword: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -44,6 +48,8 @@ fun OwnerLoginScreen(
             when(event) {
                 is OwnerLoginEvent.NavigateToOwnerMain -> onNavigateToOwnerMain()
                 is OwnerLoginEvent.NavigateToSignUp -> onNavigateToSignUp()
+                is OwnerLoginEvent.NavigateToFindEmail -> onNavigateToFindEmail()
+                is OwnerLoginEvent.NavigateToFindPassword -> onNavigateToFindPassword()
             }
         }
     }
@@ -145,13 +151,33 @@ fun OwnerLoginContent(
             Spacer(modifier = Modifier.height(12.dp))
 
             // 안내 문구
-            Text(
-                text = "이메일 분실 및 비밀번호 재발급은\n고객센터 이메일로 문의를 부탁드립니다.",
-                style = MaterialTheme.typography.labelSmall,
-                color = SubGray,
-                textAlign = TextAlign.Center,
-                lineHeight = 15.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "이메일 찾기",
+                    fontSize = 14.sp,
+                    color = SubGray, // 혹은 위험한 작업임을 알리기 위해 Red 계열 사용 가능
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable { onAction(OwnerLoginAction.OnFindEmailClick) }
+                        .padding(8.dp)
+                )
+
+                Spacer(modifier = Modifier.width(32.dp))
+
+                Text(
+                    text = "비밀번호 찾기",
+                    fontSize = 14.sp,
+                    color = SubGray,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable { onAction(OwnerLoginAction.OnFindPasswordClick) }
+                        .padding(8.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
