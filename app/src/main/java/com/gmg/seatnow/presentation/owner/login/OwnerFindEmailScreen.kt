@@ -125,8 +125,7 @@ fun OwnerFindEmailContent(
                 }
             )
 
-            // 하단 여백: 버튼 하단까지 쭉 밀기 위함
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = { onAction(OwnerFindEmailAction.OnNextClick) },
@@ -146,13 +145,10 @@ fun OwnerFindEmailContent(
                 )
             ) {
                 Text(
-                    text = "다음",
+                    text = "이메일 찾기",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
-
-            // 요청하신 바닥에서 띄우는 Spacer (로그인과 높이를 맞추고 싶으시다면 여기를 조정)
-            Spacer(modifier = Modifier.height(60.dp))
         }
     }
 }
