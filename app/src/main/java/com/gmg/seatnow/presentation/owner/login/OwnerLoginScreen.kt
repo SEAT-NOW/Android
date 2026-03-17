@@ -150,6 +150,26 @@ fun OwnerLoginContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 회원가입 버튼
+            OutlinedButton(
+                onClick = { onAction(OwnerLoginAction.OnSignUpClick) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 10.dp),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, SubDarkGray),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = White,
+                    contentColor = SubDarkGray
+                )
+            ) {
+                Text(text = "회원가입",style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // 안내 문구
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -176,26 +196,6 @@ fun OwnerLoginContent(
                     modifier = Modifier
                         .clickable { onAction(OwnerLoginAction.OnFindPasswordClick) }
                         .padding(8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 회원가입 버튼
-            OutlinedButton(
-                onClick = { onAction(OwnerLoginAction.OnSignUpClick) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = 10.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, SubDarkGray),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = White,
-                    contentColor = SubDarkGray
-                )
-            ) {
-                Text(text = "회원가입",style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
         }
