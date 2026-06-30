@@ -15,9 +15,13 @@ sealed class OwnerLoginAction {
     data class UpdatePassword(val password: String) : OwnerLoginAction()
     object OnLoginClick : OwnerLoginAction()
     object OnSignUpClick : OwnerLoginAction()
+    object OnFindEmailClick : OwnerLoginAction()
+    object OnFindPasswordClick : OwnerLoginAction()
 }
 
 sealed class OwnerLoginEvent {
     object NavigateToOwnerMain : OwnerLoginEvent()
     object NavigateToSignUp : OwnerLoginEvent()
+    object NavigateToFindEmail : OwnerLoginEvent()
+    object NavigateToFindPassword : OwnerLoginEvent()
 }

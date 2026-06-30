@@ -140,4 +140,9 @@ interface AuthService {
     @DELETE("/api/v1/users")
     suspend fun withdrawUser(): Response<BaseResponse<Unit>>
 
+    // 이메일 찾기
+    @POST("/auth/find-email")
+    suspend fun findEmail(
+        @Body request: com.gmg.seatnow.data.model.request.FindEmailRequestDTO
+    ): Response<BaseResponse<String>>
 }

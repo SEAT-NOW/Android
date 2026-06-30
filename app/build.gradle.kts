@@ -3,9 +3,9 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.hilt.android) // Hilt 플러그인도 TOML에서 가져옴
-    alias(libs.plugins.kotlin.serialization) // 직렬화 플러그인도 TOML에서 가져옴
-    id("com.google.devtools.ksp") // KSP는 아직 별도 설정이 편할 수 있음
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.kotlin.serialization)
+    id("com.google.devtools.ksp")
 }
 
 val localProperties = Properties()
@@ -34,13 +34,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // 1. 네이버 지도 키 (이미 하셨다면 유지)
         val naverKey = localProperties.getProperty("NAVER_CLIENT_ID") ?: ""
         buildConfigField("String", "NAVER_CLIENT_ID", "\"$naverKey\"")
 
-        // 2. [추가] 카카오 네이티브 앱 키 연결
         val kakaoKey = localProperties.getProperty("KAKAO_NATIVE_APP_KEY") ?: ""
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoKey\"")
+
+        val baseUrl = (localProperties.getProperty("BASE_URL") ?: "http://localhost/").trim()
+        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
 
         manifestPlaceholders["KAKAO_APP_KEY"] = kakaoKey
     }
@@ -56,9 +57,9 @@ android {
 
     buildTypes {
         getByName("debug") {
-            // ★ 디버그 모드에서는 반드시 false여야 합니다.
             isMinifyEnabled = false
             isShrinkResources = false
+            isCrunchPngs = false
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
@@ -80,11 +81,21 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true // 필요시 사용
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.10"
     }
+}
+
+// ❌ android { ... } 내부에 있던 잘못된 ksp 블록은 제거하고
+// ⭕ 최하단에 에러 타입 보정 옵션만 깔끔하게 하나로 통일합니다.
+ksp {
+    arg("correctErrorTypes", "true")
+}
+
+hilt {
+    enableAggregatingTask = true
 }
 
 dependencies {
@@ -92,7 +103,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.core.splashscreen) // TOML에 추가됨
+    implementation(libs.androidx.core.splashscreen)
 
     // 2. Jetpack Compose (BOM)
     implementation(platform(libs.androidx.compose.bom))
@@ -108,7 +119,7 @@ dependencies {
 
     // 4. Hilt (DI)
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler) // KSP 사용
+    ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
     // 5. Network (Retrofit + Serialization + Gson)
@@ -138,4 +149,11 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
 
     implementation("androidx.multidex:multidex:2.0.1")
+}
+
+// KSP가 생성된 BuildConfig 코드를 정상적으로 순서 보장하여 읽도록 태스크 의존성 명시
+project.afterEvaluate {
+    tasks.withType<com.google.devtools.ksp.gradle.KspTaskJvm> {
+        dependsOn(tasks.withType<com.android.build.gradle.tasks.GenerateBuildConfig>())
+    }
 }

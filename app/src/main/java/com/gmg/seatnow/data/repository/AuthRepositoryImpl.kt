@@ -537,4 +537,19 @@ class AuthRepositoryImpl @Inject constructor(
             "서버 통신 오류가 발생했습니다."
         }
     }
+
+    override suspend fun findEmail(phoneNumber: String): Result<String> {
+        return try {
+            val response = authService.findEmail(com.gmg.seatnow.data.model.request.FindEmailRequestDTO(phoneNumber))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data ?: "")
+            } else {
+                val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
 }

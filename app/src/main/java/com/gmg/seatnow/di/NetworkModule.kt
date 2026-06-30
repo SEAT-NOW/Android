@@ -1,31 +1,24 @@
 package com.gmg.seatnow.di
 
+import com.gmg.seatnow.BuildConfig
+import com.gmg.seatnow.data.api.AuthInterceptor
+import com.gmg.seatnow.data.api.TokenAuthenticator
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
-import kotlinx.serialization.json.Json
 import javax.inject.Singleton
-import com.gmg.seatnow.data.local.AuthManager
-import com.gmg.seatnow.data.api.AuthInterceptor
-import com.gmg.seatnow.data.api.AuthService
-import com.gmg.seatnow.data.api.TokenAuthenticator
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
-import okhttp3.MediaType.Companion.toMediaType
-import javax.inject.Provider
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-    private const val BASE_URL = "https://seatnow.r-e.kr/"
-
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
@@ -63,7 +56,7 @@ object NetworkModule {
         val contentType = "application/json".toMediaType()
 
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             // ★ 여기가 핵심 변경 포인트! (GsonConverterFactory 삭제됨)
             .addConverterFactory(json.asConverterFactory(contentType))
