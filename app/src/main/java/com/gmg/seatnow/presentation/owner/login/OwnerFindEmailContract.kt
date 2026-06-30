@@ -10,7 +10,10 @@ data class OwnerFindEmailUiState(
     val phoneTimerText: String? = null,
     val isPhoneTimerExpired: Boolean = false,
     val phoneAuthCode: String = "",
-    val isNextButtonEnabled: Boolean = false
+    val isNextButtonEnabled: Boolean = false,
+    val isResultScreenVisible: Boolean = false,
+    val findEmailResult: String = "",
+    val findEmailError: String? = null
 )
 
 sealed interface OwnerFindEmailAction {
@@ -18,10 +21,12 @@ sealed interface OwnerFindEmailAction {
     data class UpdatePhoneAuthCode(val code: String) : OwnerFindEmailAction
     object RequestPhoneCode : OwnerFindEmailAction
     object VerifyPhoneCode : OwnerFindEmailAction
-    object OnNextClick : OwnerFindEmailAction
+    object OnFindEmailClick : OwnerFindEmailAction
+    object OnConfirmResultClick : OwnerFindEmailAction
 }
 
 sealed interface OwnerFindEmailEvent {
     object NavigateBack : OwnerFindEmailEvent
     data class ShowToast(val message: String) : OwnerFindEmailEvent
+    object NavigateToLogin : OwnerFindEmailEvent
 }

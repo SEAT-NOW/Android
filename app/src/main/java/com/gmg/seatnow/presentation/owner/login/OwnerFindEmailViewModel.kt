@@ -2,6 +2,7 @@ package com.gmg.seatnow.presentation.owner.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gmg.seatnow.domain.usecase.common.auth.FindEmailUseCase
 import com.gmg.seatnow.domain.usecase.common.auth.RequestPhoneAuthCodeUseCase
 import com.gmg.seatnow.domain.usecase.common.auth.VerifyPhoneAuthCodeUseCase
 import com.gmg.seatnow.domain.usecase.common.validation.CheckTestAccountUseCase
@@ -21,6 +22,7 @@ import javax.inject.Inject
 class OwnerFindEmailViewModel @Inject constructor(
     private val requestPhoneAuthCodeUseCase: RequestPhoneAuthCodeUseCase,
     private val verifyPhoneAuthCodeUseCase: VerifyPhoneAuthCodeUseCase,
+    private val findEmailUseCase: FindEmailUseCase,
     private val formatTimerUseCase: FormatTimerUseCase,
     private val checkTestAccountUseCase: CheckTestAccountUseCase
 ) : ViewModel() {
@@ -47,10 +49,45 @@ class OwnerFindEmailViewModel @Inject constructor(
             }
             is OwnerFindEmailAction.RequestPhoneCode -> requestPhoneCode()
             is OwnerFindEmailAction.VerifyPhoneCode -> verifyPhoneCode()
-            is OwnerFindEmailAction.OnNextClick -> {
-                viewModelScope.launch { 
-                    // 실제 휴대폰 번호로 이메일 조회하는 로직을 나중에 덧붙이면 됨
-                    _event.emit(OwnerFindEmailEvent.ShowToast("이메일 찾기 성공 (API 통신 예정)")) 
+            is OwnerFindEmailAction.OnFindEmailClick -> {
+                viewModelScope.launch {
+                    val phone = _uiState.value.phone
+                    
+                    if (checkTestAccountUseCase.isTestPhone(phone)) {
+                        _uiState.update { 
+                            it.copy(
+                                isResultScreenVisible = true,
+                                findEmailResult = "test@seatnow.com",
+                                findEmailError = null
+                            )
+                        }
+                        return@launch
+                    }
+                    
+                    findEmailUseCase(phone)
+                        .onSuccess { email ->
+                            _uiState.update { 
+                                it.copy(
+                                    isResultScreenVisible = true,
+                                    findEmailResult = email,
+                                    findEmailError = null
+                                )
+                            }
+                        }
+                        .onFailure { exception ->
+                            _uiState.update {
+                                it.copy(
+                                    isResultScreenVisible = true,
+                                    findEmailResult = "",
+                                    findEmailError = exception.message ?: "이메일 찾기에 실패했습니다."
+                                )
+                            }
+                        }
+                }
+            }
+            is OwnerFindEmailAction.OnConfirmResultClick -> {
+                viewModelScope.launch {
+                    _event.emit(OwnerFindEmailEvent.NavigateToLogin)
                 }
             }
         }

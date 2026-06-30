@@ -42,4 +42,5 @@ interface AuthRepository {
     suspend fun withdrawUser(): Result<Unit>
     suspend fun verifyOwnerPassword(password: String): Result<Unit>
     suspend fun changeOwnerPassword(password: String): Result<Unit>
+    suspend fun findEmail(phoneNumber: String): Result<String>
 }

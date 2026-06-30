@@ -14,10 +14,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gmg.seatnow.presentation.component.NumberVisualTransformation
+import com.gmg.seatnow.presentation.component.SeatNowTextField
 import com.gmg.seatnow.presentation.component.SeatNowTopAppBar
 import com.gmg.seatnow.presentation.component.SignUpTextFieldWithButton
 import com.gmg.seatnow.presentation.theme.PointRed
 import com.gmg.seatnow.presentation.theme.PointRedPressed
+import com.gmg.seatnow.presentation.theme.SubBlack
 import com.gmg.seatnow.presentation.theme.SubLightGray
 import com.gmg.seatnow.presentation.theme.SubPaleGray
 import com.gmg.seatnow.presentation.theme.White
@@ -27,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun OwnerFindEmailScreen(
     onBackClick: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: OwnerFindEmailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -40,15 +43,24 @@ fun OwnerFindEmailScreen(
                 is OwnerFindEmailEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
+                is OwnerFindEmailEvent.NavigateToLogin -> onNavigateToLogin()
             }
         }
     }
 
-    OwnerFindEmailContent(
-        uiState = uiState,
-        onAction = viewModel::onAction,
-        onBackClick = onBackClick
-    )
+    if (uiState.isResultScreenVisible) {
+        OwnerFindEmailResultContent(
+            uiState = uiState,
+            onAction = viewModel::onAction,
+            onBackClick = onBackClick
+        )
+    } else {
+        OwnerFindEmailContent(
+            uiState = uiState,
+            onAction = viewModel::onAction,
+            onBackClick = onBackClick
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,10 +137,10 @@ fun OwnerFindEmailContent(
                 }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
             Button(
-                onClick = { onAction(OwnerFindEmailAction.OnNextClick) },
+                onClick = { onAction(OwnerFindEmailAction.OnFindEmailClick) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
@@ -149,6 +161,74 @@ fun OwnerFindEmailContent(
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OwnerFindEmailResultContent(
+    uiState: OwnerFindEmailUiState,
+    onAction: (OwnerFindEmailAction) -> Unit,
+    onBackClick: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            SeatNowTopAppBar(
+                title = "이메일 찾기",
+                onBackClick = onBackClick,
+                modifier = Modifier.padding(top = 0.dp),
+                topMargin = 15.dp
+            )
+        },
+        containerColor = White
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp),
+        ) {
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Text(
+                text = "휴대폰 번호와 일치하는 이메일(아이디) 입니다.",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = SubBlack
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            SeatNowTextField(
+                value = uiState.findEmailResult,
+                onValueChange = {},
+                placeholder = "이메일",
+                readOnly = true,
+                errorText = uiState.findEmailError
+            )
+            
+            Spacer(modifier = Modifier.height(60.dp))
+
+            Button(
+                onClick = { onAction(OwnerFindEmailAction.OnConfirmResultClick) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 10.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PointRed,
+                    contentColor = White
+                )
+            ) {
+                Text(
+                    text = "확인",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(60.dp))
         }
     }
 }
