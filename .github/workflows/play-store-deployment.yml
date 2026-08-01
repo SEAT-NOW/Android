@@ -25,6 +25,7 @@ jobs:
           # 네이버/카카오 키 세팅 (Github Secrets에 등록 필요!)
           echo "NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}" >> local.properties
           echo "KAKAO_NATIVE_APP_KEY=${{ secrets.KAKAO_NATIVE_APP_KEY }}" >> local.properties
+          echo "BASE_URL=${{ secrets.BASE_URL }}" >> local.properties
           
           # Gradle 빌드 중 signingConfigs 에러를 막기 위해 임시로 진짜 JKS를 구성합니다.
           echo "STORE_FILE=keystore.jks" >> local.properties
