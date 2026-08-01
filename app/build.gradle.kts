@@ -40,7 +40,10 @@ android {
         val kakaoKey = localProperties.getProperty("KAKAO_NATIVE_APP_KEY") ?: ""
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoKey\"")
 
-        val baseUrl = (localProperties.getProperty("BASE_URL") ?: "http://localhost/").trim()
+        val baseUrl = localProperties.getProperty("BASE_URL")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: error("BASE_URL is required in local.properties")
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
 
         manifestPlaceholders["KAKAO_APP_KEY"] = kakaoKey
