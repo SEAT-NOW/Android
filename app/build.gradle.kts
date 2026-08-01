@@ -34,9 +34,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // 1. 네이버 지도 키 (이미 하셨다면 유지)
         val naverKey = localProperties.getProperty("NAVER_CLIENT_ID") ?: ""
         buildConfigField("String", "NAVER_CLIENT_ID", "\"$naverKey\"")
 
+        // 2. [추가] 카카오 네이티브 앱 키 연결
         val kakaoKey = localProperties.getProperty("KAKAO_NATIVE_APP_KEY") ?: ""
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoKey\"")
 
@@ -60,6 +62,7 @@ android {
 
     buildTypes {
         getByName("debug") {
+            // ★ 디버그 모드에서는 반드시 false여야 합니다.
             isMinifyEnabled = false
             isShrinkResources = false
             isCrunchPngs = false
